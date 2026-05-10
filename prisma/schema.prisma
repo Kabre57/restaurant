@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------
+// Core Entities
+// ------------------------------------------------------
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  phone       String?
+  email       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  products     Product[]
+  categories   Category[]
+  orders       Order[]
+  inventories  Inventory[]
+  tables       Table[]
+  reservations Reservation[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CASHIER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store     Store    @relation(fields: [storeId], references: [id])
+  orders    Order[]  @relation("CashierOrders")
+}
+
+enum Role {
+  MANAGER
+  CASHIER
+  KITCHEN
+  ADMIN
+}
+
+// ------------------------------------------------------
+// Sales & Catalog
+// ------------------------------------------------------
+
+model Category {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store     Store     @relation(fields: [storeId], references: [id])
+  products  Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  categoryId  String
+  name        String
+  description String?
+  price       Float    // Stocké en FCFA
+  image       String?
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store       Store       @relation(fields: [storeId], references: [id])
+  category    Category    @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  ingredients ProductIngredient[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  storeId     String
+  cashierId   String
+  customerId  String?
+  tableId     String?
+  status      OrderStatus @default(EN_ATTENTE)
+  type        OrderType   @default(DINE_IN)
+  total       Float       // En FCFA
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  store       Store       @relation(fields: [storeId], references: [id])
+  cashier     User        @relation("CashierOrders", fields: [cashierId], references: [id])
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  table       Table?      @relation(fields: [tableId], references: [id])
+  items       OrderItem[]
+}
+
+enum OrderStatus {
+  EN_ATTENTE
+  PRÉPARATION
+  PRÊT
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float    // Prix unitaire au moment de la commande (FCFA)
+  options   String?  // Ex: "Sans oignons"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+// ------------------------------------------------------
+// Customer & Loyalty
+// ------------------------------------------------------
+
+model Customer {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  phone       String?  @unique
+  email       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+  loyalty     Loyalty?
+}
+
+model Loyalty {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  points     Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+// ------------------------------------------------------
+// Tables & Reservations
+// ------------------------------------------------------
+
+model Table {
+  id          String   @id @default(cuid())
+  storeId     String
+  number      Int
+  capacity    Int
+  status      TableStatus @default(AVAILABLE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store       Store    @relation(fields: [storeId], references: [id])
+  orders      Order[]
+  reservations Reservation[]
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+model Reservation {
+  id          String   @id @default(cuid())
+  storeId     String
+  tableId     String
+  customerName String
+  phone       String
+  date        DateTime
+  guests      Int
+  status      ReservationStatus @default(EN_ATTENTE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store       Store    @relation(fields: [storeId], references: [id])
+  table       Table    @relation(fields: [tableId], references: [id])
+}
+
+enum ReservationStatus {
+  EN_ATTENTE
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// ------------------------------------------------------
+// Inventory & Ingredients
+// ------------------------------------------------------
+
+model Ingredient {
+  id          String   @id @default(cuid())
+  name        String
+  unit        String   // Ex: kg, L, unité
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    ProductIngredient[]
+  inventory   Inventory[]
+}
+
+model ProductIngredient {
+  id           String   @id @default(cuid())
+  productId    String
+  ingredientId String
+  quantity     Float
+
+  product      Product    @relation(fields: [productId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+}
+
+model Inventory {
+  id           String   @id @default(cuid())
+  storeId      String
+  ingredientId String
+  quantity     Float
+  minStock     Float
+  lastUpdated  DateTime @default(now())
+
+  store        Store      @relation(fields: [storeId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([storeId, ingredientId])
+}

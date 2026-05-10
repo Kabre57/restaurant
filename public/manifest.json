@@ -1,0 +1,17 @@
+{
+  "name": "POS Restaurant",
+  "short_name": "POS",
+  "description": "Système de Point de Vente pour Restaurant",
+  "display": "standalone",
+  "background_color": "#0a0c10",
+  "theme_color": "#10b981",
+  "orientation": "landscape",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
