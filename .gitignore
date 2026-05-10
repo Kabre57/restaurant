@@ -1,1 +1,15 @@
+# Dossiers
 node_modules/
+Doc/
+dist/
+build/
+.env
+
+# Fichiers spécifiques
+*.log
+.DS_Store
+coverage/
+
+# Avec des motifs
+temp_*
+*.tmp
