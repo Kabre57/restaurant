@@ -1,19 +1,50 @@
-import { withAuth } from "next-auth/middleware";
+import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
 
-export default withAuth({
-  pages: {
-    signIn: "/login",
+export default withAuth(
+  function middleware(req) {
+    const token = req.nextauth.token
+    const path = req.nextUrl.pathname
+    
+    // Protection de l'espace Super Admin Plateforme
+    if (path.startsWith("/admin") && token?.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/login", req.url))
+    }
+
+    // Protection de l'espace Restaurateur (Gestionnaire de restaurant)
+    if (path.startsWith("/restaurateur") && token?.role !== "RESTAURATEUR") {
+      return NextResponse.redirect(new URL("/", req.url))
+    }
+
+    // Protection de l'espace Caisse (Caissier) - Accessible par Restaurateur aussi
+    if (path === "/" && (token?.role !== "CASHIER" && token?.role !== "RESTAURATEUR")) {
+      // Si c'est un admin, redirection vers son dashboard
+      if (token?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url))
+      return NextResponse.redirect(new URL("/login", req.url))
+    }
+
+    // Protection de la Cuisine (KDS)
+    if (path.startsWith("/kds") && (token?.role !== "KITCHEN" && token?.role !== "RESTAURATEUR")) {
+      return NextResponse.redirect(new URL("/", req.url))
+    }
+
+    return NextResponse.next()
   },
-  secret: process.env.NEXTAUTH_SECRET,
-});
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
+    pages: {
+      signIn: "/login",
+    },
+  }
+)
 
 export const config = {
   matcher: [
-    // Protéger la racine (POS)
-    "/",
-    // Protéger le KDS
-    "/kds",
-    // Protéger le back-office admin
     "/admin/:path*",
+    "/restaurateur/:path*",
+    "/kds/:path*",
+    "/"
   ],
-};
+}

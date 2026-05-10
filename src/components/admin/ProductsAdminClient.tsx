@@ -2,8 +2,11 @@
 
 import React, { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, Package, ToggleLeft, ToggleRight, Pencil, Check, X } from 'lucide-react'
+import { ChevronLeft, Package, ToggleLeft, ToggleRight, Pencil, Check, X, Search, Plus, MoreVertical, Filter } from 'lucide-react'
 import { toggleProductAvailability, updateProductPrice } from '@/app/actions/admin'
+import Image from 'next/image'
+import { useSession } from 'next-auth/react'
+import { AddProductModal } from './subcomponents/AddProductModal'
 
 type Category = { id: string; name: string; icon: string | null }
 
@@ -14,34 +17,34 @@ type Product = {
   isAvailable: boolean
   image: string | null
   category: Category
+  categoryId: string
 }
 
 interface Props {
   products: Product[]
+  categories: Category[]
 }
 
-// ─── Composant Principal ──────────────────────────────────────────────────────
-export default function ProductsAdminClient({ products: initialProducts }: Props) {
+export default function ProductsAdminClient({ products: initialProducts, categories }: Props) {
+  const { data: session } = useSession()
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPrice, setEditPrice]  = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [isPending, startTransition] = useTransition()
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
-  // ── Bascule disponibilité ──
   const handleToggle = (productId: string, currentValue: boolean) => {
-    // Mise à jour optimiste
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, isAvailable: !currentValue } : p))
     startTransition(async () => {
       const res = await toggleProductAvailability(productId, !currentValue)
       if (!res.success) {
-        // Rollback si erreur
         setProducts(prev => prev.map(p => p.id === productId ? { ...p, isAvailable: currentValue } : p))
         alert(res.error)
       }
     })
   }
 
-  // ── Édition de prix ──
   const startEdit = (product: Product) => {
     setEditingId(product.id)
     setEditPrice(product.price.toString())
@@ -56,7 +59,6 @@ export default function ProductsAdminClient({ products: initialProducts }: Props
     const newPrice = parseFloat(editPrice)
     if (isNaN(newPrice) || newPrice <= 0) { alert("Prix invalide"); return }
     const oldPrice = products.find(p => p.id === productId)?.price ?? newPrice
-    // Mise à jour optimiste
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, price: newPrice } : p))
     setEditingId(null)
     startTransition(async () => {
@@ -68,82 +70,110 @@ export default function ProductsAdminClient({ products: initialProducts }: Props
     })
   }
 
-  // ── Stats rapides ──
-  const available   = products.filter(p => p.isAvailable).length
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.category.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const available = products.filter(p => p.isAvailable).length
   const unavailable = products.length - available
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] text-gray-100 font-sans">
-      {/* Header */}
-      <header className="h-20 bg-[#14161b] border-b border-[#2a2e37] flex items-center justify-between px-8 sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group">
-            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-medium">Retour à la Caisse</span>
+    <div className="min-h-screen bg-[#f8f9fa] text-[#212529] font-sans">
+      <header className="h-16 bg-white border-b border-[#e9ecef] flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-6">
+          <Link href="/" className="p-2 hover:bg-[#f1f3f5] rounded-full transition-colors group">
+            <ChevronLeft className="w-5 h-5 text-[#495057]" />
           </Link>
-          <div className="h-6 w-px bg-[#2a2e37]" />
+          <div className="h-8 w-px bg-[#dee2e6]" />
           <div className="flex items-center gap-3">
-            <Package className="w-6 h-6 text-emerald-500" />
-            <h1 className="text-xl font-bold text-white">Gestion des Produits</h1>
+            <Package className="w-6 h-6 text-[#212529]" />
+            <h1 className="text-lg font-black tracking-widest uppercase">Gestion du Catalogue</h1>
           </div>
         </div>
-        {/* Statistiques rapides */}
-        <div className="flex items-center gap-4 text-sm font-medium">
-          <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            {available} disponible{available !== 1 ? 's' : ''}
+
+        <div className="flex items-center gap-6">
+          <div className="flex gap-4">
+            <StatBadge label="DISPONIBLE" count={available} color="bg-[#2f9e44]" />
+            <StatBadge label="RUPTURE" count={unavailable} color="bg-[#e03131]" />
           </div>
-          <div className="flex items-center gap-2 bg-red-500/10 text-red-400 px-3 py-1.5 rounded-full border border-red-500/20">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            {unavailable} en rupture
-          </div>
+          <div className="h-8 w-px bg-[#dee2e6]" />
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-[#212529] hover:bg-black text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter un Produit
+          </button>
         </div>
       </header>
 
-      {/* Tableau */}
-      <main className="p-8">
-        <div className="bg-[#14161b] rounded-2xl border border-[#2a2e37] overflow-hidden shadow-xl">
-          <table className="w-full">
+      <main className="p-8 max-w-7xl mx-auto">
+        {isAddModalOpen && session?.user?.storeId && (
+          <AddProductModal 
+            categories={categories} 
+            storeId={session.user.storeId}
+            onClose={() => setIsAddModalOpen(false)}
+            onSuccess={(newProduct) => setProducts([newProduct, ...products])}
+          />
+        )}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="relative w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
+            <input
+              type="text"
+              placeholder="RECHERCHER DANS LE CATALOGUE..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-[#dee2e6] rounded-xl pl-11 pr-4 py-3 text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button className="p-3 bg-white border border-[#dee2e6] rounded-xl hover:bg-[#f1f3f5] transition-all">
+              <Filter className="w-4 h-4 text-[#495057]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-[#dee2e6] shadow-xl overflow-hidden">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-[#2a2e37] text-xs font-semibold uppercase tracking-widest text-gray-500">
-                <th className="text-left p-5">Produit</th>
-                <th className="text-left p-5">Catégorie</th>
-                <th className="text-right p-5">Prix (FCFA)</th>
-                <th className="text-center p-5">Stock</th>
-                <th className="text-center p-5">Disponible</th>
+              <tr className="bg-[#f8f9fa] border-b border-[#dee2e6]">
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-left p-6">Détails du Produit</th>
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-left p-6">Catégorie</th>
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-right p-6">Prix</th>
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-center p-6">État du Stock</th>
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-center p-6">Action</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((product, idx) => {
+              {filteredProducts.map((product) => {
                 const isEditing = editingId === product.id
                 return (
-                  <tr
-                    key={product.id}
-                    className={`border-b border-[#2a2e37] transition-colors hover:bg-[#1e2128] ${
-                      !product.isAvailable ? 'opacity-60' : ''
-                    }`}
-                  >
-                    {/* Nom */}
-                    <td className="p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#2a2e37] flex items-center justify-center text-xl flex-shrink-0">
-                          {getCategoryEmoji(product.category.name)}
+                  <tr key={product.id} className="border-b border-[#f1f3f5] hover:bg-[#fafbfc] transition-colors group">
+                    <td className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-[#f8f9fa] border border-[#dee2e6] flex items-center justify-center text-2xl shrink-0 overflow-hidden relative">
+                          {product.image ? (
+                            <Image src={product.image} alt={product.name} fill className="object-cover" />
+                          ) : (
+                            <span className="opacity-40">{getCategoryEmoji(product.category.name)}</span>
+                          )}
                         </div>
-                        <span className={`font-semibold ${product.isAvailable ? 'text-white' : 'text-gray-500 line-through'}`}>
-                          {product.name}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-[#212529] uppercase tracking-tight leading-tight">{product.name}</span>
+                          <span className="text-[10px] font-bold text-[#adb5bd] uppercase mt-0.5">ID: {product.id.slice(-8)}</span>
+                        </div>
                       </div>
                     </td>
 
-                    {/* Catégorie */}
-                    <td className="p-5">
-                      <span className="text-sm text-gray-400 bg-[#2a2e37] px-3 py-1 rounded-full">
-                        {product.category.icon && `${product.category.icon} `}{product.category.name}
+                    <td className="p-6">
+                      <span className="px-3 py-1 bg-[#f1f3f5] rounded-full text-[10px] font-black text-[#495057] uppercase tracking-widest border border-[#dee2e6]">
+                        {product.category.name}
                       </span>
                     </td>
 
-                    {/* Prix — Éditable */}
-                    <td className="p-5 text-right">
+                    <td className="p-6 text-right">
                       {isEditing ? (
                         <div className="flex items-center justify-end gap-2">
                           <input
@@ -152,94 +182,85 @@ export default function ProductsAdminClient({ products: initialProducts }: Props
                             onChange={e => setEditPrice(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') saveEdit(product.id); if (e.key === 'Escape') cancelEdit() }}
                             autoFocus
-                            className="w-28 bg-[#0a0c10] border border-emerald-500 rounded-lg px-3 py-1.5 text-right text-emerald-400 font-bold text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="w-24 bg-white border-2 border-[#212529] rounded-lg px-3 py-1.5 text-right text-sm font-black focus:outline-none"
                           />
-                          <button onClick={() => saveEdit(product.id)} className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button onClick={cancelEdit} className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
+                          <button onClick={() => saveEdit(product.id)} className="p-2 bg-[#212529] text-white rounded-lg hover:bg-black transition-colors"><Check className="w-4 h-4" /></button>
+                          <button onClick={cancelEdit} className="p-2 bg-[#f1f3f5] text-[#495057] rounded-lg hover:bg-[#dee2e6] transition-colors"><X className="w-4 h-4" /></button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => startEdit(product)}
-                          className="group flex items-center justify-end gap-2 ml-auto hover:text-emerald-400 transition-colors"
-                        >
-                          <span className="font-bold text-emerald-400 text-lg">{product.price.toLocaleString()}</span>
-                          <Pencil className="w-3.5 h-3.5 text-gray-600 group-hover:text-emerald-400 transition-colors" />
+                        <button onClick={() => startEdit(product)} className="flex items-center justify-end gap-2 ml-auto group/price">
+                          <span className="text-lg font-black text-[#212529]">{product.price.toLocaleString()}</span>
+                          <span className="text-[10px] font-bold text-[#adb5bd] uppercase">FCFA</span>
+                          <Pencil className="w-3.5 h-3.5 text-[#adb5bd] opacity-0 group-hover/price:opacity-100 transition-opacity ml-1" />
                         </button>
                       )}
                     </td>
 
-                    {/* Indicateur de stock */}
-                    <td className="p-5 text-center">
-                      <StockBadge isAvailable={product.isAvailable} />
+                    <td className="p-6 text-center">
+                      <AdminStockBadge isAvailable={product.isAvailable} />
                     </td>
 
-                    {/* Toggle disponibilité */}
-                    <td className="p-5 text-center">
-                      <button
-                        onClick={() => handleToggle(product.id, product.isAvailable)}
-                        disabled={isPending}
-                        title={product.isAvailable ? "Cliquer pour désactiver" : "Cliquer pour activer"}
-                        className="transition-transform hover:scale-110 active:scale-95 disabled:opacity-50"
-                      >
-                        {product.isAvailable ? (
-                          <ToggleRight className="w-8 h-8 text-emerald-500" />
-                        ) : (
-                          <ToggleLeft className="w-8 h-8 text-gray-600" />
-                        )}
-                      </button>
+                    <td className="p-6 text-center">
+                      <div className="flex items-center justify-center gap-4">
+                        <button
+                          onClick={() => handleToggle(product.id, product.isAvailable)}
+                          disabled={isPending}
+                          className="transition-all active:scale-95"
+                        >
+                          {product.isAvailable ? (
+                            <ToggleRight className="w-8 h-8 text-[#2f9e44]" />
+                          ) : (
+                            <ToggleLeft className="w-8 h-8 text-[#adb5bd]" />
+                          )}
+                        </button>
+                        <button className="p-2 hover:bg-[#f1f3f5] rounded-lg transition-all"><MoreVertical className="w-4 h-4 text-[#adb5bd]" /></button>
+                      </div>
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-
-          {products.length === 0 && (
-            <div className="py-16 flex items-center justify-center text-gray-500 italic">
-              Aucun produit trouvé dans la base de données.
+          
+          {filteredProducts.length === 0 && (
+            <div className="py-20 flex flex-col items-center justify-center text-[#adb5bd] gap-4">
+              <Package className="w-12 h-12 opacity-10" />
+              <p className="text-sm font-black uppercase tracking-widest">Aucun produit trouvé</p>
             </div>
           )}
         </div>
-
-        <p className="mt-4 text-xs text-gray-600 text-center">
-          💡 Cliquez sur le prix pour le modifier. Cliquez sur le toggle pour désactiver un produit en rupture de stock.
-        </p>
       </main>
     </div>
   )
 }
 
-// ─── Badge Stock ──────────────────────────────────────────────────────────────
-function StockBadge({ isAvailable }: { isAvailable: boolean }) {
-  if (isAvailable) {
-    return (
-      <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-500/20">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-        Disponible
-      </span>
-    )
-  }
+function StatBadge({ label, count, color }: { label: string, count: number, color: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 text-xs font-semibold px-3 py-1 rounded-full border border-red-500/20">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-      Rupture
-    </span>
+    <div className="flex flex-col items-end">
+      <span className="text-[9px] font-black text-[#adb5bd] tracking-widest mb-1">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-black">{count}</span>
+        <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
+      </div>
+    </div>
   )
 }
 
-// ─── Emoji par catégorie ──────────────────────────────────────────────────────
+function AdminStockBadge({ isAvailable }: { isAvailable: boolean }) {
+  return (
+    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${isAvailable ? 'bg-[#ebfbee] border-[#b2f2bb] text-[#2f9e44]' : 'bg-[#fff5f5] border-[#ffc9c9] text-[#e03131]'}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-[#2f9e44]' : 'bg-[#e03131]'}`} />
+      {isAvailable ? 'Disponible' : 'En Rupture'}
+    </div>
+  )
+}
+
 function getCategoryEmoji(name: string): string {
   const n = name.toLowerCase()
-  if (n.includes('burger') || n.includes('sandwich')) return '🍔'
-  if (n.includes('poulet') || n.includes('chicken'))  return '🍗'
-  if (n.includes('pizza'))   return '🍕'
+  if (n.includes('burger')) return '🍔'
+  if (n.includes('poulet')) return '🍗'
   if (n.includes('boisson')) return '🥤'
   if (n.includes('dessert')) return '🍰'
-  if (n.includes('salade'))  return '🥗'
-  if (n.includes('frite'))   return '🍟'
+  if (n.includes('frite')) return '🍟'
   return '🍽️'
 }

@@ -43,9 +43,6 @@ export async function updateProductPrice(productId: string, price: number) {
   }
 }
 
-/**
- * Récupère tous les produits avec leur catégorie pour le back-office.
- */
 export async function getProductsForAdmin() {
   try {
     const products = await prisma.product.findMany({
@@ -56,5 +53,34 @@ export async function getProductsForAdmin() {
   } catch (error) {
     console.error("Impossible de récupérer les produits:", error)
     return []
+  }
+}
+
+export async function getCategories() {
+  try {
+    return await prisma.category.findMany({ orderBy: { name: 'asc' } })
+  } catch (error) {
+    return []
+  }
+}
+
+export async function addProduct(data: { name: string, price: number, categoryId: string, image: string | null, storeId: string }) {
+  try {
+    const product = await prisma.product.create({
+      data: {
+        name: data.name,
+        price: data.price,
+        categoryId: data.categoryId,
+        image: data.image, // Mock S3/Upload: storage as Base64 or URL
+        storeId: data.storeId,
+        isAvailable: true
+      }
+    })
+    revalidatePath('/admin/produits')
+    revalidatePath('/')
+    return { success: true, product }
+  } catch (error) {
+    console.error("Erreur creation produit:", error)
+    return { success: false, error: "Erreur lors de l'ajout." }
   }
 }

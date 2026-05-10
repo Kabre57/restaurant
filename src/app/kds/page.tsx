@@ -1,4 +1,5 @@
 import { getActiveOrders } from "@/app/actions/orders";
+import { getStoreDetails } from "@/app/actions/stores";
 import KDSClient from "@/components/kds/KDSClient";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -11,7 +12,10 @@ export default async function KDSPage() {
     redirect("/login");
   }
 
-  const initialOrders = await getActiveOrders(session.user.storeId);
+  const [initialOrders, store] = await Promise.all([
+    getActiveOrders(session.user.storeId),
+    getStoreDetails(session.user.storeId)
+  ]);
 
-  return <KDSClient initialOrders={initialOrders as any} />;
+  return <KDSClient initialOrders={initialOrders as any} storeName={store?.name || "Cuisine Centrale"} />;
 }

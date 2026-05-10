@@ -1,4 +1,4 @@
-import { getCategories, getProducts } from "@/app/actions/products";
+import { getCategories, getProductsByStore } from "@/app/actions/products";
 import POSClient from "@/components/pos/POSClient";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -12,9 +12,9 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // Récupérer les catégories et produits
+  // Récupérer les catégories et produits du restaurant spécifique
   const categories = await getCategories();
-  const products = await getProducts();
+  const products = await getProductsByStore(session.user.storeId);
 
   return (
     <POSClient 

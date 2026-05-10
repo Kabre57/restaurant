@@ -1,100 +1,93 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Role } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Start seeding...')
+  const hashedPassword = await bcrypt.hash('Password123', 10)
 
-  // Nettoyage de la base
-  await prisma.orderItem.deleteMany()
-  await prisma.order.deleteMany()
-  await prisma.productIngredient.deleteMany()
-  await prisma.inventory.deleteMany()
-  await prisma.ingredient.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.category.deleteMany()
-  await prisma.reservation.deleteMany()
-  await prisma.table.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.store.deleteMany()
-
-  // Création du Store
-  const store = await prisma.store.create({
-    data: {
-      name: 'POS Abidjan Plateau',
-      address: 'Rue du Commerce, Plateau, Abidjan',
-      phone: '+225 01 02 03 04 05',
-    },
+  // 1. Create a Store
+  const store = await prisma.store.upsert({
+    where: { id: 'store_01' },
+    update: {},
+    create: {
+      id: 'store_01',
+      name: 'Le Gourmet Abidjan',
+      address: 'Cocody Rue des Jardins',
+      commission: 15.0
+    }
   })
 
-  // Création d'un User (Caissier)
-  const bcrypt = require('bcryptjs')
-  const hashedPassword = bcrypt.hashSync('Password123', 10)
-  
-  const cashier = await prisma.user.create({
-    data: {
-      storeId: store.id,
-      name: 'Théo',
+  // 2. Create Users
+  await prisma.user.upsert({
+    where: { email: 'admin@plateforme.ci' },
+    update: {},
+    create: {
+      name: 'Super Admin',
+      email: 'admin@plateforme.ci',
+      password: hashedPassword,
+      role: Role.ADMIN,
+      storeId: store.id
+    }
+  })
+
+  await prisma.user.upsert({
+    where: { email: 'resto@gourmet.ci' },
+    update: {},
+    create: {
+      name: 'Marc Restaurateur',
+      email: 'resto@gourmet.ci',
+      password: hashedPassword,
+      role: Role.RESTAURATEUR,
+      storeId: store.id
+    }
+  })
+
+  await prisma.user.upsert({
+    where: { email: 'theogeoffroy5@gmail.com' },
+    update: {},
+    create: {
+      name: 'Théo Caissier',
       email: 'theogeoffroy5@gmail.com',
       password: hashedPassword,
-      role: 'CASHIER',
-    },
+      role: Role.CASHIER,
+      storeId: store.id
+    }
   })
 
-  // Création des Catégories
-  const catBurgers = await prisma.category.create({
-    data: { storeId: store.id, name: 'Burgers', icon: '🍔' },
-  })
-  const catPoulet = await prisma.category.create({
-    data: { storeId: store.id, name: 'Poulet', icon: '🍗' },
-  })
-  const catAcc = await prisma.category.create({
-    data: { storeId: store.id, name: 'Accompagnements', icon: '🍟' },
-  })
-  const catBoissons = await prisma.category.create({
-    data: { storeId: store.id, name: 'Boissons', icon: '🥤' },
-  })
-  const catDesserts = await prisma.category.create({
-    data: { storeId: store.id, name: 'Desserts', icon: '🍦' },
-  })
-
-  // Création des Produits
-  const products = [
-    { categoryId: catBurgers.id, name: 'Burger Classique Bœuf', price: 3500 },
-    { categoryId: catBurgers.id, name: 'Burger Double Cheese', price: 5000 },
-    { categoryId: catBurgers.id, name: 'Chicken Burger', price: 3000 },
-    { categoryId: catPoulet.id, name: 'Nuggets x9', price: 2500 },
-    { categoryId: catPoulet.id, name: 'Ailes de Poulet x6', price: 3500 },
-    { categoryId: catAcc.id, name: 'Frites Moyennes', price: 1000 },
-    { categoryId: catAcc.id, name: 'Frites Grandes', price: 1500 },
-    { categoryId: catBoissons.id, name: 'Soda Cola 50cl', price: 800 },
-    { categoryId: catBoissons.id, name: 'Jus de Bissap 50cl', price: 1000 },
-    { categoryId: catBoissons.id, name: 'Eau Minérale 1.5L', price: 500 },
-    { categoryId: catDesserts.id, name: 'Glace Vanille', price: 1500 },
-    { categoryId: catDesserts.id, name: 'Gâteau au Chocolat', price: 2000 },
+  // 3. Create Categories
+  const categoriesData = [
+    { id: 'cat_01', name: 'Burgers', icon: '🍔' },
+    { id: 'cat_02', name: 'Poulet', icon: '🍗' },
+    { id: 'cat_03', name: 'Frites', icon: '🍟' },
+    { id: 'cat_04', name: 'Boissons', icon: '🥤' },
+    { id: 'cat_05', name: 'Desserts', icon: '🍰' },
   ]
 
-  for (const p of products) {
-    await prisma.product.create({
-      data: {
-        storeId: store.id,
-        categoryId: p.categoryId,
-        name: p.name,
-        price: p.price,
-      },
+  for (const cat of categoriesData) {
+    await prisma.category.upsert({
+      where: { id: cat.id },
+      update: {},
+      create: { ...cat, storeId: store.id }
     })
   }
 
-  // Création d'une table
-  await prisma.table.create({
-    data: {
-      storeId: store.id,
-      number: 12,
-      capacity: 4,
-    },
-  })
+  // 4. Create Products
+  const productsData = [
+    { name: 'Burger Classique', price: 4500, categoryId: 'cat_01', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80' },
+    { name: 'Double Cheese', price: 6500, categoryId: 'cat_01', image: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&q=80' },
+    { name: 'Ailes de Poulet x6', price: 3500, categoryId: 'cat_02', image: 'https://images.unsplash.com/photo-1567620905732-2d1ec7bb7445?w=500&q=80' },
+    { name: 'Frites Maison', price: 1500, categoryId: 'cat_03', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&q=80' },
+    { name: 'Coca-Cola', price: 1000, categoryId: 'cat_04', image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&q=80' },
+  ]
 
-  console.log('Seeding finished.')
+  for (const prod of productsData) {
+    await prisma.product.create({
+      data: { ...prod, storeId: store.id }
+    })
+  }
+
+  console.log('Seed completed successfully')
 }
 
 main()
