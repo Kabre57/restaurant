@@ -12,7 +12,8 @@ import {
   TrendingUp, 
   Settings,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  LayoutGrid
 } from 'lucide-react'
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
 
   const menuItems = [
     { name: 'Menu & Produits', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
+    { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
     { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
     { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
     { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
@@ -50,7 +52,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
                     : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {React.cloneElement(item.icon as React.ReactElement, { className: 'w-5 h-5' })}
+                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}
                 <span className="font-black text-[10px] uppercase tracking-widest hidden lg:block">{item.name}</span>
               </Link>
             )

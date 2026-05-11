@@ -2,9 +2,10 @@
 
 import React from 'react'
 import { Minus, Plus } from 'lucide-react'
+import type { CartItem as CartItemType } from '@/store/useCart'
 
 interface CartItemProps {
-  item: any
+  item: CartItemType
   onAdd: () => void
   onSub: () => void
 }

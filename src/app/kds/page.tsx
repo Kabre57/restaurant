@@ -17,5 +17,11 @@ export default async function KDSPage() {
     getStoreDetails(session.user.storeId)
   ]);
 
-  return <KDSClient initialOrders={initialOrders as any} storeName={store?.name || "Cuisine Centrale"} />;
+  return (
+    <KDSClient
+      initialOrders={initialOrders}
+      storeId={session.user.storeId}
+      storeName={store?.name || "Cuisine Centrale"}
+    />
+  );
 }

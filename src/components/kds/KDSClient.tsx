@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { Clock, ArrowLeft, Check, Play, PackageCheck, Utensils, LayoutGrid, Settings } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { Clock, ArrowLeft, Check, Play, PackageCheck, Utensils, LayoutGrid, Radio } from 'lucide-react'
 import { updateOrderStatus } from '@/app/actions/orders'
 import Link from 'next/link'
 
-type OrderStatus = 'EN_ATTENTE' | 'PRÉPARATION' | 'PRÊT' | 'COMPLETED' | 'CANCELLED'
+type OrderStatus = 'EN_ATTENTE' | 'PREPARATION' | 'PRET' | 'COMPLETED' | 'CANCELLED'
+type StreamStatus = 'connecting' | 'connected' | 'reconnecting'
 
 type OrderItem = {
   id: string
@@ -14,12 +15,31 @@ type OrderItem = {
   product: { name: string }
 }
 
-type Order = {
+export type KDSOrder = {
   id: string
-  status: OrderStatus
+  status: string
+  storeId: string
   type: string
   createdAt: Date
   items: OrderItem[]
+  table?: { number: number } | null
+}
+
+type Order = Omit<KDSOrder, 'status'> & { status: OrderStatus }
+
+function normalizeStatus(status: string): OrderStatus {
+  if (status === 'PRÉPARATION' || status === 'PREPARATION') return 'PREPARATION'
+  if (status === 'PRÊT' || status === 'PRET') return 'PRET'
+  if (status === 'COMPLETED') return 'COMPLETED'
+  if (status === 'CANCELLED') return 'CANCELLED'
+  return 'EN_ATTENTE'
+}
+
+function normalizeOrder(order: KDSOrder): Order {
+  return {
+    ...order,
+    status: normalizeStatus(order.status),
+  }
 }
 
 function useElapsedSeconds(createdAt: Date): number {
@@ -41,41 +61,96 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function KDSClient({ initialOrders, storeName }: { initialOrders: Order[], storeName: string }) {
-  const [orders, setOrders] = useState<Order[]>(initialOrders)
+export default function KDSClient({ initialOrders, storeId, storeName }: { initialOrders: KDSOrder[], storeId: string, storeName: string }) {
+  const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizeOrder))
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>('connecting')
+  const [retryDelay, setRetryDelay] = useState(1000)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/kds/stream')
+    let stopped = false
 
-    eventSource.addEventListener('new-order', (event) => {
-      const newOrder = JSON.parse(event.data)
-      setOrders(prev => [...prev, newOrder])
-    })
+    function connectToStream(attempt = 0) {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
 
-    eventSource.addEventListener('order-updated', (event) => {
-      const updatedOrder = JSON.parse(event.data)
-      setOrders(prev => {
-        if (updatedOrder.status === 'COMPLETED' || updatedOrder.status === 'CANCELLED') {
-          return prev.filter(o => o.id !== updatedOrder.id)
-        }
-        const exists = prev.find(o => o.id === updatedOrder.id)
-        if (exists) {
-          return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o)
-        }
-        return [...prev, updatedOrder]
+      eventSourceRef.current?.close()
+      setStreamStatus(attempt === 0 ? 'connecting' : 'reconnecting')
+
+      const eventSource = new EventSource(`/api/kds/stream?storeId=${encodeURIComponent(storeId)}`)
+      eventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        setStreamStatus('connected')
+        setRetryDelay(1000)
+      }
+
+      eventSource.addEventListener('new-order', (event) => {
+        const newOrder = normalizeOrder(JSON.parse(event.data))
+        if (newOrder.storeId !== storeId) return
+
+        setOrders(prev => {
+          const exists = prev.some(order => order.id === newOrder.id)
+          return exists ? prev.map(order => order.id === newOrder.id ? newOrder : order) : [...prev, newOrder]
+        })
       })
-    })
 
-    return () => { eventSource.close() }
-  }, [])
+      eventSource.addEventListener('order-updated', (event) => {
+        const updatedOrder = normalizeOrder(JSON.parse(event.data))
+        if (updatedOrder.storeId !== storeId) return
+
+        setOrders(prev => {
+          if (updatedOrder.status === 'COMPLETED' || updatedOrder.status === 'CANCELLED') {
+            return prev.filter(o => o.id !== updatedOrder.id)
+          }
+          const exists = prev.find(o => o.id === updatedOrder.id)
+          if (exists) {
+            return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o)
+          }
+          return [...prev, updatedOrder]
+        })
+      })
+
+      eventSource.addEventListener('heartbeat', () => {
+        setStreamStatus('connected')
+      })
+
+      eventSource.onerror = () => {
+        eventSource.close()
+        if (stopped) return
+
+        const delay = Math.min(30000, 1000 * 2 ** attempt)
+        setRetryDelay(delay)
+        setStreamStatus('reconnecting')
+        reconnectTimerRef.current = setTimeout(() => connectToStream(attempt + 1), delay)
+      }
+    }
+
+    connectToStream()
+
+    return () => {
+      stopped = true
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
+      eventSourceRef.current?.close()
+    }
+  }, [storeId])
+
+  const streamLabel = streamStatus === 'connected'
+    ? 'Flux connecté'
+    : streamStatus === 'connecting'
+      ? 'Connexion flux'
+      : `Reconnexion ${Math.ceil(retryDelay / 1000)}s`
 
   const handleUpdateStatus = async (orderId: string, currentStatus: OrderStatus) => {
-    let nextStatus: OrderStatus = 'PRÉPARATION'
-    if (currentStatus === 'PRÉPARATION') nextStatus = 'PRÊT'
-    if (currentStatus === 'PRÊT') nextStatus = 'COMPLETED'
+    let nextStatus: OrderStatus = 'PREPARATION'
+    if (currentStatus === 'PREPARATION') nextStatus = 'PRET'
+    if (currentStatus === 'PRET') nextStatus = 'COMPLETED'
 
     try {
-      const res = await updateOrderStatus(orderId, nextStatus)
+      const res = await updateOrderStatus(orderId, nextStatus, storeId)
       if (res.success) {
         setOrders(prev => {
           if (nextStatus === 'COMPLETED') return prev.filter(o => o.id !== orderId)
@@ -88,8 +163,8 @@ export default function KDSClient({ initialOrders, storeName }: { initialOrders:
   }
 
   const pendingOrders = orders.filter(o => o.status === 'EN_ATTENTE')
-  const preparingOrders = orders.filter(o => o.status === 'PRÉPARATION')
-  const readyOrders = orders.filter(o => o.status === 'PRÊT')
+  const preparingOrders = orders.filter(o => o.status === 'PREPARATION')
+  const readyOrders = orders.filter(o => o.status === 'PRET')
 
   return (
     <div className="flex h-screen bg-[#f8f9fa] text-[#212529] font-sans overflow-hidden">
@@ -125,6 +200,14 @@ export default function KDSClient({ initialOrders, storeName }: { initialOrders:
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-widest ${
+              streamStatus === 'connected'
+                ? 'border-[#b2f2bb] bg-[#ebfbee] text-[#2f9e44]'
+                : 'border-[#ffe066] bg-[#fff9db] text-[#f08c00]'
+            }`}>
+              <Radio className={`h-4 w-4 ${streamStatus !== 'connected' ? 'animate-pulse' : ''}`} />
+              {streamLabel}
+            </div>
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Temps Réel</span>
               <span className="text-xs font-bold uppercase tracking-widest">{new Date().toLocaleTimeString('fr-FR')}</span>
@@ -195,7 +278,14 @@ function KDSColumn({ title, color, orders, onAction, icon, actionLabel }: {
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Commande</span>
-                <h3 className="text-xl font-black text-[#212529] tracking-tighter">#{order.id.slice(-5).toUpperCase()}</h3>
+                <h3 className="text-xl font-black text-[#212529] tracking-tighter">
+                  #{order.id.slice(-5).toUpperCase()}
+                  {order.table && (
+                    <span className="ml-2 text-orange-600">
+                      T{order.table.number}
+                    </span>
+                  )}
+                </h3>
               </div>
               <Timer createdAt={order.createdAt} />
             </div>

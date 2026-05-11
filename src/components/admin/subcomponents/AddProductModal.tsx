@@ -5,10 +5,21 @@ import { X, Upload, Check, Loader2 } from 'lucide-react'
 import { addProduct } from '@/app/actions/admin'
 import Image from 'next/image'
 
+type Category = { id: string, name: string, icon: string | null }
+type NewProduct = {
+  id: string
+  name: string
+  price: number
+  isAvailable: boolean
+  image: string | null
+  category: Category
+  categoryId: string
+}
+
 interface Props {
-  categories: { id: string, name: string }[]
+  categories: Category[]
   onClose: () => void
-  onSuccess: (newProduct: any) => void
+  onSuccess: (newProduct: NewProduct) => void
   storeId: string
 }
 
@@ -47,7 +58,7 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
       storeId
     })
 
-    if (res.success) {
+    if (res.success && res.product) {
       onSuccess(res.product)
       onClose()
     } else {
@@ -117,7 +128,7 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
                 <div className="relative w-full h-full p-2">
                   <Image src={image} alt="Preview" fill className="object-cover rounded-xl" />
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
-                    <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l'image</span>
+                    <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l&apos;image</span>
                   </div>
                 </div>
               ) : isUploading ? (

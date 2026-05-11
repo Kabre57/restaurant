@@ -43,7 +43,7 @@ export default function AdminDashboard() {
           <div key={stat.name} className="bg-white p-6 rounded-3xl shadow-sm border border-[#dee2e6] hover:shadow-xl transition-all group">
             <div className="flex justify-between items-start mb-4">
               <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg`}>
-                {React.cloneElement(stat.icon as React.ReactElement, { className: 'w-6 h-6' })}
+                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })}
               </div>
               <span className="text-[10px] font-black text-[#51cf66] bg-[#ebfbee] px-2 py-1 rounded-lg">{stat.trend}</span>
             </div>

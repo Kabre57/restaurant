@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { 
   CreditCard, 
@@ -8,40 +8,67 @@ import {
   Banknote, 
   Smartphone, 
   ChevronRight, 
-  Trash2,
   User,
-  LayoutGrid
+  LayoutGrid,
+  Map as MapIcon,
+  ChevronLeft
 } from "lucide-react"
 
 import { useCart } from "@/store/useCart"
-import { createOrder } from "@/app/actions/orders"
+import { createOrder, syncOrdersBatch } from "@/app/actions/orders"
 import { 
   saveCategoriesToIDB, 
   saveProductsToIDB, 
   getCategoriesFromIDB, 
   getProductsFromIDB, 
   addOrderToSyncQueue, 
-  getSyncQueue 
+  getSyncQueue,
+  clearSyncQueueItem
 } from "@/lib/idb"
+import type { CachedCategory, CachedProduct, QueuedOrder } from "@/lib/idb"
 
 // Sub-components
 import { Sidebar } from "./subcomponents/Sidebar"
 import { ProductCard } from "./subcomponents/ProductCard"
 import { CartItem } from "./subcomponents/CartItem"
-import { Numpad } from "./subcomponents/Numpad"
 import { ReceiptModal } from "./subcomponents/ReceiptModal"
 import { PaymentModal } from "./subcomponents/PaymentModal"
+import { ConnectionStatus } from "./subcomponents/ConnectionStatus"
+import FloorPlanView from "./FloorPlanView"
+import ReservationModal from "./ReservationModal"
+import type { ReceiptOrder } from "./subcomponents/ReceiptModal"
+import { Table, Reservation } from "@prisma/client"
 
 type PaymentMode = 'ESPECES' | 'CB' | 'MOBILE_MONEY'
+type PendingOrder = Omit<QueuedOrder, 'createdAt'>
 
 interface POSClientProps {
-  categories: any[]
-  products: any[]
+  categories: CachedCategory[]
+  products: CachedProduct[]
+  tables: Table[]
+  reservations: Reservation[]
   storeId: string
   cashierId: string
 }
 
-export default function POSClient({ categories: initialCategories, products: initialProducts, storeId, cashierId }: POSClientProps) {
+function createInitialDisplayOrderId(seed: string) {
+  const hash = Array.from(seed).reduce((total, char) => total + char.charCodeAt(0), 0)
+  return 1000 + (hash % 9000)
+}
+
+function nextDisplayOrderId(current: number) {
+  return current >= 9999 ? 1000 : current + 1
+}
+
+function createClientRequestId(storeId: string, cashierId: string) {
+  const randomId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${performance.now().toString(36).replace('.', '')}`
+
+  return `${storeId}:${cashierId}:${randomId}`
+}
+
+export default function POSClient({ categories: initialCategories, products: initialProducts, tables, reservations, storeId, cashierId }: POSClientProps) {
   const { data: session } = useSession()
   const isRestaurateur = session?.user?.role === 'RESTAURATEUR'
   
@@ -51,36 +78,91 @@ export default function POSClient({ categories: initialCategories, products: ini
   const [searchQuery, setSearchQuery] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [syncQueueCount, setSyncQueueCount] = useState(0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('ESPECES')
   const [showSessionStats, setShowSessionStats] = useState(false)
   const [sessionTotal, setSessionTotal] = useState(0) 
   const [showReceipt, setShowReceipt] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [lastOrder, setLastOrder] = useState<any>(null)
+  const [lastOrder, setLastOrder] = useState<ReceiptOrder | null>(null)
   const [amountReceived, setAmountReceived] = useState("")
   const [changeAmount, setChangeAmount] = useState<number | null>(null)
-  const [orderId, setOrderId] = useState<number | null>(null)
+  const [orderId, setOrderId] = useState(() => createInitialDisplayOrderId(cashierId))
+  const [viewMode, setViewMode] = useState<'POS' | 'FLOOR_PLAN'>('FLOOR_PLAN')
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null)
+  const [showReservationModal, setShowReservationModal] = useState(false)
+  const [tableForReservation, setTableForReservation] = useState<Table | null>(null)
+  const syncInFlightRef = useRef(false)
 
   const { items, addItem, removeItem, updateQuantity, getSubtotal, getTax, getTotal, clearCart } = useCart()
 
-  useEffect(() => {
-    setOrderId(Math.floor(1000 + Math.random() * 9000))
-    const saved = localStorage.getItem(`cashier_total_${cashierId}`)
-    if (saved) setSessionTotal(parseFloat(saved))
-    
-    const handleStatus = () => setIsOnline(navigator.onLine)
-    window.addEventListener('online', handleStatus)
-    window.addEventListener('offline', handleStatus)
-    
-    loadOfflineData()
-    return () => {
-      window.removeEventListener('online', handleStatus)
-      window.removeEventListener('offline', handleStatus)
-    }
-  }, [cashierId])
+  const advanceOrderId = useCallback(() => {
+    setOrderId((current) => nextDisplayOrderId(current))
+  }, [])
 
-  async function loadOfflineData() {
+  const refreshSyncQueueCount = useCallback(async () => {
+    const queue = await getSyncQueue()
+    setSyncQueueCount(queue.length)
+    return queue
+  }, [])
+
+  const syncPendingOrders = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    if (syncInFlightRef.current) return
+
+    syncInFlightRef.current = true
+    setIsSyncing(true)
+
+    try {
+      const queue = await refreshSyncQueueCount()
+
+      for (let index = 0; index < queue.length; index += 5) {
+        const batch = queue.slice(index, index + 5).map((pendingOrder) => ({
+          ...pendingOrder,
+          clientRequestId: pendingOrder.clientRequestId || createClientRequestId(pendingOrder.storeId, pendingOrder.cashierId),
+          paymentMode: pendingOrder.paymentMode || 'ESPECES',
+        }))
+
+        const results = await syncOrdersBatch(batch.map((pendingOrder) => ({
+          clientRequestId: pendingOrder.clientRequestId,
+          storeId: pendingOrder.storeId,
+          cashierId: pendingOrder.cashierId,
+          total: pendingOrder.total,
+          type: pendingOrder.type,
+          paymentMode: pendingOrder.paymentMode,
+          items: pendingOrder.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+            options: item.options,
+          })),
+        })))
+
+        for (const [resultIndex, result] of results.entries()) {
+          const pendingOrder = batch[resultIndex]
+
+          if (!result.success) {
+            console.error("Queued order was not synced:", result.error)
+            continue
+          }
+
+          if (typeof pendingOrder.id === 'number') {
+            await clearSyncQueueItem(pendingOrder.id)
+          }
+        }
+
+        await refreshSyncQueueCount()
+      }
+    } catch (error) {
+      console.error("Offline sync failed:", error)
+    } finally {
+      syncInFlightRef.current = false
+      setIsSyncing(false)
+    }
+  }, [refreshSyncQueueCount])
+
+  const loadOfflineData = useCallback(async () => {
     if (initialCategories.length > 0) {
       await saveCategoriesToIDB(initialCategories)
       await saveProductsToIDB(initialProducts)
@@ -90,9 +172,40 @@ export default function POSClient({ categories: initialCategories, products: ini
       if (cats.length > 0) setCategories(cats)
       if (prods.length > 0) setProducts(prods)
     }
-    const queue = await getSyncQueue()
-    setSyncQueueCount(queue.length)
-  }
+
+    await refreshSyncQueueCount()
+  }, [initialCategories, initialProducts, refreshSyncQueueCount])
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      const saved = localStorage.getItem(`cashier_total_${cashierId}`)
+      if (saved) setSessionTotal(parseFloat(saved))
+    })
+
+    const handleStatus = () => {
+      const online = navigator.onLine
+      setIsOnline(online)
+      if (online) void syncPendingOrders()
+    }
+
+    window.addEventListener('online', handleStatus)
+    window.addEventListener('offline', handleStatus)
+
+    const statusTimerId = window.setTimeout(handleStatus, 0)
+    const loadTimerId = window.setTimeout(() => {
+      void loadOfflineData().then(() => {
+        if (navigator.onLine) void syncPendingOrders()
+      })
+    }, 0)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      window.clearTimeout(statusTimerId)
+      window.clearTimeout(loadTimerId)
+      window.removeEventListener('online', handleStatus)
+      window.removeEventListener('offline', handleStatus)
+    }
+  }, [cashierId, loadOfflineData, syncPendingOrders])
 
   const calculateChange = (val: string) => {
     setAmountReceived(val)
@@ -113,24 +226,26 @@ export default function POSClient({ categories: initialCategories, products: ini
     }
 
     setIsProcessing(true)
-    const orderData = {
+    const orderData: PendingOrder = {
+      clientRequestId: createClientRequestId(storeId, cashierId),
       storeId,
       cashierId,
       total: currentTotal,
       items: items.map(item => ({
-        productId: item.id,
+        productId: item.productId,
         quantity: item.quantity,
         price: item.price,
         name: item.name
       })),
       type: 'DINE_IN',
-      paymentMode
+      paymentMode,
+      tableId: selectedTable?.id
     }
 
     try {
       if (isOnline) {
         const res = await createOrder(orderData)
-        if (res.success) {
+        if (res.success && res.order) {
           setLastOrder({ ...orderData, id: res.order.id })
           updateSessionStats(currentTotal)
           setShowReceipt(true)
@@ -138,37 +253,54 @@ export default function POSClient({ categories: initialCategories, products: ini
           clearCart()
           setAmountReceived("")
           setChangeAmount(null)
+          advanceOrderId()
+          setSelectedTable(null)
+          setViewMode('FLOOR_PLAN')
         } else {
           alert(res.error || "Erreur de paiement")
         }
       } else {
         await addOrderToSyncQueue(orderData)
-        const queue = await getSyncQueue()
-        setSyncQueueCount(queue.length)
+        await refreshSyncQueueCount()
         updateSessionStats(currentTotal)
+        setLastOrder({ ...orderData, id: orderData.clientRequestId, isOffline: true })
         setShowReceipt(true)
         setShowPaymentModal(false)
         clearCart()
         setAmountReceived("")
         setChangeAmount(null)
+        advanceOrderId()
       }
-    } catch (err) {
-      alert("Erreur lors de la commande")
+    } catch (error) {
+      console.error("Checkout failed, order queued for sync:", error)
+      await addOrderToSyncQueue(orderData)
+      await refreshSyncQueueCount()
+      updateSessionStats(currentTotal)
+      setLastOrder({ ...orderData, id: orderData.clientRequestId, isOffline: true })
+      setShowReceipt(true)
+      setShowPaymentModal(false)
+      clearCart()
+      setAmountReceived("")
+      setChangeAmount(null)
+      advanceOrderId()
     } finally {
       setIsProcessing(false)
     }
   }
 
   const updateSessionStats = (amount: number) => {
-    const newTotal = sessionTotal + amount
-    setSessionTotal(newTotal)
-    localStorage.setItem(`cashier_total_${cashierId}`, newTotal.toString())
+    setSessionTotal((currentTotal) => {
+      const newTotal = currentTotal + amount
+      localStorage.setItem(`cashier_total_${cashierId}`, newTotal.toString())
+      return newTotal
+    })
   }
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = !activeCategory || p.categoryId === activeCategory
-    return matchesSearch && matchesCategory
+    const isAvailable = p.isAvailable !== false
+    return matchesSearch && matchesCategory && isAvailable
   })
 
   return (
@@ -181,14 +313,26 @@ export default function POSClient({ categories: initialCategories, products: ini
             <div>
               <h1 className="text-xl font-black text-[#212529] tracking-tighter uppercase">Point de Vente</h1>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">Établissement #01 - Abidjan</span>
-                <div className="w-1 h-1 rounded-full bg-[#adb5bd]" />
-                <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${isOnline ? 'text-[#2f9e44]' : 'text-[#e03131]'}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-[#2f9e44]' : 'bg-[#e03131]'}`} />
-                  {isOnline ? 'En Ligne' : 'Hors Ligne'}
+                <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">
+                  {viewMode === 'FLOOR_PLAN' ? 'Plan de Salle' : `Table ${selectedTable?.number || 'Directe'}`}
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {viewMode === 'POS' && (
+              <button 
+                onClick={() => {
+                  setViewMode('FLOOR_PLAN')
+                  setSelectedTable(null)
+                }}
+                className="flex items-center gap-2 bg-[#f1f3f5] hover:bg-[#e9ecef] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                <MapIcon className="w-4 h-4" />
+                Changer Table
+              </button>
+            )}
           </div>
 
           <div className="flex-1 max-w-xl mx-12">
@@ -205,6 +349,12 @@ export default function POSClient({ categories: initialCategories, products: ini
           </div>
 
           <div className="flex items-center gap-4">
+            <ConnectionStatus
+              isOnline={isOnline}
+              isSyncing={isSyncing}
+              queueCount={syncQueueCount}
+              onSyncNow={() => void syncPendingOrders()}
+            />
             <div className="flex flex-col items-end">
               <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">Mon solde jour</span>
               <span className="font-black text-[#212529] text-sm">{sessionTotal.toLocaleString()} FCFA</span>
@@ -212,35 +362,53 @@ export default function POSClient({ categories: initialCategories, products: ini
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
-            <button 
-              onClick={() => setActiveCategory(null)}
-              className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${!activeCategory ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
-            >
-              Tous les produits
-            </button>
-            {categories.map(cat => (
-              <button 
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${activeCategory === cat.id ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {viewMode === 'FLOOR_PLAN' ? (
+            <FloorPlanView 
+              tables={tables} 
+              reservations={reservations}
+              onTableSelect={(table) => {
+                setSelectedTable(table)
+                setViewMode('POS')
+              }}
+              onTableBook={(table) => {
+                setTableForReservation(table)
+                setShowReservationModal(true)
+              }}
+              selectedTableId={selectedTable?.id}
+            />
+          ) : (
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
+                <button 
+                  onClick={() => setActiveCategory(null)}
+                  className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${!activeCategory ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
+                >
+                  Tous les produits
+                </button>
+                {categories.map(cat => (
+                  <button 
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${activeCategory === cat.id ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                categoryName={categories.find(c => c.id === product.categoryId)?.name || "Général"}
-                onAdd={() => addItem({ productId: product.id, name: product.name, price: product.price, quantity: 1 })}
-              />
-            ))}
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {filteredProducts.map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    categoryName={categories.find(c => c.id === product.categoryId)?.name || "Général"}
+                    onAdd={() => addItem({ productId: product.id, name: product.name, price: product.price, quantity: 1 })}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -346,6 +514,15 @@ export default function POSClient({ categories: initialCategories, products: ini
           isProcessing={isProcessing}
         />
       )}
+
+      {showReservationModal && tableForReservation && (
+        <ReservationModal
+          table={tableForReservation}
+          storeId={storeId}
+          onClose={() => setShowReservationModal(false)}
+          existingReservations={reservations.filter(r => r.tableId === tableForReservation.id)}
+        />
+      )}
     </div>
   )
 }
@@ -372,7 +549,7 @@ function CashierStatsModal({ total, cashierName, onClose }: { total: number, cas
         </div>
         <div className="mt-10 space-y-4">
           <div className="bg-[#f8f9fa] p-6 rounded-3xl border border-[#dee2e6] text-center">
-            <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-2">Chiffre d'affaires Session</span>
+            <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-2">Chiffre d&apos;affaires Session</span>
             <span className="text-4xl font-black text-[#212529]">{total.toLocaleString()} <span className="text-lg">FCFA</span></span>
           </div>
           <div className="grid grid-cols-2 gap-4">

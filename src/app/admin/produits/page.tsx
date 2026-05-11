@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { getProductsForAdmin } from "@/app/actions/admin"
+import { getCategories, getProductsForAdmin } from "@/app/actions/admin"
 import ProductsAdminClient from "@/components/admin/ProductsAdminClient"
 
 export const metadata = {
@@ -16,7 +16,10 @@ export default async function AdminProduitsPage() {
     redirect("/login")
   }
 
-  const products = await getProductsForAdmin()
+  const [products, categories] = await Promise.all([
+    getProductsForAdmin(),
+    getCategories()
+  ])
 
-  return <ProductsAdminClient products={products as any} />
+  return <ProductsAdminClient products={products} categories={categories} />
 }

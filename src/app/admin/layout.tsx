@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {React.cloneElement(item.icon as React.ReactElement, { className: 'w-4 h-4' })}
+                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'w-4 h-4' })}
                 {item.name}
               </Link>
             )

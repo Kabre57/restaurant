@@ -70,3 +70,15 @@ export async function getCategories() {
     return []
   }
 }
+
+export async function getCategoriesByStore(storeId: string) {
+  try {
+    return await prisma.category.findMany({
+      where: { storeId },
+      orderBy: { name: 'asc' }
+    })
+  } catch (error) {
+    console.error("Failed to fetch categories:", error)
+    return []
+  }
+}

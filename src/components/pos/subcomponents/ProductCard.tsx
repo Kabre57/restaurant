@@ -4,8 +4,15 @@ import React from 'react'
 import Image from 'next/image'
 import { Plus } from 'lucide-react'
 
+export type ProductCardItem = {
+  id: string
+  name: string
+  price: number
+  image?: string | null
+}
+
 interface ProductCardProps {
-  product: any
+  product: ProductCardItem
   onAdd: () => void
   categoryName: string
 }

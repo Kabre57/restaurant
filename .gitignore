@@ -1,5 +1,6 @@
 # Dossiers
 node_modules/
+.next/
 Doc/
 dist/
 build/
@@ -9,7 +10,12 @@ build/
 *.log
 .DS_Store
 coverage/
+tsconfig.tsbuildinfo
 
 # Avec des motifs
 temp_*
 *.tmp
+
+# Artefacts PWA generes au build
+public/sw.js
+public/workbox-*.js

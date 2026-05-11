@@ -1,25 +1,38 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
+export type CachedCategory = { id: string; name: string; icon: string | null };
+export type CachedProduct = {
+  id: string;
+  categoryId: string;
+  name: string;
+  price: number;
+  image: string | null;
+  isAvailable?: boolean;
+};
+export type QueuedOrder = {
+  id?: number;
+  clientRequestId: string;
+  storeId: string;
+  cashierId: string;
+  total: number;
+  type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  paymentMode: 'ESPECES' | 'CB' | 'MOBILE_MONEY';
+  items: { productId: string; quantity: number; price: number; name?: string; options?: string }[];
+  createdAt: number;
+};
+
 interface POSDB extends DBSchema {
   categories: {
     key: string;
-    value: { id: string; name: string; icon: string | null };
+    value: CachedCategory;
   };
   products: {
     key: string;
-    value: { id: string; categoryId: string; name: string; price: number; image: string | null };
+    value: CachedProduct;
   };
   sync_orders: {
     key: number;
-    value: {
-      id?: number;
-      storeId: string;
-      cashierId: string;
-      total: number;
-      type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
-      items: { productId: string; quantity: number; price: number; options?: string }[];
-      createdAt: number;
-    };
+    value: QueuedOrder;
     autoIncrement: true;
   };
 }
@@ -42,7 +55,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export async function saveCategoriesToIDB(categories: any[]) {
+export async function saveCategoriesToIDB(categories: CachedCategory[]) {
   if (!dbPromise) return;
   const db = await dbPromise;
   const tx = db.transaction('categories', 'readwrite');
@@ -50,7 +63,7 @@ export async function saveCategoriesToIDB(categories: any[]) {
   await tx.done;
 }
 
-export async function saveProductsToIDB(products: any[]) {
+export async function saveProductsToIDB(products: CachedProduct[]) {
   if (!dbPromise) return;
   const db = await dbPromise;
   const tx = db.transaction('products', 'readwrite');
@@ -70,13 +83,13 @@ export async function getProductsFromIDB() {
   return db.getAll('products');
 }
 
-export async function addOrderToSyncQueue(order: any) {
+export async function addOrderToSyncQueue(order: Omit<QueuedOrder, 'id' | 'createdAt'>) {
   if (!dbPromise) return;
   const db = await dbPromise;
   await db.add('sync_orders', { ...order, createdAt: Date.now() });
 }
 
-export async function getSyncQueue() {
+export async function getSyncQueue(): Promise<QueuedOrder[]> {
   if (!dbPromise) return [];
   const db = await dbPromise;
   return db.getAll('sync_orders');

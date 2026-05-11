@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Banknote, X, Banknote as CashIcon } from 'lucide-react'
+import { X, Banknote as CashIcon } from 'lucide-react'
 import { Numpad } from './Numpad'
 
 interface PaymentModalProps {
@@ -61,7 +61,7 @@ export function PaymentModal({
             
             <button
               onClick={onFinalize}
-              disabled={isProcessing || (changeAmount !== null && changeAmount < 0)}
+              disabled={isProcessing || changeAmount === null || changeAmount < 0}
               className="w-full bg-[#2f9e44] hover:bg-[#2b8a3e] disabled:bg-white/10 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95"
             >
               {isProcessing ? "Encaissement..." : "Confirmer le Paiement"}

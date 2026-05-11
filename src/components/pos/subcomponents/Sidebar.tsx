@@ -37,7 +37,7 @@ function SidebarLink({ icon, active, label, href, onClick, dark }: { icon: React
           ? (dark ? 'bg-white text-[#1a1d24] shadow-lg' : 'bg-[#f1f3f5] text-[#212529]') 
           : (dark ? 'text-white/40 group-hover:text-white group-hover:bg-white/5' : 'text-[#adb5bd] hover:text-[#212529] hover:bg-[#f8f9fa]')
       }`}>
-        {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
+        {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}
       </div>
       <span className={`text-[8px] font-black uppercase tracking-tighter ${active ? (dark ? 'text-white' : 'text-[#212529]') : (dark ? 'text-white/30' : 'text-[#adb5bd]')}`}>{label}</span>
     </div>

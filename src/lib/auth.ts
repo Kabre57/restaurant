@@ -4,6 +4,11 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+const authSecret = process.env.NEXTAUTH_SECRET;
+
+if (!authSecret && process.env.NODE_ENV === "production") {
+  throw new Error("NEXTAUTH_SECRET doit être défini en production");
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -66,5 +71,5 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET || "supersecret123", // Dans l'idéal à mettre dans .env
+  secret: authSecret,
 };

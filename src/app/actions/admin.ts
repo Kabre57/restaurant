@@ -74,7 +74,8 @@ export async function addProduct(data: { name: string, price: number, categoryId
         image: data.image, // Mock S3/Upload: storage as Base64 or URL
         storeId: data.storeId,
         isAvailable: true
-      }
+      },
+      include: { category: true }
     })
     revalidatePath('/admin/produits')
     revalidatePath('/')

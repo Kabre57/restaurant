@@ -104,8 +104,9 @@ model Product {
 
 model Order {
   id               String          @id @default(cuid())
+  clientRequestId  String?         @unique
   storeId          String
-  cashierId        String
+  cashierId        String?
   customerId       String?
   tableId          String?
   status           OrderStatus     @default(EN_ATTENTE)
@@ -114,12 +115,13 @@ model Order {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   deliveryPersonId String?
-  cashier          User            @relation("CashierOrders", fields: [cashierId], references: [id])
+  cashier          User?           @relation("CashierOrders", fields: [cashierId], references: [id])
   customer         Customer?       @relation(fields: [customerId], references: [id])
   deliveryPerson   DeliveryPerson? @relation(fields: [deliveryPersonId], references: [id])
   store            Store           @relation(fields: [storeId], references: [id])
   table            Table?          @relation(fields: [tableId], references: [id])
   items            OrderItem[]
+  payments         Payment[]
 }
 
 model OrderItem {
@@ -133,6 +135,20 @@ model OrderItem {
   updatedAt DateTime @updatedAt
   order     Order    @relation(fields: [orderId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String
+  method      PaymentMethod
+  status      PaymentStatus @default(REUSSIE)
+  amount      Float
+  externalRef String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
 model Customer {
@@ -164,6 +180,11 @@ model Table {
   status       TableStatus   @default(AVAILABLE)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  x            Int           @default(0)
+  y            Int           @default(0)
+  width        Int           @default(100)
+  height       Int           @default(100)
+  shape        TableShape    @default(RECTANGLE)
   orders       Order[]
   reservations Reservation[]
   store        Store         @relation(fields: [storeId], references: [id])
@@ -259,6 +280,19 @@ enum OrderType {
   DELIVERY
 }
 
+enum PaymentMethod {
+  ESPECES
+  CB
+  MOBILE_MONEY
+}
+
+enum PaymentStatus {
+  EN_ATTENTE
+  REUSSIE
+  ECHOUEE
+  REMBOURSEE
+}
+
 enum TableStatus {
   AVAILABLE
   OCCUPIED
@@ -270,4 +304,9 @@ enum ReservationStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+}
+
+enum TableShape {
+  RECTANGLE
+  CIRCLE
 }

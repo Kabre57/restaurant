@@ -2,8 +2,21 @@
 
 import React from 'react'
 
+type ReceiptItem = {
+  name?: string
+  quantity: number
+  price: number
+}
+
+export type ReceiptOrder = {
+  id: string | number
+  total: number
+  items: ReceiptItem[]
+  isOffline?: boolean
+}
+
 interface ReceiptModalProps {
-  order: any
+  order: ReceiptOrder
   onClose: () => void
 }
 
@@ -20,10 +33,10 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
         </div>
         
         <div className="space-y-4 mb-8">
-          {order.items.map((item: any, i: number) => (
+          {order.items.map((item, i) => (
             <div key={i} className="flex justify-between items-start">
               <div className="flex flex-col">
-                <span className="text-xs font-black text-[#212529] uppercase">{item.name}</span>
+                <span className="text-xs font-black text-[#212529] uppercase">{item.name || 'Produit'}</span>
                 <span className="text-[10px] font-bold text-[#adb5bd]">x{item.quantity} @ {item.price.toLocaleString()}</span>
               </div>
               <span className="text-xs font-black text-[#212529]">{(item.price * item.quantity).toLocaleString()}</span>
