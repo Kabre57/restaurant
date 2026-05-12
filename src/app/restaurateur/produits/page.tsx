@@ -37,7 +37,7 @@ export default function RestaurateurProducts() {
     setLoading(true)
     const [pData, cData] = await Promise.all([
       getProductsByStore(session?.user?.storeId as string),
-      getCategories()
+      getCategories(session?.user?.storeId as string)
     ])
     setProducts(pData)
     setCategories(cData)
@@ -67,7 +67,16 @@ export default function RestaurateurProducts() {
     if (res.success) {
       setShowModal(false)
       setEditingProduct(null)
-      setFormData({ name: '', price: '', categoryId: '', image: '', isAvailable: true })
+      setFormData({ 
+        name: '', 
+        price: '', 
+        categoryId: '', 
+        image: '', 
+        isAvailable: true,
+        trackStock: false,
+        stockQuantity: '0',
+        minStockLevel: '5'
+      })
       loadData()
     } else {
       setErrorModal(res.error || "Erreur lors de l'enregistrement")
@@ -116,7 +125,20 @@ export default function RestaurateurProducts() {
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gérez votre carte et la disponibilité en cuisine</p>
         </div>
         <button 
-          onClick={() => { setEditingProduct(null); setFormData({ name: '', price: '', categoryId: '', image: '', isAvailable: true }); setShowModal(true); }}
+          onClick={() => { 
+            setEditingProduct(null); 
+            setFormData({ 
+              name: '', 
+              price: '', 
+              categoryId: '', 
+              image: '', 
+              isAvailable: true,
+              trackStock: false,
+              stockQuantity: '0',
+              minStockLevel: '5'
+            }); 
+            setShowModal(true); 
+          }}
           className="bg-[#212529] hover:bg-black text-white px-8 py-3 rounded-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl"
         >
           <Plus className="w-5 h-5" />

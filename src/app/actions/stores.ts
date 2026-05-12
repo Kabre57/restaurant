@@ -21,3 +21,14 @@ export async function getStoreDetails(storeId: string) {
     return null
   }
 }
+
+export async function getStores() {
+  try {
+    return await prisma.store.findMany({
+      select: { id: true, name: true }
+    })
+  } catch (error) {
+    console.error("Failed to fetch stores:", error)
+    return []
+  }
+}

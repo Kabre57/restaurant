@@ -13,18 +13,18 @@ model Store {
   address      String?
   phone        String?
   email        String?
-  logo         String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   commission   Float         @default(15.0)
+  logo         String?
   categories   Category[]
   inventories  Inventory[]
   orders       Order[]
   products     Product[]
+  promotions   Promotion[]
   reservations Reservation[]
   tables       Table[]
   users        User[]
-  promotions   Promotion[]
 }
 
 model User {
@@ -88,28 +88,27 @@ model Category {
 }
 
 model Product {
-  id          String              @id @default(cuid())
-  storeId     String
-  categoryId  String
-  name        String
-  description String?
-  price       Float
-  image       String?
-  isAvailable Boolean             @default(true)
-  trackStock  Boolean             @default(false)
-  stockQuantity Int               @default(0)
-  minStockLevel Int               @default(5)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  orderItems  OrderItem[]
-  category    Category            @relation(fields: [categoryId], references: [id])
-  store       Store               @relation(fields: [storeId], references: [id])
-  ingredients ProductIngredient[]
+  id            String              @id @default(cuid())
+  storeId       String
+  categoryId    String
+  name          String
+  description   String?
+  price         Float
+  image         String?
+  isAvailable   Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  minStockLevel Int                 @default(5)
+  stockQuantity Int                 @default(0)
+  trackStock    Boolean             @default(false)
+  orderItems    OrderItem[]
+  category      Category            @relation(fields: [categoryId], references: [id])
+  store         Store               @relation(fields: [storeId], references: [id])
+  ingredients   ProductIngredient[]
 }
 
 model Order {
   id               String          @id @default(cuid())
-  clientRequestId  String?         @unique
   storeId          String
   cashierId        String?
   customerId       String?
@@ -120,39 +119,35 @@ model Order {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   deliveryPersonId String?
+  clientRequestId  String?         @unique
+  discount         Float           @default(0)
+  promotionId      String?
   cashier          User?           @relation("CashierOrders", fields: [cashierId], references: [id])
   customer         Customer?       @relation(fields: [customerId], references: [id])
   deliveryPerson   DeliveryPerson? @relation(fields: [deliveryPersonId], references: [id])
+  promotion        Promotion?      @relation(fields: [promotionId], references: [id])
   store            Store           @relation(fields: [storeId], references: [id])
   table            Table?          @relation(fields: [tableId], references: [id])
   items            OrderItem[]
   payments         Payment[]
-  promotionId      String?
-  promotion        Promotion?      @relation(fields: [promotionId], references: [id])
-  discount         Float           @default(0)
 }
 
 model Promotion {
-  id           String        @id @default(cuid())
+  id           String       @id @default(cuid())
   storeId      String
-  code         String        @unique
+  code         String       @unique
   description  String?
-  discountType DiscountType  @default(PERCENTAGE)
+  discountType DiscountType @default(PERCENTAGE)
   value        Float
-  isActive     Boolean       @default(true)
+  isActive     Boolean      @default(true)
   startDate    DateTime?
   endDate      DateTime?
   usageLimit   Int?
-  usedCount    Int           @default(0)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  store        Store         @relation(fields: [storeId], references: [id])
+  usedCount    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   orders       Order[]
-}
-
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
+  store        Store        @relation(fields: [storeId], references: [id])
 }
 
 model OrderItem {
@@ -211,11 +206,11 @@ model Table {
   status       TableStatus   @default(AVAILABLE)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  x            Int           @default(0)
-  y            Int           @default(0)
-  width        Int           @default(100)
   height       Int           @default(100)
   shape        TableShape    @default(RECTANGLE)
+  width        Int           @default(100)
+  x            Int           @default(0)
+  y            Int           @default(0)
   orders       Order[]
   reservations Reservation[]
   store        Store         @relation(fields: [storeId], references: [id])
@@ -268,6 +263,11 @@ model Inventory {
   store        Store      @relation(fields: [storeId], references: [id])
 
   @@unique([storeId, ingredientId])
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 enum Role {

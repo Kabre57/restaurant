@@ -46,8 +46,14 @@ import { CartItem } from "./subcomponents/CartItem"
 import { ReceiptModal } from "./subcomponents/ReceiptModal"
 import { PaymentModal } from "./subcomponents/PaymentModal"
 import { ConnectionStatus } from "./subcomponents/ConnectionStatus"
+import { POSHeader } from "./subcomponents/POSHeader"
+import { TableStatusModal } from "./subcomponents/TableStatusModal"
+import { OptionsModal } from "./subcomponents/OptionsModal"
+import { ReservationsList } from "./subcomponents/ReservationsList"
+import { CashierStatsModal } from "./subcomponents/CashierStatsModal"
 import FloorPlanView from "./FloorPlanView"
 import ReservationModal from "./ReservationModal"
+import { AlertModal } from "./subcomponents/AlertModal"
 import type { ReceiptOrder } from "./subcomponents/ReceiptModal"
 import { Table, Reservation } from "@prisma/client"
 
@@ -114,6 +120,7 @@ export default function POSClient({ categories: initialCategories, products: ini
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null)
   const [customerSearch, setCustomerSearch] = useState("")
   const [customerResults, setCustomerResults] = useState<any[]>([])
+  const [alertState, setAlertState] = useState<{ title: string, message: string, type?: 'error' | 'success' } | null>(null)
   const syncInFlightRef = useRef(false)
 
   const { items, addItem, removeItem, updateQuantity, updateOptions, getSubtotal, getTax, getTotal, clearCart } = useCart()
@@ -265,7 +272,7 @@ export default function POSClient({ categories: initialCategories, products: ini
       setDiscount(res.discount || 0)
       setAppliedPromoId(res.promoId || null)
     } else {
-      alert(res.error)
+      setAlertState({ title: "Promotion Invalide", message: res.error || "Ce code promo n'est pas valide." })
       setDiscount(0)
       setAppliedPromoId(null)
     }
@@ -311,8 +318,9 @@ export default function POSClient({ categories: initialCategories, products: ini
           date: new Date(),
           paymentMode: mode as PaymentMode,
           amountReceived: mode === 'ESPECES' ? parseInt(amountReceived) : currentTotal,
-          changeAmount: mode === 'ESPECES' ? changeAmount : 0
+          changeAmount: mode === 'ESPECES' ? (changeAmount ?? 0) : 0
         })
+        updateSessionStats(currentTotal)
         setShowReceipt(true)
         advanceOrderId()
         setShowPaymentModal(false)
@@ -321,7 +329,7 @@ export default function POSClient({ categories: initialCategories, products: ini
         setSelectedTable(null)
         setViewMode('FLOOR_PLAN')
       } else {
-        alert(res.error || "Erreur lors de l'ajout à la commande existante")
+        setAlertState({ title: "Erreur", message: res.error || "Impossible d'ajouter ces articles à la commande de la table." })
       }
       setIsProcessing(false)
       return
@@ -361,7 +369,7 @@ export default function POSClient({ categories: initialCategories, products: ini
           setSelectedTable(null)
           setViewMode('FLOOR_PLAN')
         } else {
-          alert(res.error || "Erreur de paiement")
+          setAlertState({ title: "Paiement Échoué", message: res.error || "La transaction n'a pas pu être finalisée." })
         }
       } else {
         await addOrderToSyncQueue(orderData)
@@ -434,59 +442,21 @@ export default function POSClient({ categories: initialCategories, products: ini
             </button>
           </div>
         )}
-        <header className="h-20 px-8 flex items-center justify-between bg-white border-b border-[#e9ecef] z-20">
-          <div className="flex items-center gap-6">
-            <div>
-              <h1 className="text-xl font-black text-[#212529] tracking-tighter uppercase">Point de Vente</h1>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">
-                  {viewMode === 'FLOOR_PLAN' ? 'Plan de Salle' : `Table ${selectedTable?.number || 'Directe'}`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {viewMode === 'POS' && (
-              <button 
-                onClick={() => {
-                  setViewMode('FLOOR_PLAN')
-                  setSelectedTable(null)
-                }}
-                className="flex items-center gap-2 bg-[#f1f3f5] hover:bg-[#e9ecef] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                <MapIcon className="w-4 h-4" />
-                Changer Table
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 max-w-xl mx-12">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd] group-focus-within:text-[#212529] transition-colors" />
-              <input 
-                type="text" 
-                placeholder="RECHERCHER UN PRODUIT..." 
-                className="w-full bg-[#f8f9fa] border border-[#e9ecef] rounded-2xl pl-12 pr-4 py-3 text-[10px] font-black focus:outline-none focus:ring-2 focus:ring-[#212529] focus:bg-white transition-all uppercase tracking-widest"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <ConnectionStatus
-              isOnline={isOnline}
-              isSyncing={isSyncing}
-              queueCount={syncQueueCount}
-              onSyncNow={() => void syncPendingOrders()}
-            />
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">Mon solde jour</span>
-              <span className="font-black text-[#212529] text-sm">{sessionTotal.toLocaleString()} FCFA</span>
-            </div>
-          </div>
-        </header>
+        <POSHeader 
+          viewMode={viewMode}
+          selectedTable={selectedTable}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          isOnline={isOnline}
+          isSyncing={isSyncing}
+          syncQueueCount={syncQueueCount}
+          syncPendingOrders={() => void syncPendingOrders()}
+          sessionTotal={sessionTotal}
+          onViewPlan={() => {
+            setViewMode('FLOOR_PLAN')
+            setSelectedTable(null)
+          }}
+        />
 
         <div className="flex-1 overflow-hidden flex flex-col">
           {viewMode === 'FLOOR_PLAN' ? (
@@ -682,162 +652,15 @@ export default function POSClient({ categories: initialCategories, products: ini
           }}
         />
       )}
-    </div>
-  )
-}
 
-function ReservationsList({ reservations }: { reservations: Reservation[] }) {
-  const sorted = [...reservations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-  return (
-    <div className="flex-1 p-10 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-black text-[#212529] uppercase tracking-tighter mb-10">Réservations du Jour</h2>
-        <div className="space-y-4">
-          {sorted.length === 0 ? (
-            <div className="bg-white p-12 rounded-[2rem] text-center border border-[#e9ecef] shadow-sm">
-              <p className="font-black text-[#adb5bd] uppercase tracking-widest text-sm">Aucune réservation pour le moment</p>
-            </div>
-          ) : (
-            sorted.map(res => (
-              <div key={res.id} className="bg-white p-6 rounded-[2rem] border border-[#e9ecef] shadow-sm hover:shadow-xl transition-all flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-[#f8f9fa] rounded-2xl flex flex-col items-center justify-center border border-[#e9ecef]">
-                    <span className="text-[10px] font-black text-[#adb5bd] uppercase">{new Date(res.date).toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
-                    <span className="text-xl font-black text-[#212529]">{new Date(res.date).getHours()}:{new Date(res.date).getMinutes().toString().padStart(2, '0')}</span>
-                  </div>
-                  <div>
-                    <h4 className="font-black text-lg text-[#212529] uppercase tracking-tight">{res.customerName}</h4>
-                    <p className="text-xs font-bold text-[#adb5bd] uppercase tracking-widest">{res.phone} • {res.guests} Personnes</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                    res.status === 'CONFIRMED' ? 'bg-[#ebfbee] text-[#2f9e44]' : 'bg-[#fff4e6] text-[#f08c00]'
-                  }`}>
-                    {res.status}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TableStatusModal({ table, order, onClose, onAddItems }: { table: Table, order: any, onClose: () => void, onAddItems: () => void }) {
-  if (!order) return null
-
-  const getStatusColor = (status: string) => {
-    const s = status.toUpperCase()
-    if (s === 'EN_ATTENTE') return 'text-[#e03131] bg-[#fff5f5]'
-    if (s === 'PREPARATION' || s === 'PRÉPARATION') return 'text-[#f08c00] bg-[#fff4e6]'
-    if (s === 'PRET' || s === 'PRÊT') return 'text-[#2f9e44] bg-[#ebfbee]'
-    return 'text-[#adb5bd] bg-[#f8f9fa]'
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">Table {table.number}</h2>
-            <div className={`mt-2 inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusColor(order.status)}`}>
-              {order.status}
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Total Actuel</p>
-            <p className="text-2xl font-black text-[#212529]">{order.total?.toLocaleString()} FCFA</p>
-          </div>
-        </div>
-
-        <div className="space-y-4 mb-10 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-          {order.items.map((item: any) => (
-            <div key={item.id} className="flex justify-between items-center p-4 bg-[#f8f9fa] rounded-2xl border border-[#e9ecef]">
-              <div className="flex-1">
-                <p className="text-xs font-black text-[#212529] uppercase">{item.product.name}</p>
-                {item.options && <p className="text-[9px] font-bold text-[#e03131] uppercase mt-1">Note: {item.options}</p>}
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black bg-white px-3 py-1 rounded-lg border border-[#e9ecef]">x{item.quantity}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-4">
-          <button onClick={onClose} className="flex-1 py-5 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Fermer</button>
-          <button onClick={onAddItems} className="flex-[1.5] py-5 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2">
-            <Plus className="w-4 h-4" />
-            Ajouter des articles
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-function OptionsModal({ item, onSave, onClose }: { item: CartItemType | undefined, onSave: (val: string) => void, onClose: () => void }) {
-  const [val, setVal] = useState(item?.options || "")
-  
-  if (!item) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
-        <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-2">Options</h2>
-        <p className="text-xs font-bold text-[#adb5bd] mb-6 uppercase tracking-widest">{item.name}</p>
-        
-        <textarea
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          placeholder="Ex: Saignant, sans oignons..."
-          className="w-full h-32 bg-[#f8f9fa] border border-[#e9ecef] rounded-2xl p-4 text-sm font-bold text-[#212529] focus:ring-2 focus:ring-[#212529] outline-none resize-none mb-6"
-          autoFocus
+      {alertState && (
+        <AlertModal 
+          type={alertState.type || 'error'}
+          title={alertState.title}
+          message={alertState.message}
+          onClose={() => setAlertState(null)}
         />
-
-        <div className="flex gap-4">
-          <button onClick={onClose} className="flex-1 py-4 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Annuler</button>
-          <button onClick={() => onSave(val)} className="flex-1 py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">Valider</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CashierStatsModal({ total, cashierName, onClose }: { total: number, cashierName: string, onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-[#f1f3f5] rounded-3xl flex items-center justify-center mb-6">
-            <User className="w-10 h-10 text-[#212529]" />
-          </div>
-          <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">Session Caissier</h2>
-          <p className="text-sm font-bold text-[#adb5bd] uppercase tracking-widest mt-1">{cashierName}</p>
-        </div>
-        <div className="mt-10 space-y-4">
-          <div className="bg-[#f8f9fa] p-6 rounded-3xl border border-[#dee2e6] text-center">
-            <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-2">Chiffre d&apos;affaires Session</span>
-            <span className="text-4xl font-black text-[#212529]">{total.toLocaleString()} <span className="text-lg">FCFA</span></span>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white border border-[#dee2e6] text-center">
-              <span className="text-[9px] font-black text-[#adb5bd] uppercase block mb-1">Commandes</span>
-              <span className="text-xl font-black text-[#212529]">24</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-[#dee2e6] text-center">
-              <span className="text-[9px] font-black text-[#adb5bd] uppercase block mb-1">Status</span>
-              <span className="text-xs font-black text-[#2f9e44] uppercase tracking-widest">Actif</span>
-            </div>
-          </div>
-        </div>
-        <button onClick={onClose} className="w-full mt-10 bg-[#212529] text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all">Fermer</button>
-      </div>
+      )}
     </div>
   )
 }

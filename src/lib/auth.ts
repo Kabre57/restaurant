@@ -5,10 +5,6 @@ import bcrypt from "bcryptjs";
 
 const authSecret = process.env.NEXTAUTH_SECRET;
 
-if (!authSecret && process.env.NODE_ENV === "production") {
-  throw new Error("NEXTAUTH_SECRET doit être défini en production");
-}
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({

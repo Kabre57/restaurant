@@ -18,11 +18,11 @@ export default async function Home() {
   const role = session.user.role;
   if (role === 'KITCHEN') redirect('/kds');
   if (role === 'RESTAURATEUR') redirect('/restaurateur/produits');
-  if (role === 'ADMIN') redirect('/admin/dashboard');
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') redirect('/admin/dashboard');
 
   // Only CASHIER and DELIVERY reach this point
   const [categories, products, tables, reservations, activeOrders] = await Promise.all([
-    getCategories(),
+    getCategories(session.user.storeId),
     getProductsByStore(session.user.storeId),
     getTablesByStore(session.user.storeId),
     getReservationsByStore(session.user.storeId),

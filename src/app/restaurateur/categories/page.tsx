@@ -29,7 +29,7 @@ export default function CategoriesManagement() {
   async function loadCategories() {
     setLoading(true)
     // getCategories in products.ts currently fetches for the store. Let's make sure.
-    const data = await getCategories()
+    const data = await getCategories(session?.user?.storeId as string)
     setCategories(data)
     setLoading(false)
   }

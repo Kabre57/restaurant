@@ -48,7 +48,7 @@ export default function RestaurateurConfig() {
 
     if (res.success) {
       setMessage('Configuration enregistrée avec succès !')
-      setTimeout(() => setMessage(''), 3000)
+      setTimeout(() => setMessage(''), 3001)
     } else {
       alert(res.error)
     }

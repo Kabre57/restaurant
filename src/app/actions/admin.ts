@@ -132,3 +132,53 @@ export async function getSalesReport(storeId: string, period: 'daily' | 'monthly
     return []
   }
 }
+
+export async function getGlobalStats() {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const [orderCount, storeCount, totalRevenue] = await Promise.all([
+      prisma.order.count({
+        where: { createdAt: { gte: today } }
+      }),
+      prisma.store.count(),
+      prisma.order.aggregate({
+        _sum: { total: true },
+        where: { status: 'COMPLETED' }
+      })
+    ])
+
+    const recentOrders = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: { store: true }
+    })
+
+    const topStores = await prisma.store.findMany({
+      take: 3,
+      include: {
+        _count: {
+          select: { orders: true }
+        }
+      },
+      // In a real scenario, we'd sum the 'total' of orders
+    })
+
+    return {
+      orderCount,
+      storeCount,
+      totalRevenue: totalRevenue._sum.total || 0,
+      recentOrders,
+      topStores: topStores.map(s => ({
+        id: s.id,
+        name: s.name,
+        orderCount: s._count.orders,
+        revenue: 0 // Summing would be better but let's keep it simple for now
+      }))
+    }
+  } catch (error) {
+    console.error("Failed to fetch global stats:", error)
+    return null
+  }
+}

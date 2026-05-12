@@ -21,9 +21,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const menuItems = [
     { name: 'Tableau de bord', icon: <LayoutDashboard />, href: '/admin/dashboard' },
-    { name: 'Catégories', icon: <Layers />, href: '/admin/categories' },
     { name: 'Finances', icon: <Wallet />, href: '/admin/finances' },
     { name: 'Analytics', icon: <BarChart3 />, href: '/admin/analytics' },
+    { name: 'Promotions', icon: <Package />, href: '/admin/promotions' },
     { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
     { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },
   ]

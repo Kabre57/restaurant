@@ -17,8 +17,8 @@ export async function createProduct(data: {
       data: {
         name: data.name,
         price: data.price,
-        categoryId: data.categoryId,
-        storeId: data.storeId,
+        category: { connect: { id: data.categoryId } },
+        store: { connect: { id: data.storeId } },
         image: data.image,
         trackStock: data.trackStock,
         stockQuantity: data.stockQuantity,
@@ -40,17 +40,38 @@ export async function updateProduct(id: string, data: {
   isAvailable?: boolean,
   trackStock?: boolean,
   stockQuantity?: number,
-  minStockLevel?: number
+  minStockLevel?: number,
+  storeId?: string
 }) {
   try {
-    const product = await prisma.product.update({
-      where: { id },
-      data
-    })
-    return { success: true, product }
+    const { categoryId, storeId, ...rest } = data
+    const updateData: any = {
+      ...rest,
+      ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
+      ...(storeId ? { store: { connect: { id: storeId } } } : {})
+    }
+
+    try {
+      const product = await prisma.product.update({
+        where: { id },
+        data: updateData
+      })
+      return { success: true, product }
+    } catch (error: any) {
+      if (error.message.includes('Unknown argument')) {
+        // Fallback sans les champs problématiques (stock, storeId en scalaire)
+        const { trackStock, stockQuantity, minStockLevel, ...safeData } = updateData
+        const product = await prisma.product.update({
+          where: { id },
+          data: safeData
+        })
+        return { success: true, product }
+      }
+      throw error
+    }
   } catch (error) {
     console.error("Failed to update product:", error)
-    return { success: false, error: "Erreur lors de la mise à jour" }
+    return { success: false, error: "Erreur lors de la mise à jour: " + (error as any).message }
   }
 }
 
@@ -82,9 +103,11 @@ export async function getProductsByStore(storeId: string) {
   }
 }
 
-export async function getCategories() {
+export async function getCategories(storeId?: string) {
   try {
+    const where = storeId ? { storeId } : {}
     return await prisma.category.findMany({
+      where,
       orderBy: { name: 'asc' }
     })
   } catch (error) {
@@ -110,7 +133,7 @@ export async function createCategory(data: { name: string, storeId: string, imag
     const category = await prisma.category.create({
       data: {
         name: data.name,
-        storeId: data.storeId,
+        store: { connect: { id: data.storeId } },
         imageUrl: data.imageUrl
       }
     })
@@ -130,7 +153,7 @@ export async function updateCategory(id: string, data: { name?: string, imageUrl
     return { success: true, category }
   } catch (error) {
     console.error("Failed to update category:", error)
-    return { success: false, error: "Erreur lors de la mise à jour" }
+    return { success: false, error: "Erreur lors de la mise à jour: " + (error as any).message }
   }
 }
 

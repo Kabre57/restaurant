@@ -13,26 +13,32 @@ import {
   MoreVertical,
   Calendar
 } from 'lucide-react'
-import { getSalesReport } from '@/app/actions/admin'
+import { getSalesReport, getGlobalStats } from '@/app/actions/admin'
 import SalesChart from '@/components/admin/SalesChart'
 
 export default function AdminDashboard() {
   const [salesData, setSalesData] = React.useState<{name: string, value: number}[]>([])
+  const [globalStats, setGlobalStats] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
-    // Mocking storeId for now, ideally get from session/params
-    getSalesReport('store_1', 'daily').then(data => {
-      setSalesData(data)
+    async function loadData() {
+      const [sales, stats] = await Promise.all([
+        getSalesReport('store_01', 'daily'), // Adjust storeId as needed
+        getGlobalStats()
+      ])
+      setSalesData(sales)
+      setGlobalStats(stats)
       setLoading(false)
-    })
+    }
+    loadData()
   }, [])
 
   const stats = [
-    { name: 'Commandes du jour', value: salesData.length.toString(), icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
-    { name: 'Restaurants Actifs', value: '24', icon: <Store />, color: 'bg-[#51cf66]', trend: '+2' },
+    { name: 'Commandes du jour', value: globalStats?.orderCount?.toString() || '0', icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
+    { name: 'Restaurants Actifs', value: globalStats?.storeCount?.toString() || '0', icon: <Store />, color: 'bg-[#51cf66]', trend: '+2' },
     { name: 'Livreurs Actifs', value: '18', icon: <Truck />, color: 'bg-[#fcc419]', trend: '+3' },
-    { name: 'Chiffre d\'affaires', value: `${salesData.reduce((acc, d) => acc + d.value, 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#ae3ec9]', trend: '+8%' },
+    { name: 'Chiffre d\'affaires', value: `${(globalStats?.totalRevenue || 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#ae3ec9]', trend: '+8%' },
   ]
 
   return (

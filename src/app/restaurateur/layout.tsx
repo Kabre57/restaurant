@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   LayoutGrid,
   Layers,
-  Package
+  Package,
+  Truck
 } from 'lucide-react'
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
     { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
     { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
     { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
+    { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
     { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
     { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
   ]
@@ -62,8 +64,8 @@ export default function RestaurateurLayout({ children }: { children: React.React
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${active
-                    ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                  ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
+                  : 'text-white/40 hover:text-white hover:bg-white/5'
                   }`}
               >
                 {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}

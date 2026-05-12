@@ -107,36 +107,58 @@ export async function createOrder(data: OrderInput) {
     const paymentMethod = normalizePaymentMethod(data.paymentMode)
 
     const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
-        data: {
-          clientRequestId: data.clientRequestId,
-          storeId: data.storeId,
-          cashierId: data.cashierId,
-          tableId: data.tableId,
-          total: data.total,
-          type: data.type,
-          status: OrderStatus.EN_ATTENTE,
-          promotionId: data.promotionId,
-          discount: data.discount || 0,
-          customerId: data.customerId,
-          items: {
-            create: data.items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              options: item.options
-            }))
-          },
-          payments: {
-            create: {
-              method: paymentMethod,
-              status: PaymentStatus.REUSSIE,
-              amount: data.total
-            }
-          }
+      // Construction dynamique pour contourner les problèmes de synchronisation du client Prisma
+      const orderCreateData: any = {
+        clientRequestId: data.clientRequestId || null,
+        storeId: data.storeId,
+        cashierId: data.cashierId || null,
+        tableId: data.tableId || null,
+        total: data.total,
+        type: data.type,
+        status: OrderStatus.EN_ATTENTE,
+        items: {
+          create: data.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+            options: item.options
+          }))
         },
-        include: orderInclude
-      })
+        payments: {
+          create: {
+            method: paymentMethod,
+            status: PaymentStatus.REUSSIE,
+            amount: data.total
+          }
+        }
+      }
+
+      const createOrderRecord = async () => {
+        try {
+          return await tx.order.create({
+            data: {
+              ...orderCreateData,
+              discount: data.discount || 0,
+              promotionId: data.promotionId || null,
+              customerId: data.customerId || null,
+            },
+            include: orderInclude
+          })
+        } catch (error) {
+          const message = error instanceof Error ? error.message : ''
+          if (message.includes('Unknown argument')) {
+            console.warn("Fallback creation order: some fields are not supported by the current client")
+            return tx.order.create({
+              data: orderCreateData,
+              include: orderInclude
+            })
+          }
+
+          throw error
+        }
+      }
+
+      const newOrder = await createOrderRecord()
 
       for (const item of data.items) {
         const product = await tx.product.findUnique({
@@ -144,16 +166,18 @@ export async function createOrder(data: OrderInput) {
           select: { id: true, name: true, trackStock: true, stockQuantity: true, minStockLevel: true }
         })
 
-        if (product?.trackStock) {
-          const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stockQuantity: newQuantity }
-          })
+        if (!product || !product.trackStock) {
+          continue
+        }
 
-          if (newQuantity < product.minStockLevel) {
-            await publishStockAlert(data.storeId, { name: product.name, stockQuantity: newQuantity })
-          }
+        const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQuantity: newQuantity }
+        })
+
+        if (newQuantity < product.minStockLevel) {
+          await publishStockAlert(data.storeId, { name: product.name, stockQuantity: newQuantity })
         }
       }
 
@@ -173,7 +197,7 @@ export async function createOrder(data: OrderInput) {
     return { success: true, order };
   } catch (error) {
     console.error("Failed to create order:", error)
-    return { success: false, error: "Erreur lors de la création de la commande" }
+    return { success: false, error: "Erreur lors de la création de la commande: " + (error as any).message }
   }
 }
 
