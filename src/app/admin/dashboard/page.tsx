@@ -10,15 +10,29 @@ import {
   CheckCircle2, 
   Clock,
   ArrowUpRight,
-  MoreVertical
+  MoreVertical,
+  Calendar
 } from 'lucide-react'
+import { getSalesReport } from '@/app/actions/admin'
+import SalesChart from '@/components/admin/SalesChart'
 
 export default function AdminDashboard() {
+  const [salesData, setSalesData] = React.useState<{name: string, value: number}[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    // Mocking storeId for now, ideally get from session/params
+    getSalesReport('store_1', 'daily').then(data => {
+      setSalesData(data)
+      setLoading(false)
+    })
+  }, [])
+
   const stats = [
-    { name: 'Commandes du jour', value: '142', icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
+    { name: 'Commandes du jour', value: salesData.length.toString(), icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
     { name: 'Restaurants Actifs', value: '24', icon: <Store />, color: 'bg-[#51cf66]', trend: '+2' },
     { name: 'Livreurs Actifs', value: '18', icon: <Truck />, color: 'bg-[#fcc419]', trend: '+3' },
-    { name: 'Chiffre d\'affaires', value: '845 000 F', icon: <TrendingUp />, color: 'bg-[#ae3ec9]', trend: '+8%' },
+    { name: 'Chiffre d\'affaires', value: `${salesData.reduce((acc, d) => acc + d.value, 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#ae3ec9]', trend: '+8%' },
   ]
 
   return (
@@ -64,8 +78,14 @@ export default function AdminDashboard() {
               </div>
               <button className="p-2 hover:bg-[#f1f3f5] rounded-lg transition-all text-[#adb5bd]"><MoreVertical className="w-4 h-4" /></button>
             </div>
-            <div className="h-64 w-full bg-[#f8f9fa] rounded-2xl flex items-center justify-center border-2 border-dashed border-[#dee2e6]">
-              <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Graphique d'activité</span>
+            <div className="min-h-[16rem] w-full">
+              {loading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-[#339af0] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <SalesChart data={salesData} title="Évolution des Ventes" />
+              )}
             </div>
           </div>
 

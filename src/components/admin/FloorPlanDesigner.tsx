@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Move, Grid3X3, Circle, Square, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Move, Grid3X3, Circle, Square, Loader2, X, AlertCircle } from 'lucide-react';
 import { Table } from '@prisma/client';
 import { createTable, updateTablePosition, updateTableDetails, deleteTable } from '@/app/actions/tables';
 
@@ -16,14 +16,15 @@ export default function FloorPlanDesigner({ initialTables, storeId }: FloorPlanD
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isAdding, setIsAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedTable = tables.find(t => t.id === selectedTableId);
 
   const handleAddTable = async () => {
     setIsAdding(true);
-    setError(null);
+    setErrorModal(null);
     try {
       const nextNumber = tables.length > 0 ? Math.max(...tables.map(t => t.number)) + 1 : 1;
       const res = await createTable({
@@ -39,11 +40,11 @@ export default function FloorPlanDesigner({ initialTables, storeId }: FloorPlanD
         setTables(prev => [...prev, res.table!]);
         setSelectedTableId(res.table!.id);
       } else {
-        setError(res.error || "Erreur lors de l'ajout");
+        setErrorModal(res.error || "Erreur lors de l'ajout");
       }
     } catch (e) {
       console.error("handleAddTable error:", e);
-      setError("Impossible d'ajouter la table. Vérifiez la console.");
+      setErrorModal("Impossible d'ajouter la table. Vérifiez la console.");
     } finally {
       setIsAdding(false);
     }
@@ -88,17 +89,21 @@ export default function FloorPlanDesigner({ initialTables, storeId }: FloorPlanD
     await updateTableDetails(selectedTableId, { [field]: value });
   };
 
-  const handleDeleteTable = async () => {
-    if (!selectedTableId) return;
-    if (confirm("Supprimer cette table ?")) {
-      const res = await deleteTable(selectedTableId);
-      if (res.success) {
-        setTables(prev => prev.filter(t => t.id !== selectedTableId));
-        setSelectedTableId(null);
-      } else {
-        setError(res.error || "Erreur lors de la suppression");
-      }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await deleteTable(deleteTarget);
+    if (res.success) {
+      setTables(prev => prev.filter(t => t.id !== deleteTarget));
+      setSelectedTableId(null);
+      setDeleteTarget(null);
+    } else {
+      setErrorModal(res.error || "Erreur lors de la suppression");
+      setDeleteTarget(null);
     }
+  };
+
+  const handleDeleteTable = () => {
+    if (selectedTableId) setDeleteTarget(selectedTableId);
   };
 
   return (
@@ -152,14 +157,6 @@ export default function FloorPlanDesigner({ initialTables, storeId }: FloorPlanD
           </div>
         )}
       </div>
-
-      {/* Error Banner */}
-      {error && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-3 text-red-600 text-sm font-medium flex items-center justify-between">
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 font-bold">✕</button>
-        </div>
-      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Canvas Area */}
@@ -269,6 +266,38 @@ export default function FloorPlanDesigner({ initialTables, storeId }: FloorPlanD
           </div>
         )}
       </div>
+
+      {/* Modal Confirmation de Suppression */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center">
+            <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trash2 className="w-8 h-8 text-[#e03131]" />
+            </div>
+            <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-2">Confirmer la suppression</h2>
+            <p className="text-xs font-bold text-[#adb5bd] mb-8">Voulez-vous vraiment supprimer cette table ?</p>
+            <div className="flex gap-4">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-4 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Annuler</button>
+              <button onClick={confirmDelete} className="flex-1 py-4 bg-[#e03131] hover:bg-[#c92a2a] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-red-500/20">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Erreur / Alerte */}
+      {errorModal && (
+        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center relative">
+            <button onClick={() => setErrorModal(null)} className="absolute top-4 right-4 p-2 text-[#adb5bd] hover:text-[#212529]"><X className="w-5 h-5" /></button>
+            <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-[#e03131]" />
+            </div>
+            <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-4">Action Impossible</h2>
+            <p className="text-sm font-bold text-[#495057] mb-8 leading-relaxed">{errorModal}</p>
+            <button onClick={() => setErrorModal(null)} className="w-full py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">J'ai compris</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

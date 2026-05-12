@@ -32,11 +32,13 @@ export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) 
 
   return (
     <div onClick={onAdd} className="bg-white rounded-3xl overflow-hidden border border-[#e9ecef] hover:border-[#212529] transition-all duration-300 cursor-pointer group flex flex-col shadow-sm hover:shadow-2xl hover:-translate-y-1.5">
-      <div className="aspect-[4/3] bg-[#f8f9fa] relative overflow-hidden flex items-center justify-center p-4">
+      <div className="aspect-[4/3] bg-[#f8f9fa] relative overflow-hidden flex items-center justify-center">
         {product.image ? (
           <Image src={product.image} alt={product.name} fill sizes="250px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
         ) : (
-          <div className="text-5xl select-none group-hover:scale-110 transition-transform duration-300">{emoji}</div>
+          <div className="w-full h-full bg-[#f1f3f5] flex items-center justify-center">
+             <div className="w-12 h-12 bg-white/50 rounded-full border border-white flex items-center justify-center text-[10px] font-black text-[#adb5bd]">IMAGE</div>
+          </div>
         )}
         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[9px] font-black text-[#212529] border border-[#e9ecef] uppercase tracking-widest">
           {categoryName}

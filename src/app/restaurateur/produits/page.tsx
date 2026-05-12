@@ -13,13 +13,18 @@ export default function RestaurateurProducts() {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     categoryId: '',
     image: '',
-    isAvailable: true
+    isAvailable: true,
+    trackStock: false,
+    stockQuantity: '0',
+    minStockLevel: '5'
   })
 
   useEffect(() => {
@@ -46,7 +51,10 @@ export default function RestaurateurProducts() {
     const payload = {
       ...formData,
       price: parseFloat(formData.price),
-      storeId: session?.user?.storeId as string
+      storeId: session?.user?.storeId as string,
+      trackStock: formData.trackStock,
+      stockQuantity: parseInt(formData.stockQuantity),
+      minStockLevel: parseInt(formData.minStockLevel)
     }
 
     let res
@@ -62,16 +70,22 @@ export default function RestaurateurProducts() {
       setFormData({ name: '', price: '', categoryId: '', image: '', isAvailable: true })
       loadData()
     } else {
-      alert(res.error)
+      setErrorModal(res.error || "Erreur lors de l'enregistrement")
     }
     setIsSubmitting(false)
   }
 
-  async function handleDelete(id: string) {
-    if (confirm("Voulez-vous vraiment supprimer ce produit ?")) {
-      const res = await deleteProduct(id)
-      if (res.success) loadData()
-    }
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const id = deleteTarget
+    setDeleteTarget(null)
+    const res = await deleteProduct(id)
+    if (res.success) loadData()
+    else setErrorModal(res.error || "Erreur lors de la suppression")
+  }
+
+  function handleDeleteClick(id: string) {
+    setDeleteTarget(id)
   }
 
   async function toggleAvailability(product: any) {
@@ -86,7 +100,10 @@ export default function RestaurateurProducts() {
       price: product.price.toString(),
       categoryId: product.categoryId,
       image: product.image || '',
-      isAvailable: product.isAvailable
+      isAvailable: product.isAvailable,
+      trackStock: product.trackStock || false,
+      stockQuantity: (product.stockQuantity || 0).toString(),
+      minStockLevel: (product.minStockLevel || 5).toString()
     })
     setShowModal(true)
   }
@@ -123,7 +140,7 @@ export default function RestaurateurProducts() {
                   <button onClick={() => handleEdit(product)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#212529] transition-all">
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(product.id)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#e03131] transition-all">
+                  <button onClick={() => handleDeleteClick(product.id)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#e03131] transition-all">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -140,12 +157,19 @@ export default function RestaurateurProducts() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-black text-[#212529]">{product.price.toLocaleString()} FCFA</span>
-                  <button 
-                    onClick={() => toggleAvailability(product)}
-                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${product.isAvailable ? 'bg-[#ebfbee] text-[#2f9e44]' : 'bg-[#fff5f5] text-[#e03131]'}`}
-                  >
-                    {product.isAvailable ? 'En Stock' : 'Épuisé'}
-                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    <button 
+                      onClick={() => toggleAvailability(product)}
+                      className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${product.isAvailable ? 'bg-[#ebfbee] text-[#2f9e44]' : 'bg-[#fff5f5] text-[#e03131]'}`}
+                    >
+                      {product.isAvailable ? 'En Stock' : 'Épuisé'}
+                    </button>
+                    {product.trackStock && (
+                      <span className={`text-[8px] font-bold uppercase ${product.stockQuantity <= product.minStockLevel ? 'text-[#e03131]' : 'text-[#adb5bd]'}`}>
+                        Stock: {product.stockQuantity}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -219,21 +243,80 @@ export default function RestaurateurProducts() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 bg-[#f8f9fa] p-4 rounded-xl border border-[#dee2e6]">
-                <button 
-                  type="button"
-                  onClick={() => setFormData({...formData, isAvailable: !formData.isAvailable})}
-                  className={`w-10 h-5 rounded-full transition-all relative ${formData.isAvailable ? 'bg-[#51cf66]' : 'bg-[#adb5bd]'}`}
-                >
-                  <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${formData.isAvailable ? 'left-6' : 'left-1'}`} />
-                </button>
-                <span className="text-[10px] font-black text-[#212529] uppercase tracking-widest">Plat disponible immédiatement</span>
+              <div className="space-y-4 bg-[#f8f9fa] p-6 rounded-[2rem] border border-[#dee2e6]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, trackStock: !formData.trackStock})}
+                      className={`w-10 h-5 rounded-full transition-all relative ${formData.trackStock ? 'bg-[#212529]' : 'bg-[#adb5bd]'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${formData.trackStock ? 'left-6' : 'left-1'}`} />
+                    </button>
+                    <span className="text-[10px] font-black text-[#212529] uppercase tracking-widest">Suivre les stocks</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, isAvailable: !formData.isAvailable})}
+                      className={`w-10 h-5 rounded-full transition-all relative ${formData.isAvailable ? 'bg-[#51cf66]' : 'bg-[#adb5bd]'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${formData.isAvailable ? 'left-6' : 'left-1'}`} />
+                    </button>
+                    <span className="text-[10px] font-black text-[#212529] uppercase tracking-widest">Disponible</span>
+                  </div>
+                </div>
+
+                {formData.trackStock && (
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#dee2e6] animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Quantité en stock</label>
+                      <input type="number" value={formData.stockQuantity} onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})} className="w-full bg-white border border-[#dee2e6] rounded-xl px-4 py-2 text-xs font-bold" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Seuil d'alerte</label>
+                      <input type="number" value={formData.minStockLevel} onChange={(e) => setFormData({...formData, minStockLevel: e.target.value})} className="w-full bg-white border border-[#dee2e6] rounded-xl px-4 py-2 text-xs font-bold" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button disabled={isSubmitting} type="submit" className="w-full bg-[#212529] text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:bg-[#adb5bd]">
                 {isSubmitting ? "Enregistrement..." : editingProduct ? "Mettre à jour" : "Créer le produit"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmation de Suppression */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center">
+            <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trash2 className="w-8 h-8 text-[#e03131]" />
+            </div>
+            <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-2">Confirmer la suppression</h2>
+            <p className="text-xs font-bold text-[#adb5bd] mb-8">Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.</p>
+            <div className="flex gap-4">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-4 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Annuler</button>
+              <button onClick={confirmDelete} className="flex-1 py-4 bg-[#e03131] hover:bg-[#c92a2a] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-red-500/20">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Erreur / Alerte */}
+      {errorModal && (
+        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center relative">
+            <button onClick={() => setErrorModal(null)} className="absolute top-4 right-4 p-2 text-[#adb5bd] hover:text-[#212529]"><X className="w-5 h-5" /></button>
+            <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-[#e03131]" />
+            </div>
+            <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-4">Action Impossible</h2>
+            <p className="text-sm font-bold text-[#495057] mb-8 leading-relaxed">{errorModal}</p>
+            <button onClick={() => setErrorModal(null)} className="w-full py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">J'ai compris</button>
           </div>
         </div>
       )}

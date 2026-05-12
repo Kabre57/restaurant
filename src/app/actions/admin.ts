@@ -1,9 +1,7 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 /**
  * Bascule la disponibilité d'un produit (disponible / en rupture).
@@ -64,16 +62,28 @@ export async function getCategories() {
   }
 }
 
-export async function addProduct(data: { name: string, price: number, categoryId: string, image: string | null, storeId: string }) {
+export async function addProduct(data: { 
+  name: string, 
+  price: number, 
+  categoryId: string, 
+  image: string | null, 
+  storeId: string,
+  trackStock?: boolean,
+  stockQuantity?: number,
+  minStockLevel?: number
+}) {
   try {
     const product = await prisma.product.create({
       data: {
         name: data.name,
         price: data.price,
         categoryId: data.categoryId,
-        image: data.image, // Mock S3/Upload: storage as Base64 or URL
+        image: data.image,
         storeId: data.storeId,
-        isAvailable: true
+        isAvailable: true,
+        trackStock: data.trackStock || false,
+        stockQuantity: data.stockQuantity || 0,
+        minStockLevel: data.minStockLevel || 5
       },
       include: { category: true }
     })
@@ -83,5 +93,42 @@ export async function addProduct(data: { name: string, price: number, categoryId
   } catch (error) {
     console.error("Erreur creation produit:", error)
     return { success: false, error: "Erreur lors de l'ajout." }
+  }
+}
+
+export async function updateProductStock(productId: string, quantity: number) {
+  try {
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: { stockQuantity: quantity }
+    })
+    revalidatePath('/admin/produits')
+    return { success: true, product }
+  } catch (error) {
+    return { success: false, error: "Erreur lors de la mise à jour du stock." }
+  }
+}
+
+export async function getSalesReport(storeId: string, period: 'daily' | 'monthly' = 'daily') {
+  try {
+    const orders = await prisma.order.findMany({
+      where: { storeId, status: 'COMPLETED' },
+      select: { total: true, createdAt: true }
+    })
+
+    // Simple grouping by day or month
+    const report: Record<string, number> = {}
+    orders.forEach(o => {
+      const date = new Date(o.createdAt)
+      const key = period === 'daily' 
+        ? date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+        : date.toLocaleDateString('fr-FR', { month: 'long' })
+      report[key] = (report[key] || 0) + o.total
+    })
+
+    return Object.entries(report).map(([name, value]) => ({ name, value }))
+  } catch (error) {
+    console.error("Failed to fetch sales report:", error)
+    return []
   }
 }

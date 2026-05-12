@@ -1,8 +1,6 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 export async function getStoreDetails(storeId: string) {
   try {
@@ -12,6 +10,8 @@ export async function getStoreDetails(storeId: string) {
         id: true,
         name: true,
         address: true,
+        phone: true,
+        logo: true,
         commission: true,
       }
     })

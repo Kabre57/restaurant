@@ -1,9 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
 const authSecret = process.env.NEXTAUTH_SECRET;
 
 if (!authSecret && process.env.NODE_ENV === "production") {

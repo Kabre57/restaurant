@@ -12,7 +12,10 @@ type OrderItem = {
   id: string
   quantity: number
   options: string | null
-  product: { name: string }
+  product: { 
+    name: string
+    category: { name: string }
+  }
 }
 
 export type KDSOrder = {
@@ -63,6 +66,7 @@ function formatTime(seconds: number): string {
 
 export default function KDSClient({ initialOrders, storeId, storeName }: { initialOrders: KDSOrder[], storeId: string, storeName: string }) {
   const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizeOrder))
+  const [prepZone, setPrepZone] = useState<'ALL' | 'CUISINE' | 'BAR'>('ALL')
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('connecting')
   const [retryDelay, setRetryDelay] = useState(1000)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -162,9 +166,18 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
     }
   }
 
-  const pendingOrders = orders.filter(o => o.status === 'EN_ATTENTE')
-  const preparingOrders = orders.filter(o => o.status === 'PREPARATION')
-  const readyOrders = orders.filter(o => o.status === 'PRET')
+  const processedOrders = orders.map(order => {
+    const filteredItems = order.items.filter(item => {
+      if (prepZone === 'ALL') return true
+      const isDrink = item.product.category?.name.toLowerCase().includes('boisson') || false
+      return prepZone === 'CUISINE' ? !isDrink : isDrink
+    })
+    return { ...order, items: filteredItems }
+  }).filter(order => order.items.length > 0)
+
+  const pendingOrders = processedOrders.filter(o => o.status === 'EN_ATTENTE')
+  const preparingOrders = processedOrders.filter(o => o.status === 'PREPARATION')
+  const readyOrders = processedOrders.filter(o => o.status === 'PRET')
 
   return (
     <div className="flex h-screen bg-[#f8f9fa] text-[#212529] font-sans overflow-hidden">
@@ -188,9 +201,26 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
         {/* Header */}
         <header className="h-20 px-10 flex items-center justify-between bg-white border-b border-[#dee2e6] z-10 shadow-sm">
           <div className="flex items-center gap-6">
-            <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase leading-none">Affichage Cuisine</h1>
-              <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">{storeName}</span>
+            <h1 className="text-xl font-black text-[#212529] uppercase tracking-tighter">Affichage Cuisine</h1>
+            <div className="flex bg-[#f1f3f5] p-1 rounded-xl border border-[#e9ecef]">
+              <button 
+                onClick={() => setPrepZone('ALL')}
+                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${prepZone === 'ALL' ? 'bg-[#212529] text-white shadow-lg' : 'text-[#adb5bd] hover:text-[#212529]'}`}
+              >
+                Tout
+              </button>
+              <button 
+                onClick={() => setPrepZone('CUISINE')}
+                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${prepZone === 'CUISINE' ? 'bg-[#212529] text-white shadow-lg' : 'text-[#adb5bd] hover:text-[#212529]'}`}
+              >
+                Cuisine
+              </button>
+              <button 
+                onClick={() => setPrepZone('BAR')}
+                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${prepZone === 'BAR' ? 'bg-[#212529] text-white shadow-lg' : 'text-[#adb5bd] hover:text-[#212529]'}`}
+              >
+                Bar
+              </button>
             </div>
             <div className="h-8 w-px bg-[#dee2e6]" />
             <div className="flex items-center gap-4">
@@ -278,23 +308,33 @@ function KDSColumn({ title, color, orders, onAction, icon, actionLabel }: {
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Commande</span>
-                <h3 className="text-xl font-black text-[#212529] tracking-tighter">
-                  #{order.id.slice(-5).toUpperCase()}
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-black text-[#212529] tracking-tighter">
+                    #{order.id.slice(-5).toUpperCase()}
+                  </h3>
                   {order.table && (
-                    <span className="ml-2 text-orange-600">
-                      T{order.table.number}
-                    </span>
+                    <div className="bg-[#212529] text-white px-4 py-1.5 rounded-xl flex items-center gap-2 shadow-lg scale-110">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Table</span>
+                      <span className="text-xl font-black">{order.table.number}</span>
+                    </div>
                   )}
-                </h3>
+                </div>
               </div>
               <Timer createdAt={order.createdAt} />
             </div>
             
             <div className="space-y-2">
               {order.items.map(item => (
-                <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-[#dee2e6]">
-                  <span className="text-xs font-black text-[#212529] uppercase">{item.product.name}</span>
-                  <span className="text-xs font-black bg-[#f1f3f5] px-2 py-0.5 rounded-lg">x{item.quantity}</span>
+                <div key={item.id} className="bg-white p-3 rounded-xl border border-[#dee2e6]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-[#212529] uppercase">{item.product.name}</span>
+                    <span className="text-xs font-black bg-[#f1f3f5] px-2 py-0.5 rounded-lg">x{item.quantity}</span>
+                  </div>
+                  {item.options && (
+                    <p className="text-[10px] font-black text-[#e03131] uppercase tracking-widest mt-2 bg-[#fff5f5] p-2 rounded-lg border border-[#ffa8a8]">
+                      ⚠️ {item.options}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,10 +1,17 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import prisma from '@/lib/prisma'
 
-const prisma = new PrismaClient()
-
-export async function createProduct(data: { name: string, price: number, categoryId: string, storeId: string, image?: string }) {
+export async function createProduct(data: { 
+  name: string, 
+  price: number, 
+  categoryId: string, 
+  storeId: string, 
+  image?: string,
+  trackStock?: boolean,
+  stockQuantity?: number,
+  minStockLevel?: number
+}) {
   try {
     const product = await prisma.product.create({
       data: {
@@ -12,7 +19,10 @@ export async function createProduct(data: { name: string, price: number, categor
         price: data.price,
         categoryId: data.categoryId,
         storeId: data.storeId,
-        image: data.image
+        image: data.image,
+        trackStock: data.trackStock,
+        stockQuantity: data.stockQuantity,
+        minStockLevel: data.minStockLevel
       }
     })
     return { success: true, product }
@@ -22,7 +32,16 @@ export async function createProduct(data: { name: string, price: number, categor
   }
 }
 
-export async function updateProduct(id: string, data: { name?: string, price?: number, categoryId?: string, image?: string, isAvailable?: boolean }) {
+export async function updateProduct(id: string, data: { 
+  name?: string, 
+  price?: number, 
+  categoryId?: string, 
+  image?: string, 
+  isAvailable?: boolean,
+  trackStock?: boolean,
+  stockQuantity?: number,
+  minStockLevel?: number
+}) {
   try {
     const product = await prisma.product.update({
       where: { id },
@@ -41,8 +60,11 @@ export async function deleteProduct(id: string) {
       where: { id }
     })
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to delete product:", error)
+    if (error.code === 'P2003') {
+      return { success: false, error: "Impossible de supprimer ce produit car il est présent dans l'historique des commandes. Rendez-le 'Épuisé' à la place." }
+    }
     return { success: false, error: "Erreur lors de la suppression" }
   }
 }
@@ -80,5 +102,49 @@ export async function getCategoriesByStore(storeId: string) {
   } catch (error) {
     console.error("Failed to fetch categories:", error)
     return []
+  }
+}
+
+export async function createCategory(data: { name: string, storeId: string, imageUrl?: string }) {
+  try {
+    const category = await prisma.category.create({
+      data: {
+        name: data.name,
+        storeId: data.storeId,
+        imageUrl: data.imageUrl
+      }
+    })
+    return { success: true, category }
+  } catch (error) {
+    console.error("Failed to create category:", error)
+    return { success: false, error: "Erreur lors de la création de la catégorie" }
+  }
+}
+
+export async function updateCategory(id: string, data: { name?: string, imageUrl?: string }) {
+  try {
+    const category = await prisma.category.update({
+      where: { id },
+      data
+    })
+    return { success: true, category }
+  } catch (error) {
+    console.error("Failed to update category:", error)
+    return { success: false, error: "Erreur lors de la mise à jour" }
+  }
+}
+
+export async function deleteCategory(id: string) {
+  try {
+    await prisma.category.delete({
+      where: { id }
+    })
+    return { success: true }
+  } catch (error: any) {
+    console.error("Failed to delete category:", error)
+    if (error.code === 'P2003') {
+      return { success: false, error: "Impossible de supprimer cette catégorie car elle contient des produits." }
+    }
+    return { success: false, error: "Erreur lors de la suppression" }
   }
 }

@@ -7,6 +7,7 @@ import { Utensils, Calendar } from 'lucide-react';
 interface FloorPlanViewProps {
   tables: Table[];
   reservations: Reservation[];
+  activeOrders: any[];
   onTableSelect: (table: Table) => void;
   onTableBook: (table: Table) => void;
   selectedTableId?: string | null;
@@ -15,6 +16,7 @@ interface FloorPlanViewProps {
 export default function FloorPlanView({ 
   tables, 
   reservations, 
+  activeOrders,
   onTableSelect, 
   onTableBook, 
   selectedTableId 
@@ -30,14 +32,18 @@ export default function FloorPlanView({
       <div className="min-w-full min-h-full relative">
         {tables.map(table => {
           const tableReservations = getTableReservations(table.id);
-          const isOccupied = table.status === 'OCCUPIED';
-          const isReserved = table.status === 'RESERVED' || tableReservations.length > 0;
+          const tableOrder = activeOrders.find(o => o.tableId === table.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
+          
+          const isOccupied = !!tableOrder && (tableOrder.status === 'EN_ATTENTE' || tableOrder.status === 'PREPARATION' || tableOrder.status === 'PRÉPARATION');
+          const isReady = !!tableOrder && (tableOrder.status === 'PRET' || tableOrder.status === 'PRÊT');
+          const isReserved = !tableOrder && (table.status === 'RESERVED' || tableReservations.length > 0);
           const isSelected = selectedTableId === table.id;
 
           let statusColor = 'bg-white border-slate-200 text-slate-900';
-          if (isOccupied) statusColor = 'bg-red-50 border-red-200 text-red-600';
+          if (isOccupied) statusColor = 'bg-[#fff4e6] border-[#f08c00] text-[#f08c00]'; // Orange
+          if (isReady) statusColor = 'bg-[#ebfbee] border-[#2f9e44] text-[#2f9e44]'; // Green
           if (isReserved) statusColor = 'bg-blue-50 border-blue-200 text-blue-600';
-          if (isSelected) statusColor = 'bg-orange-500 border-orange-600 text-white shadow-xl scale-105 z-10';
+          if (isSelected) statusColor = 'bg-[#212529] border-black text-white shadow-xl scale-105 z-10';
 
           return (
             <div
@@ -78,11 +84,16 @@ export default function FloorPlanView({
               
               {/* Status Badges */}
               {isOccupied && !isSelected && (
-                <div className="absolute -top-2 -left-2 bg-red-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
+                <div className="absolute -top-2 -left-2 bg-[#f08c00] text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
                   Occupée
                 </div>
               )}
-              {isReserved && !isOccupied && !isSelected && (
+              {isReady && !isSelected && (
+                <div className="absolute -top-2 -left-2 bg-[#2f9e44] text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
+                  Prêt
+                </div>
+              )}
+              {isReserved && !isOccupied && !isReady && !isSelected && (
                 <div className="absolute -top-2 -left-2 bg-blue-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
                   <Calendar className="w-2 h-2" />
                   {tableReservations.length} Résa
@@ -100,8 +111,12 @@ export default function FloorPlanView({
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Libre</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Occupée</span>
+          <div className="w-3 h-3 rounded-full bg-[#f08c00]" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Occupée / Prépa</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-[#2f9e44]" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Prêt</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />

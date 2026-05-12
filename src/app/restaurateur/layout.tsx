@@ -1,30 +1,45 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut } from 'next-auth/react'
-import { 
-  Store, 
-  UtensilsCrossed, 
-  ClipboardList, 
-  Users, 
-  TrendingUp, 
+import { useSession, signOut } from 'next-auth/react'
+import { getStoreDetails } from '@/app/actions/stores'
+import {
+  Store,
+  UtensilsCrossed,
+  ClipboardList,
+  Users,
+  TrendingUp,
   Settings,
   LogOut,
   ChevronLeft,
-  LayoutGrid
+  LayoutGrid,
+  Layers,
+  Package
 } from 'lucide-react'
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const [store, setStore] = useState<any>(null)
+
+  useEffect(() => {
+    if (session?.user?.storeId) {
+      getStoreDetails(session.user.storeId).then(data => {
+        if (data) setStore(data)
+      })
+    }
+  }, [session])
 
   const menuItems = [
-    { name: 'Menu & Produits', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
+    { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
+    { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
+    { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks' },
+    { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
     { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
     { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
     { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
-    { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
     { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
   ]
 
@@ -46,11 +61,10 @@ export default function RestaurateurLayout({ children }: { children: React.React
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${
-                  active 
-                    ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20' 
+                className={`flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${active
+                    ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
                     : 'text-white/40 hover:text-white hover:bg-white/5'
-                }`}
+                  }`}
               >
                 {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}
                 <span className="font-black text-[10px] uppercase tracking-widest hidden lg:block">{item.name}</span>
@@ -83,10 +97,16 @@ export default function RestaurateurLayout({ children }: { children: React.React
           <div className="flex items-center gap-4">
             <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Espace Gestion Restaurant</span>
             <div className="h-4 w-px bg-[#dee2e6]" />
-            <h2 className="text-xs font-black text-[#212529] uppercase tracking-tight">Le Gourmet Abidjan</h2>
+            <h2 className="text-xs font-black text-[#212529] uppercase tracking-tight">{store?.name || 'Chargement...'}</h2>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-[#f8f9fa] border border-[#dee2e6]" />
+            {store?.logo ? (
+              <img src={store.logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain border border-[#dee2e6] bg-white" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-[#f8f9fa] border border-[#dee2e6] flex items-center justify-center">
+                <Store className="w-5 h-5 text-[#adb5bd]" />
+              </div>
+            )}
           </div>
         </header>
 

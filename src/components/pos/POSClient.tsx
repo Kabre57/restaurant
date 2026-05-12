@@ -11,11 +11,23 @@ import {
   User,
   LayoutGrid,
   Map as MapIcon,
-  ChevronLeft
+  ChevronLeft,
+  Trash2,
+  Plus,
+  AlertCircle
 } from "lucide-react"
 
 import { useCart } from "@/store/useCart"
-import { createOrder, syncOrdersBatch } from "@/app/actions/orders"
+type CartItemType = {
+  id: string
+  productId: string
+  name: string
+  price: number
+  quantity: number
+  options?: string
+}
+import { createOrder, syncOrdersBatch, addItemsToOrder } from "@/app/actions/orders"
+import { validatePromotion, searchCustomer } from '@/app/actions/loyalty'
 import { 
   saveCategoriesToIDB, 
   saveProductsToIDB, 
@@ -47,6 +59,7 @@ interface POSClientProps {
   products: CachedProduct[]
   tables: Table[]
   reservations: Reservation[]
+  activeOrders?: any[]
   storeId: string
   cashierId: string
 }
@@ -68,7 +81,7 @@ function createClientRequestId(storeId: string, cashierId: string) {
   return `${storeId}:${cashierId}:${randomId}`
 }
 
-export default function POSClient({ categories: initialCategories, products: initialProducts, tables, reservations, storeId, cashierId }: POSClientProps) {
+export default function POSClient({ categories: initialCategories, products: initialProducts, tables, reservations, activeOrders = [], storeId, cashierId }: POSClientProps) {
   const { data: session } = useSession()
   const isRestaurateur = session?.user?.role === 'RESTAURATEUR'
   
@@ -80,7 +93,6 @@ export default function POSClient({ categories: initialCategories, products: ini
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncQueueCount, setSyncQueueCount] = useState(0)
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('ESPECES')
   const [showSessionStats, setShowSessionStats] = useState(false)
   const [sessionTotal, setSessionTotal] = useState(0) 
   const [showReceipt, setShowReceipt] = useState(false)
@@ -89,13 +101,26 @@ export default function POSClient({ categories: initialCategories, products: ini
   const [amountReceived, setAmountReceived] = useState("")
   const [changeAmount, setChangeAmount] = useState<number | null>(null)
   const [orderId, setOrderId] = useState(() => createInitialDisplayOrderId(cashierId))
-  const [viewMode, setViewMode] = useState<'POS' | 'FLOOR_PLAN'>('FLOOR_PLAN')
+  const [viewMode, setViewMode] = useState<'POS' | 'FLOOR_PLAN' | 'RESERVATIONS'>('POS')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [showReservationModal, setShowReservationModal] = useState(false)
   const [tableForReservation, setTableForReservation] = useState<Table | null>(null)
+  const [editingOptionsId, setEditingOptionsId] = useState<string | null>(null)
+  const [showTableStatusModal, setShowTableStatusModal] = useState<Table | null>(null)
+  const [stockAlerts, setStockAlerts] = useState<{name: string, stockQuantity: number}[]>([])
+  const [promoCode, setPromoCode] = useState("")
+  const [discount, setDiscount] = useState(0)
+  const [appliedPromoId, setAppliedPromoId] = useState<string | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null)
+  const [customerSearch, setCustomerSearch] = useState("")
+  const [customerResults, setCustomerResults] = useState<any[]>([])
   const syncInFlightRef = useRef(false)
 
-  const { items, addItem, removeItem, updateQuantity, getSubtotal, getTax, getTotal, clearCart } = useCart()
+  const { items, addItem, removeItem, updateQuantity, updateOptions, getSubtotal, getTax, getTotal, clearCart } = useCart()
+
+  const handleProductAdd = (product: any) => {
+    addItem({ productId: product.id, name: product.name, price: product.price, quantity: 1 })
+  }
 
   const advanceOrderId = useCallback(() => {
     setOrderId((current) => nextDisplayOrderId(current))
@@ -198,14 +223,29 @@ export default function POSClient({ categories: initialCategories, products: ini
       })
     }, 0)
 
+    // Stock Alerts Listener
+    let alertSource: EventSource | null = null
+    if (navigator.onLine) {
+      alertSource = new EventSource(`/api/stock/alerts?storeId=${storeId}`)
+      alertSource.onmessage = (e) => {
+        const data = JSON.parse(e.data)
+        setStockAlerts(prev => {
+          // Prevent duplicates
+          if (prev.some(a => a.name === data.name)) return prev
+          return [data, ...prev].slice(0, 5)
+        })
+      }
+    }
+
     return () => {
       window.cancelAnimationFrame(frameId)
       window.clearTimeout(statusTimerId)
       window.clearTimeout(loadTimerId)
       window.removeEventListener('online', handleStatus)
       window.removeEventListener('offline', handleStatus)
+      if (alertSource) alertSource.close()
     }
-  }, [cashierId, loadOfflineData, syncPendingOrders])
+  }, [cashierId, loadOfflineData, syncPendingOrders, storeId])
 
   const calculateChange = (val: string) => {
     setAmountReceived(val)
@@ -214,23 +254,87 @@ export default function POSClient({ categories: initialCategories, products: ini
       return
     }
     const received = parseFloat(val)
-    setChangeAmount(received - getTotal())
+    const netTotal = Math.max(0, getTotal() - discount)
+    setChangeAmount(received - netTotal)
   }
 
-  const handleCheckout = async () => {
+  const handleApplyPromo = async () => {
+    if (!promoCode) return
+    const res = await validatePromotion(promoCode, storeId, getTotal())
+    if (res.success) {
+      setDiscount(res.discount || 0)
+      setAppliedPromoId(res.promoId || null)
+    } else {
+      alert(res.error)
+      setDiscount(0)
+      setAppliedPromoId(null)
+    }
+  }
+
+  const handleCustomerSearch = async (q: string) => {
+    setCustomerSearch(q)
+    if (q.length < 3) {
+      setCustomerResults([])
+      return
+    }
+    const results = await searchCustomer(q)
+    setCustomerResults(results)
+  }
+
+  const handleCheckoutClick = () => {
+    setShowPaymentModal(true)
+  }
+
+  const handleCheckout = async (mode: string) => {
     const currentTotal = getTotal()
     
-    if (paymentMode === 'ESPECES' && !showPaymentModal) {
-      setShowPaymentModal(true)
+    setIsProcessing(true)
+    // Vérifier si nous ajoutons à une commande existante
+    const existingOrder = selectedTable ? activeOrders.find(o => o.tableId === selectedTable.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED') : null;
+
+    if (existingOrder) {
+      // Utiliser l'action serveur addItemsToOrder
+      const res = await addItemsToOrder(existingOrder.id, items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        options: item.options
+      })), currentTotal)
+
+      if (res.success) {
+        clearCart()
+        setLastOrder({
+          id: res.order!.id,
+          displayId: orderId,
+          items: [...items],
+          total: currentTotal,
+          date: new Date(),
+          paymentMode: mode as PaymentMode,
+          amountReceived: mode === 'ESPECES' ? parseInt(amountReceived) : currentTotal,
+          changeAmount: mode === 'ESPECES' ? changeAmount : 0
+        })
+        setShowReceipt(true)
+        advanceOrderId()
+        setShowPaymentModal(false)
+        setAmountReceived("")
+        setChangeAmount(null)
+        setSelectedTable(null)
+        setViewMode('FLOOR_PLAN')
+      } else {
+        alert(res.error || "Erreur lors de l'ajout à la commande existante")
+      }
+      setIsProcessing(false)
       return
     }
 
-    setIsProcessing(true)
-    const orderData: PendingOrder = {
+    const orderData: any = {
       clientRequestId: createClientRequestId(storeId, cashierId),
       storeId,
       cashierId,
-      total: currentTotal,
+      total: Math.max(0, currentTotal - discount),
+      discount,
+      promotionId: appliedPromoId,
+      customerId: selectedCustomer?.id,
       items: items.map(item => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -238,7 +342,7 @@ export default function POSClient({ categories: initialCategories, products: ini
         name: item.name
       })),
       type: 'DINE_IN',
-      paymentMode,
+      paymentMode: mode as PaymentMode,
       tableId: selectedTable?.id
     }
 
@@ -305,9 +409,31 @@ export default function POSClient({ categories: initialCategories, products: ini
 
   return (
     <div className="flex h-screen bg-[#f1f3f5] text-[#1a1d24] overflow-hidden font-sans">
-      <Sidebar isRestaurateur={isRestaurateur} setShowSessionStats={setShowSessionStats} />
+      <Sidebar 
+        isRestaurateur={isRestaurateur} 
+        setShowSessionStats={setShowSessionStats} 
+        activeTab={viewMode === 'POS' ? 'CAISSE' : viewMode === 'FLOOR_PLAN' ? 'PLAN' : 'RESERVATIONS'}
+        onTabChange={(tab) => {
+          if (tab === 'CAISSE') setViewMode('POS')
+          else if (tab === 'PLAN') setViewMode('FLOOR_PLAN')
+          else if (tab === 'RESERVATIONS') setViewMode('RESERVATIONS')
+        }}
+      />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
+        {stockAlerts.length > 0 && (
+          <div className="bg-[#e03131] px-8 py-2 flex items-center justify-between animate-in slide-in-from-top duration-500 shrink-0">
+            <div className="flex items-center gap-4 text-white">
+              <AlertCircle className="w-4 h-4 animate-pulse" />
+              <p className="text-[10px] font-black uppercase tracking-widest">
+                Alerte Stock Bas : {stockAlerts.map(a => `${a.name} (${a.stockQuantity})`).join(', ')}
+              </p>
+            </div>
+            <button onClick={() => setStockAlerts([])} className="text-white/60 hover:text-white transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <header className="h-20 px-8 flex items-center justify-between bg-white border-b border-[#e9ecef] z-20">
           <div className="flex items-center gap-6">
             <div>
@@ -367,9 +493,15 @@ export default function POSClient({ categories: initialCategories, products: ini
             <FloorPlanView 
               tables={tables} 
               reservations={reservations}
+              activeOrders={activeOrders}
               onTableSelect={(table) => {
-                setSelectedTable(table)
-                setViewMode('POS')
+                const order = activeOrders.find(o => o.tableId === table.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED')
+                if (order) {
+                  setShowTableStatusModal(table)
+                } else {
+                  setSelectedTable(table)
+                  setViewMode('POS')
+                }
               }}
               onTableBook={(table) => {
                 setTableForReservation(table)
@@ -377,6 +509,8 @@ export default function POSClient({ categories: initialCategories, products: ini
               }}
               selectedTableId={selectedTable?.id}
             />
+          ) : viewMode === 'RESERVATIONS' ? (
+            <ReservationsList reservations={reservations} />
           ) : (
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
               <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
@@ -403,7 +537,7 @@ export default function POSClient({ categories: initialCategories, products: ini
                     key={product.id} 
                     product={product} 
                     categoryName={categories.find(c => c.id === product.categoryId)?.name || "Général"}
-                    onAdd={() => addItem({ productId: product.id, name: product.name, price: product.price, quantity: 1 })}
+                    onAdd={() => handleProductAdd(product)}
                   />
                 ))}
               </div>
@@ -425,16 +559,6 @@ export default function POSClient({ categories: initialCategories, products: ini
           )}
         </div>
 
-        {/* 1. PAYMENT METHOD SELECTION - AT TOP */}
-        <div className="px-8 py-4 bg-[#f8f9fa] border-b border-[#e9ecef]">
-          <span className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest block mb-3">Mode de Paiement</span>
-          <div className="grid grid-cols-3 gap-2">
-            <PaymentButton icon={<Banknote />} label="ESPÈCES" active={paymentMode === 'ESPECES'} onClick={() => setPaymentMode('ESPECES')} />
-            <PaymentButton icon={<CreditCard />} label="CARTE" active={paymentMode === 'CB'} onClick={() => setPaymentMode('CB')} />
-            <PaymentButton icon={<Smartphone />} label="MOBILE" active={paymentMode === 'MOBILE_MONEY'} onClick={() => setPaymentMode('MOBILE_MONEY')} />
-          </div>
-        </div>
-
         {/* 2. ORDER LIST - MIDDLE */}
         <div className="flex-1 overflow-y-auto px-8 py-4 custom-scrollbar bg-white">
           {items.length === 0 ? (
@@ -449,8 +573,9 @@ export default function POSClient({ categories: initialCategories, products: ini
               <CartItem 
                 key={item.id} 
                 item={item} 
-                onAdd={() => addItem({ productId: item.productId, name: item.name, price: item.price, quantity: 1 })}
+                onAdd={() => addItem({ productId: item.productId, name: item.name, price: item.price, quantity: 1, options: item.options })}
                 onSub={() => item.quantity > 1 ? updateQuantity(item.id, item.quantity - 1) : removeItem(item.id)}
+                onOptionsClick={() => setEditingOptionsId(item.id)}
               />
             ))
           )}
@@ -475,7 +600,7 @@ export default function POSClient({ categories: initialCategories, products: ini
             </div>
 
             <button
-              onClick={handleCheckout}
+              onClick={handleCheckoutClick}
               disabled={items.length === 0 || isProcessing}
               className="w-full bg-[#212529] hover:bg-black disabled:bg-[#adb5bd] text-white py-5 rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95"
             >
@@ -512,6 +637,14 @@ export default function POSClient({ categories: initialCategories, products: ini
           onClose={() => setShowPaymentModal(false)}
           onFinalize={handleCheckout}
           isProcessing={isProcessing}
+          promoCode={promoCode}
+          onPromoChange={setPromoCode}
+          onApplyPromo={handleApplyPromo}
+          discount={discount}
+          selectedCustomer={selectedCustomer}
+          onCustomerSearch={handleCustomerSearch}
+          customerResults={customerResults}
+          onSelectCustomer={setSelectedCustomer}
         />
       )}
 
@@ -523,16 +656,156 @@ export default function POSClient({ categories: initialCategories, products: ini
           existingReservations={reservations.filter(r => r.tableId === tableForReservation.id)}
         />
       )}
+
+      {editingOptionsId && (
+        <OptionsModal
+          item={items.find(i => i.id === editingOptionsId)!}
+          onSave={(options) => {
+            updateOptions(editingOptionsId, options)
+            setEditingOptionsId(null)
+          }}
+          onClose={() => setEditingOptionsId(null)}
+        />
+      )}
+
+
+
+      {showTableStatusModal && (
+        <TableStatusModal
+          table={showTableStatusModal}
+          order={activeOrders.find(o => o.tableId === showTableStatusModal.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED')}
+          onClose={() => setShowTableStatusModal(null)}
+          onAddItems={() => {
+            setSelectedTable(showTableStatusModal)
+            setViewMode('POS')
+            setShowTableStatusModal(null)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function PaymentButton({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+function ReservationsList({ reservations }: { reservations: Reservation[] }) {
+  const sorted = [...reservations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-2 py-3 rounded-2xl border-2 transition-all ${active ? 'bg-[#212529] border-[#212529] text-white shadow-lg' : 'bg-white border-[#e9ecef] text-[#adb5bd] hover:border-[#495057] hover:text-[#495057]'}`}>
-      {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "w-5 h-5" })}
-      <span className="text-[9px] font-black tracking-widest">{label}</span>
-    </button>
+    <div className="flex-1 p-10 overflow-y-auto">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="text-3xl font-black text-[#212529] uppercase tracking-tighter mb-10">Réservations du Jour</h2>
+        <div className="space-y-4">
+          {sorted.length === 0 ? (
+            <div className="bg-white p-12 rounded-[2rem] text-center border border-[#e9ecef] shadow-sm">
+              <p className="font-black text-[#adb5bd] uppercase tracking-widest text-sm">Aucune réservation pour le moment</p>
+            </div>
+          ) : (
+            sorted.map(res => (
+              <div key={res.id} className="bg-white p-6 rounded-[2rem] border border-[#e9ecef] shadow-sm hover:shadow-xl transition-all flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-[#f8f9fa] rounded-2xl flex flex-col items-center justify-center border border-[#e9ecef]">
+                    <span className="text-[10px] font-black text-[#adb5bd] uppercase">{new Date(res.date).toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
+                    <span className="text-xl font-black text-[#212529]">{new Date(res.date).getHours()}:{new Date(res.date).getMinutes().toString().padStart(2, '0')}</span>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-lg text-[#212529] uppercase tracking-tight">{res.customerName}</h4>
+                    <p className="text-xs font-bold text-[#adb5bd] uppercase tracking-widest">{res.phone} • {res.guests} Personnes</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                    res.status === 'CONFIRMED' ? 'bg-[#ebfbee] text-[#2f9e44]' : 'bg-[#fff4e6] text-[#f08c00]'
+                  }`}>
+                    {res.status}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TableStatusModal({ table, order, onClose, onAddItems }: { table: Table, order: any, onClose: () => void, onAddItems: () => void }) {
+  if (!order) return null
+
+  const getStatusColor = (status: string) => {
+    const s = status.toUpperCase()
+    if (s === 'EN_ATTENTE') return 'text-[#e03131] bg-[#fff5f5]'
+    if (s === 'PREPARATION' || s === 'PRÉPARATION') return 'text-[#f08c00] bg-[#fff4e6]'
+    if (s === 'PRET' || s === 'PRÊT') return 'text-[#2f9e44] bg-[#ebfbee]'
+    return 'text-[#adb5bd] bg-[#f8f9fa]'
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
+      <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">Table {table.number}</h2>
+            <div className={`mt-2 inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusColor(order.status)}`}>
+              {order.status}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Total Actuel</p>
+            <p className="text-2xl font-black text-[#212529]">{order.total?.toLocaleString()} FCFA</p>
+          </div>
+        </div>
+
+        <div className="space-y-4 mb-10 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+          {order.items.map((item: any) => (
+            <div key={item.id} className="flex justify-between items-center p-4 bg-[#f8f9fa] rounded-2xl border border-[#e9ecef]">
+              <div className="flex-1">
+                <p className="text-xs font-black text-[#212529] uppercase">{item.product.name}</p>
+                {item.options && <p className="text-[9px] font-bold text-[#e03131] uppercase mt-1">Note: {item.options}</p>}
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-black bg-white px-3 py-1 rounded-lg border border-[#e9ecef]">x{item.quantity}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-4">
+          <button onClick={onClose} className="flex-1 py-5 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Fermer</button>
+          <button onClick={onAddItems} className="flex-[1.5] py-5 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2">
+            <Plus className="w-4 h-4" />
+            Ajouter des articles
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+function OptionsModal({ item, onSave, onClose }: { item: CartItemType | undefined, onSave: (val: string) => void, onClose: () => void }) {
+  const [val, setVal] = useState(item?.options || "")
+  
+  if (!item) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-6">
+      <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+        <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-2">Options</h2>
+        <p className="text-xs font-bold text-[#adb5bd] mb-6 uppercase tracking-widest">{item.name}</p>
+        
+        <textarea
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          placeholder="Ex: Saignant, sans oignons..."
+          className="w-full h-32 bg-[#f8f9fa] border border-[#e9ecef] rounded-2xl p-4 text-sm font-bold text-[#212529] focus:ring-2 focus:ring-[#212529] outline-none resize-none mb-6"
+          autoFocus
+        />
+
+        <div className="flex gap-4">
+          <button onClick={onClose} className="flex-1 py-4 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Annuler</button>
+          <button onClick={() => onSave(val)} className="flex-1 py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">Valider</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

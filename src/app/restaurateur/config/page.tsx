@@ -15,7 +15,8 @@ export default function RestaurateurConfig() {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    phone: ''
+    phone: '',
+    logo: ''
   })
 
   useEffect(() => {
@@ -31,7 +32,8 @@ export default function RestaurateurConfig() {
       setFormData({
         name: data.name,
         address: data.address || '',
-        phone: '' // Ajouté dans le modèle Store si besoin, sinon placeholder
+        phone: (data as any).phone || '',
+        logo: (data as any).logo || ''
       })
     }
     setLoading(false)
@@ -89,6 +91,42 @@ export default function RestaurateurConfig() {
               <div className="relative">
                 <MapPin className="absolute left-4 top-4 w-4 h-4 text-[#adb5bd]" />
                 <textarea required rows={3} value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all" placeholder="EX: Rue des Jardins, Cocody, Abidjan" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Logo du Restaurant</label>
+              <div 
+                onClick={() => document.getElementById('logo-upload')?.click()}
+                className={`relative h-32 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${formData.logo ? 'border-[#2f9e44] bg-[#ebfbee]' : 'border-[#dee2e6] hover:border-[#212529] bg-[#f8f9fa]'}`}
+              >
+                {formData.logo ? (
+                  <div className="relative w-full h-full p-2 flex justify-center">
+                    <img src={formData.logo} alt="Logo" className="h-full object-contain rounded-xl" />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
+                      <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer le logo</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-[#adb5bd]">
+                    <Store className="w-8 h-8" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Cliquez pour uploader</span>
+                  </div>
+                )}
+                <input 
+                  id="logo-upload"
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onloadend = () => setFormData({...formData, logo: reader.result as string})
+                      reader.readAsDataURL(file)
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>

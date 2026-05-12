@@ -1,10 +1,8 @@
 import React from 'react';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient';
 import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products';
-
-const prisma = new PrismaClient();
 
 interface PageProps {
   params: Promise<{

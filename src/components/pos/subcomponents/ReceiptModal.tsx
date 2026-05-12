@@ -10,9 +10,14 @@ type ReceiptItem = {
 
 export type ReceiptOrder = {
   id: string | number
+  displayId?: string | number
   total: number
   items: ReceiptItem[]
   isOffline?: boolean
+  date?: Date | string
+  paymentMode?: string
+  amountReceived?: number
+  changeAmount?: number
 }
 
 interface ReceiptModalProps {

@@ -1,9 +1,8 @@
 'use server'
 
-import { PrismaClient, ReservationStatus } from '@prisma/client'
+import { ReservationStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 export async function getReservationsByStore(storeId: string) {
   try {

@@ -1,14 +1,17 @@
 'use server'
 
-import { PrismaClient, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '@prisma/client'
+import { OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '@prisma/client'
 import { redis } from '@/lib/redis'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 const orderInclude = {
   items: {
     include: {
-      product: true
+      product: {
+        include: {
+          category: true
+        }
+      }
     }
   },
   payments: true,
@@ -29,6 +32,9 @@ type OrderInput = {
     options?: string
   }[]
   tableId?: string
+  promotionId?: string
+  discount?: number
+  customerId?: string
 }
 
 function normalizePaymentMethod(method?: PaymentMethod | string): PaymentMethod {
@@ -43,6 +49,14 @@ function normalizeOrderStatus(status: OrderStatus | string): OrderStatus {
   if (status === OrderStatus.COMPLETED) return OrderStatus.COMPLETED
   if (status === OrderStatus.CANCELLED) return OrderStatus.CANCELLED
   return OrderStatus.EN_ATTENTE
+}
+
+async function publishStockAlert(storeId: string, product: { name: string, stockQuantity: number }) {
+  try {
+    await redis.publish(`store:${storeId}:stock-alert`, JSON.stringify(product))
+  } catch (error) {
+    console.error("Failed to publish stock alert:", error)
+  }
 }
 
 async function publishOrderEvent(eventName: 'new-order' | 'order-updated', order: { storeId?: string }) {
@@ -92,33 +106,67 @@ export async function createOrder(data: OrderInput) {
 
     const paymentMethod = normalizePaymentMethod(data.paymentMode)
 
-    const order = await prisma.order.create({
-      data: {
-        clientRequestId: data.clientRequestId,
-        storeId: data.storeId,
-        cashierId: data.cashierId,
-        tableId: data.tableId,
-        total: data.total,
-        type: data.type,
-        status: OrderStatus.EN_ATTENTE,
-        items: {
-          create: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            options: item.options
-          }))
+    const order = await prisma.$transaction(async (tx) => {
+      const newOrder = await tx.order.create({
+        data: {
+          clientRequestId: data.clientRequestId,
+          storeId: data.storeId,
+          cashierId: data.cashierId,
+          tableId: data.tableId,
+          total: data.total,
+          type: data.type,
+          status: OrderStatus.EN_ATTENTE,
+          promotionId: data.promotionId,
+          discount: data.discount || 0,
+          customerId: data.customerId,
+          items: {
+            create: data.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              options: item.options
+            }))
+          },
+          payments: {
+            create: {
+              method: paymentMethod,
+              status: PaymentStatus.REUSSIE,
+              amount: data.total
+            }
+          }
         },
-        payments: {
-          create: {
-            method: paymentMethod,
-            status: PaymentStatus.EN_ATTENTE, // Default to EN_ATTENTE for customer orders
-            amount: data.total
+        include: orderInclude
+      })
+
+      for (const item of data.items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, name: true, trackStock: true, stockQuantity: true, minStockLevel: true }
+        })
+
+        if (product?.trackStock) {
+          const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stockQuantity: newQuantity }
+          })
+
+          if (newQuantity < product.minStockLevel) {
+            await publishStockAlert(data.storeId, { name: product.name, stockQuantity: newQuantity })
           }
         }
-      },
-      include: orderInclude
-    });
+      }
+
+      // Increment promotion usage
+      if (data.promotionId) {
+        await tx.promotion.update({
+          where: { id: data.promotionId },
+          data: { usedCount: { increment: 1 } }
+        })
+      }
+
+      return newOrder
+    })
 
     await publishOrderEvent('new-order', order)
 
@@ -126,6 +174,87 @@ export async function createOrder(data: OrderInput) {
   } catch (error) {
     console.error("Failed to create order:", error)
     return { success: false, error: "Erreur lors de la création de la commande" }
+  }
+}
+
+export async function addItemsToOrder(orderId: string, items: OrderInput['items'], addedTotal: number) {
+  try {
+    if (!items.length) {
+      return { success: false, error: "Aucun article à ajouter" }
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId }
+    })
+
+    if (!order) {
+      return { success: false, error: "Commande introuvable" }
+    }
+
+    // Déterminer le nouveau statut. Si la commande était PRÊTE ou TERMINÉE, on la repasse en attente/prépa.
+    const newStatus = order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED
+      ? OrderStatus.EN_ATTENTE
+      : order.status
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const orderUpdate = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          total: { increment: addedTotal },
+          status: newStatus,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              options: item.options
+            }))
+          }
+        },
+        include: orderInclude
+      })
+
+      // Deduct stocks
+      for (const item of items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, name: true, trackStock: true, stockQuantity: true, minStockLevel: true }
+        })
+
+        if (product?.trackStock) {
+          const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stockQuantity: newQuantity }
+          })
+
+          if (newQuantity < product.minStockLevel) {
+            await publishStockAlert(order.storeId, { name: product.name, stockQuantity: newQuantity })
+          }
+        }
+      }
+
+      return orderUpdate
+    })
+
+    // S'il y a un paiement en attente, on met à jour son montant.
+    const pendingPayment = await prisma.payment.findFirst({
+      where: { orderId: orderId, status: PaymentStatus.EN_ATTENTE }
+    })
+
+    if (pendingPayment) {
+      await prisma.payment.update({
+        where: { id: pendingPayment.id },
+        data: { amount: { increment: addedTotal } }
+      })
+    }
+
+    await publishOrderEvent('order-updated', updatedOrder)
+
+    return { success: true, order: updatedOrder }
+  } catch (error) {
+    console.error("Failed to add items to order:", error)
+    return { success: false, error: "Erreur lors de l'ajout des articles" }
   }
 }
 
@@ -156,6 +285,20 @@ export async function getActiveOrders(storeId: string) {
     })
   } catch (error) {
     console.error("Failed to fetch active orders:", error)
+    return []
+  }
+}
+
+export async function getStoreOrders(storeId: string) {
+  try {
+    return await prisma.order.findMany({
+      where: { storeId },
+      include: orderInclude,
+      orderBy: { createdAt: 'desc' },
+      take: 100 // Limit to recent 100 for performance
+    })
+  } catch (error) {
+    console.error("Failed to fetch store orders:", error)
     return []
   }
 }

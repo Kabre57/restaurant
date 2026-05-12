@@ -1,10 +1,8 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import prisma from '@/lib/prisma'
 
-const prisma = new PrismaClient()
-
-export async function updateStoreConfig(storeId: string, data: { name?: string, address?: string, phone?: string }) {
+export async function updateStoreConfig(storeId: string, data: { name?: string, address?: string, phone?: string, logo?: string }) {
   try {
     const store = await prisma.store.update({
       where: { id: storeId },

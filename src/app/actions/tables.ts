@@ -1,9 +1,8 @@
 'use server'
 
-import { PrismaClient, TableStatus, TableShape } from '@prisma/client'
+import { TableStatus, TableShape } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/prisma'
 
 export async function getTablesByStore(storeId: string) {
   try {
@@ -71,8 +70,11 @@ export async function deleteTable(tableId: string) {
     })
     revalidatePath('/restaurateur/tables')
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to delete table:", error)
+    if (error.code === 'P2003') {
+      return { success: false, error: "Impossible de supprimer cette table car elle possède des commandes ou des réservations associées." }
+    }
     return { success: false, error: "Erreur lors de la suppression" }
   }
 }
