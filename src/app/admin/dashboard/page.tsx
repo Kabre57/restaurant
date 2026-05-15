@@ -7,18 +7,21 @@ import {
   Truck, 
   TrendingUp, 
   AlertCircle, 
-  CheckCircle2, 
   Clock,
-  ArrowUpRight,
   MoreVertical,
-  Calendar
 } from 'lucide-react'
 import { getSalesReport, getGlobalStats } from '@/app/actions/admin'
 import SalesChart from '@/components/admin/SalesChart'
 
+type GlobalStats = {
+  orderCount: number
+  storeCount: number
+  totalRevenue: number
+}
+
 export default function AdminDashboard() {
   const [salesData, setSalesData] = React.useState<{name: string, value: number}[]>([])
-  const [globalStats, setGlobalStats] = React.useState<any>(null)
+  const [globalStats, setGlobalStats] = React.useState<GlobalStats | null>(null)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
@@ -44,13 +47,13 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Welcome Message */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#212529] tracking-tight">Tableau de bord</h1>
-          <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Supervision de la plateforme en temps réel</p>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] sm:text-3xl">Tableau de bord</h1>
+          <p className="mt-1 text-xs font-bold uppercase tracking-widest text-[#adb5bd] sm:text-sm">Supervision de la plateforme en temps réel</p>
         </div>
-        <div className="flex gap-3">
-          <div className="flex items-center gap-2 bg-[#e03131]/10 text-[#e03131] px-4 py-2 rounded-xl border border-[#e03131]/20">
+        <div className="flex w-full gap-3 md:w-auto">
+          <div className="flex w-full items-center gap-2 rounded-xl border border-[#e03131]/20 bg-[#e03131]/10 px-4 py-2 text-[#e03131] md:w-auto">
             <AlertCircle className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">3 Alertes Critiques</span>
           </div>
@@ -60,7 +63,7 @@ export default function AdminDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
-          <div key={stat.name} className="bg-white p-6 rounded-3xl shadow-sm border border-[#dee2e6] hover:shadow-xl transition-all group">
+          <div key={stat.name} className="group rounded-3xl border border-[#dee2e6] bg-white p-5 shadow-sm transition-all hover:shadow-xl sm:p-6">
             <div className="flex justify-between items-start mb-4">
               <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg`}>
                 {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })}
@@ -68,7 +71,7 @@ export default function AdminDashboard() {
               <span className="text-[10px] font-black text-[#51cf66] bg-[#ebfbee] px-2 py-1 rounded-lg">{stat.trend}</span>
             </div>
             <h3 className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-1">{stat.name}</h3>
-            <p className="text-3xl font-black text-[#212529] tracking-tight">{stat.value}</p>
+            <p className="text-2xl font-black tracking-tight text-[#212529] sm:text-3xl">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -76,8 +79,8 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Activity Chart Area (Placeholder) */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white p-8 rounded-[2rem] border border-[#dee2e6] shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-8 flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest">Activité Horaire</h3>
                 <p className="text-[10px] font-bold text-[#adb5bd] uppercase mt-1">Volume de commandes sur 24h</p>
@@ -95,14 +98,14 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-[#dee2e6] shadow-sm">
-            <div className="flex items-center justify-between mb-8">
+          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-8 flex items-center justify-between gap-4">
               <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest">Top Restaurants</h3>
               <button className="text-[10px] font-black text-[#339af0] hover:underline uppercase tracking-widest">Voir tout</button>
             </div>
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-[#f8f9fa] border border-[#dee2e6] hover:bg-white hover:shadow-lg transition-all cursor-pointer group">
+                <div key={i} className="group flex flex-col gap-4 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white border border-[#dee2e6] flex items-center justify-center text-xl">🏪</div>
                     <div>
@@ -110,7 +113,7 @@ export default function AdminDashboard() {
                       <p className="text-[9px] font-bold text-[#adb5bd] uppercase mt-0.5">342 Commandes • Score 4.8</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="text-xs font-black text-[#212529]">1.2M FCFA</p>
                     <p className="text-[9px] font-bold text-[#51cf66] uppercase mt-0.5">+15%</p>
                   </div>
@@ -122,10 +125,10 @@ export default function AdminDashboard() {
 
         {/* Sidebar Space in Dashboard */}
         <div className="space-y-8">
-          <div className="bg-[#212529] p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+          <div className="relative overflow-hidden rounded-[2rem] bg-[#212529] p-5 text-white shadow-xl sm:p-8">
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-2">Validations en attente</h3>
-              <p className="text-3xl font-black mb-6">08</p>
+              <p className="mb-6 text-2xl font-black sm:text-3xl">08</p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
                   <span className="text-[10px] font-bold uppercase">Restaurateurs</span>
@@ -143,8 +146,8 @@ export default function AdminDashboard() {
             <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-[#dee2e6] shadow-sm">
-            <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest mb-6">Logs d'activité</h3>
+          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
+            <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest mb-6">Logs d&apos;activité</h3>
             <div className="space-y-6">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex gap-4">

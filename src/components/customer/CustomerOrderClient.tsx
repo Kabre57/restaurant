@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, Search, ChevronRight, Utensils, Clock, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, ChevronRight, Utensils, CheckCircle2 } from 'lucide-react';
 import { Product, Category } from '@prisma/client';
+import Image from 'next/image';
 import { createOrder } from '@/app/actions/orders';
 
 interface CustomerOrderClientProps {
@@ -32,6 +33,7 @@ export default function CustomerOrderClient({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
+  const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState<number | null>(null);
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -79,6 +81,7 @@ export default function CustomerOrderClient({
       total: cartTotal,
       type: 'DINE_IN' as const,
       paymentMode: 'ESPECES', // Will be updated by cashier later
+      paymentStatus: 'EN_ATTENTE' as const,
       items: cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -89,6 +92,7 @@ export default function CustomerOrderClient({
     try {
       const result = await createOrder(orderData);
       if (result.success) {
+        setEstimatedPrepMinutes(result.order?.estimatedPrepMinutes ?? null);
         setOrderComplete(true);
         setCart([]);
       } else {
@@ -112,6 +116,11 @@ export default function CustomerOrderClient({
         <p className="text-slate-600 mb-8 max-w-xs">
           Votre commande pour la <span className="font-bold">Table {tableNumber}</span> est en cours de préparation en cuisine.
         </p>
+        {estimatedPrepMinutes ? (
+          <p className="text-sm font-bold text-orange-600 mb-8">
+            Temps estime: environ {estimatedPrepMinutes} min
+          </p>
+        ) : null}
         <button
           onClick={() => setOrderComplete(false)}
           className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all active:scale-95"
@@ -184,19 +193,27 @@ export default function CustomerOrderClient({
         {/* Products Grid */}
         <div className="px-4 grid grid-cols-1 gap-4">
           {filteredProducts.map((product) => (
+            (() => {
+              const isDrink = product.category.name.toLowerCase().includes('boisson')
+              return (
             <div
               key={product.id}
               className="bg-white rounded-3xl p-4 flex items-center shadow-sm border border-slate-100 active:scale-[0.98] transition-all group"
             >
-              <div className="w-24 h-24 bg-slate-100 rounded-2xl overflow-hidden mr-4 relative">
+              <div className="w-24 h-24 bg-gradient-to-b from-slate-100 to-slate-200 rounded-2xl overflow-hidden mr-4 p-2 relative shrink-0">
                 {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="relative w-full h-full rounded-xl bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.10)] flex items-center justify-center overflow-hidden">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      unoptimized
+                      sizes="96px"
+                      className={`w-full h-full object-contain ${isDrink ? 'p-0.5 scale-[1.08]' : 'p-2'}`}
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-300">
+                  <div className="w-full h-full rounded-xl bg-white/80 flex items-center justify-center text-slate-300">
                     <Utensils className="w-8 h-8" />
                   </div>
                 )}
@@ -219,6 +236,8 @@ export default function CustomerOrderClient({
                 </div>
               </div>
             </div>
+              )
+            })()
           ))}
         </div>
       </main>
@@ -239,7 +258,7 @@ export default function CustomerOrderClient({
               </div>
             </div>
             <button
-              onClick={() => (document.getElementById('cart-modal') as any)?.showModal()}
+              onClick={() => (document.getElementById('cart-modal') as HTMLDialogElement | null)?.showModal()}
               className="bg-white text-slate-900 font-bold px-6 py-3 rounded-2xl flex items-center group active:scale-95 transition-all"
             >
               Voir Panier
@@ -255,7 +274,7 @@ export default function CustomerOrderClient({
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-2xl font-black text-slate-900">Votre Panier</h2>
             <button
-              onClick={() => (document.getElementById('cart-modal') as any)?.close()}
+              onClick={() => (document.getElementById('cart-modal') as HTMLDialogElement | null)?.close()}
               className="text-slate-400 hover:text-slate-600"
             >
               <Plus className="w-8 h-8 rotate-45" />
@@ -268,7 +287,14 @@ export default function CustomerOrderClient({
                 <div className="flex items-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden mr-4">
                     {item.product.image ? (
-                      <img src={item.product.image} className="w-full h-full object-cover" />
+                      <Image
+                        src={item.product.image}
+                        alt={item.product.name}
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300">
                         <Utensils className="w-6 h-6" />

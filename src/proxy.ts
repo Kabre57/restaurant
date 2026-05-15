@@ -16,10 +16,20 @@ export default withAuth(
       return NextResponse.redirect(new URL("/", req.url))
     }
 
+    // Protection de l'espace Serveur - Accessible aussi au restaurateur
+    if (path.startsWith("/serveur") && token?.role !== "SERVER" && token?.role !== "RESTAURATEUR") {
+      if (token?.role === "CASHIER") return NextResponse.redirect(new URL("/", req.url))
+      if (token?.role === "KITCHEN") return NextResponse.redirect(new URL("/kds", req.url))
+      if (token?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url))
+      return NextResponse.redirect(new URL("/login", req.url))
+    }
+
     // Protection de l'espace Caisse (Caissier) - Accessible par Restaurateur aussi
     if (path === "/" && (token?.role !== "CASHIER" && token?.role !== "RESTAURATEUR")) {
       // Si c'est un admin, redirection vers son dashboard
       if (token?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url))
+      if (token?.role === "SERVER") return NextResponse.redirect(new URL("/serveur", req.url))
+      if (token?.role === "KITCHEN") return NextResponse.redirect(new URL("/kds", req.url))
       return NextResponse.redirect(new URL("/login", req.url))
     }
 
@@ -44,6 +54,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/restaurateur/:path*",
+    "/serveur/:path*",
     "/kds/:path*",
     "/"
   ],

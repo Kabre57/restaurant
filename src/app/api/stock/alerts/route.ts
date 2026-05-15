@@ -11,20 +11,48 @@ export async function GET(req: NextRequest) {
     return new Response('Missing storeId', { status: 400 });
   }
 
+  const encoder = new TextEncoder();
+  const channel = `store:${storeId}:stock-alert`;
+
   const stream = new ReadableStream({
     async start(controller) {
       const subscriber = redis.duplicate();
-      await subscriber.subscribe(`store:${storeId}:stock-alert`);
+      let closed = false;
 
-      subscriber.on('message', (channel, message) => {
-        controller.enqueue(`data: ${message}\n\n`);
-      });
-
-      req.signal.onabort = () => {
-        subscriber.unsubscribe();
-        subscriber.quit();
-        controller.close();
+      const sendEvent = (payload: string) => {
+        if (closed) return;
+        controller.enqueue(encoder.encode(payload));
       };
+
+      const heartbeat = setInterval(() => {
+        sendEvent(`event: heartbeat\ndata: ${Date.now()}\n\n`);
+      }, 30000);
+
+      sendEvent(`event: ready\ndata: connected\n\n`);
+
+      try {
+        await subscriber.subscribe(channel);
+        subscriber.on('message', (messageChannel, message) => {
+          if (messageChannel !== channel) return;
+          sendEvent(`data: ${message}\n\n`);
+        });
+      } catch (error) {
+        console.error('Stock alerts stream unavailable:', error);
+        sendEvent(`event: warning\ndata: alerts-unavailable\n\n`);
+      }
+
+      req.signal.addEventListener('abort', async () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(heartbeat);
+
+        try {
+          await subscriber.unsubscribe(channel);
+        } catch {}
+
+        subscriber.disconnect();
+        controller.close();
+      });
     },
   });
 

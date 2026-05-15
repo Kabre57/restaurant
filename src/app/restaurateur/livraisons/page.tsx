@@ -1,15 +1,36 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Truck, MapPin, Clock, CheckCircle2, AlertCircle, Plus, Loader2, User, Phone, Package } from 'lucide-react'
+import { Truck, Clock, Plus, Loader2, User, Phone, Package } from 'lucide-react'
 import { getOrdersForDelivery, getDeliveryPeople, assignDelivery, createDeliveryPerson } from '@/app/actions/delivery'
 import { useSession } from 'next-auth/react'
 import { AlertModal } from '@/components/pos/subcomponents/AlertModal'
 
+type DeliveryItem = {
+  id: string
+  quantity: number
+  product: { name: string }
+}
+
+type DeliveryPerson = {
+  id: string
+  name: string
+  phone: string
+  status: string
+}
+
+type DeliveryOrder = {
+  id: string
+  total: number
+  status: string
+  items: DeliveryItem[]
+  deliveryPerson?: DeliveryPerson | null
+}
+
 export default function DeliveryManagementPage() {
   const { data: session } = useSession()
-  const [orders, setOrders] = useState<any[]>([])
-  const [deliveryPeople, setDeliveryPeople] = useState<any[]>([])
+  const [orders, setOrders] = useState<DeliveryOrder[]>([])
+  const [deliveryPeople, setDeliveryPeople] = useState<DeliveryPerson[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddPersonModal, setShowAddPersonModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -21,14 +42,10 @@ export default function DeliveryManagementPage() {
     vehicleType: 'MOTO'
   })
 
-  useEffect(() => {
-    if (session?.user?.storeId) {
-      loadData()
-      // Refresh every 30 seconds
-      const interval = setInterval(loadData, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [session])
+  function playNotificationSound() {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+    audio.play().catch(e => console.log("Audio play blocked by browser:", e))
+  }
 
   // Notification sonore lors de l'arrivée d'une nouvelle commande
   useEffect(() => {
@@ -43,21 +60,47 @@ export default function DeliveryManagementPage() {
     }
   }, [orders])
 
-  function playNotificationSound() {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
-    audio.play().catch(e => console.log("Audio play blocked by browser:", e))
-  }
-
   async function loadData() {
-    if (!session?.user?.storeId) return
+    const storeId = session?.user?.storeId
+    if (!storeId) return
     const [oData, pData] = await Promise.all([
-      getOrdersForDelivery(session.user.storeId),
+      getOrdersForDelivery(storeId),
       getDeliveryPeople()
     ])
-    setOrders(oData)
-    setDeliveryPeople(pData)
+    setOrders(oData as DeliveryOrder[])
+    setDeliveryPeople(pData as DeliveryPerson[])
     setLoading(false)
   }
+
+  useEffect(() => {
+    const storeId = session?.user?.storeId
+    if (!storeId) return
+    const activeStoreId = storeId
+
+    let isCancelled = false
+
+    async function fetchData() {
+      const [oData, pData] = await Promise.all([
+        getOrdersForDelivery(activeStoreId),
+        getDeliveryPeople()
+      ])
+
+      if (isCancelled) return
+      setOrders(oData as DeliveryOrder[])
+      setDeliveryPeople(pData as DeliveryPerson[])
+      setLoading(false)
+    }
+
+    void fetchData()
+    const interval = setInterval(() => {
+      void fetchData()
+    }, 30000)
+
+    return () => {
+      isCancelled = true
+      clearInterval(interval)
+    }
+  }, [session?.user?.storeId])
 
   async function handleAssign(orderId: string, personId: string) {
     if (!personId) return
@@ -86,23 +129,23 @@ export default function DeliveryManagementPage() {
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
 
   return (
-    <div className="p-10 space-y-10">
+    <div className="space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:space-y-10 lg:px-10 lg:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#1a1d24] tracking-tight uppercase">Suivi des Livraisons</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#1a1d24] uppercase sm:text-3xl">Suivi des Livraisons</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gestion des commandes à distance et flotte de livreurs</p>
         </div>
         <button 
           onClick={() => setShowAddPersonModal(true)}
-          className="bg-[#1a1d24] text-white px-8 py-3 rounded-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#1a1d24] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
         >
           <Plus className="w-5 h-5" />
           Ajouter un Livreur
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-10">
         {/* Orders Column */}
         <div className="lg:col-span-2 space-y-6">
           <h2 className="text-sm font-black text-[#1a1d24] uppercase tracking-widest flex items-center gap-2">
@@ -117,23 +160,23 @@ export default function DeliveryManagementPage() {
               </div>
             ) : (
               orders.map((order) => (
-                <div key={order.id} className="bg-white p-8 rounded-[2.5rem] border border-[#dee2e6] shadow-sm hover:shadow-xl transition-all group">
-                  <div className="flex justify-between items-start mb-6">
+                <div key={order.id} className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm transition-all hover:shadow-xl sm:rounded-[2.5rem] sm:p-8">
+                  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-1">Commande #{order.id.slice(-6).toUpperCase()}</span>
                       <h3 className="text-xl font-black text-[#1a1d24] tracking-tight">Client à distance</h3>
                     </div>
-                    <div className="flex flex-col items-end">
+                    <div className="flex flex-col sm:items-end">
                       <span className="text-lg font-black text-[#1a1d24]">{order.total.toLocaleString()} F</span>
                       <span className="text-[9px] font-bold text-[#51cf66] uppercase bg-[#ebfbee] px-2 py-1 rounded-lg mt-1">{order.status}</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 mb-8">
+                  <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
                     <div className="space-y-2">
                       <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Contenu</p>
                       <div className="text-xs font-bold text-[#495057]">
-                        {order.items.map((item: any) => (
+                        {order.items.map((item) => (
                           <div key={item.id}>{item.quantity}x {item.product.name}</div>
                         ))}
                       </div>
@@ -175,9 +218,9 @@ export default function DeliveryManagementPage() {
             <User className="w-4 h-4" /> Flotte de livreurs
           </h2>
           
-          <div className="bg-white p-8 rounded-[2.5rem] border border-[#dee2e6] shadow-sm space-y-6">
+          <div className="space-y-4 rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:rounded-[2.5rem] sm:p-8 sm:space-y-6">
             {deliveryPeople.map((p) => (
-              <div key={p.id} className="flex items-center justify-between p-4 bg-[#f8f9fa] rounded-2xl border border-[#dee2e6] group hover:bg-white hover:shadow-lg transition-all">
+              <div key={p.id} className="flex flex-col gap-4 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${p.status === 'ONLINE' ? 'bg-[#51cf66]' : p.status === 'BUSY' ? 'bg-[#fcc419]' : 'bg-[#adb5bd]'}`}>
                     <Truck className="w-5 h-5" />
@@ -202,8 +245,8 @@ export default function DeliveryManagementPage() {
 
       {/* Add Person Modal */}
       {showAddPersonModal && (
-        <div className="fixed inset-0 bg-[#1a1d24]/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#1a1d24]/60 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:rounded-[2.5rem] sm:p-10">
             <h2 className="text-2xl font-black text-[#1a1d24] uppercase tracking-tight mb-8">Nouveau Livreur</h2>
             <form onSubmit={handleAddPerson} className="space-y-6">
               <div>
@@ -228,7 +271,7 @@ export default function DeliveryManagementPage() {
                   placeholder="+225 07..."
                 />
               </div>
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:gap-4">
                 <button 
                   type="button" 
                   onClick={() => setShowAddPersonModal(false)}

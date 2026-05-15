@@ -80,35 +80,37 @@ export default function ProductsAdminClient({ products: initialProducts, categor
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-[#212529] font-sans">
-      <header className="h-16 bg-white border-b border-[#e9ecef] flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="p-2 hover:bg-[#f1f3f5] rounded-full transition-colors group">
-            <ChevronLeft className="w-5 h-5 text-[#495057]" />
-          </Link>
-          <div className="h-8 w-px bg-[#dee2e6]" />
-          <div className="flex items-center gap-3">
-            <Package className="w-6 h-6 text-[#212529]" />
-            <h1 className="text-lg font-black tracking-widest uppercase">Gestion du Catalogue</h1>
+      <header className="sticky top-0 z-20 border-b border-[#e9ecef] bg-white px-4 py-3 shadow-sm sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <Link href="/" className="group rounded-full p-2 transition-colors hover:bg-[#f1f3f5]">
+              <ChevronLeft className="w-5 h-5 text-[#495057]" />
+            </Link>
+            <div className="h-8 w-px bg-[#dee2e6]" />
+            <div className="flex items-center gap-3">
+              <Package className="w-6 h-6 text-[#212529]" />
+              <h1 className="text-lg font-black tracking-widest uppercase">Gestion du Catalogue</h1>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex gap-4">
-            <StatBadge label="DISPONIBLE" count={available} color="bg-[#2f9e44]" />
-            <StatBadge label="RUPTURE" count={unavailable} color="bg-[#e03131]" />
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:justify-end">
+            <div className="flex gap-4">
+              <StatBadge label="DISPONIBLE" count={available} color="bg-[#2f9e44]" />
+              <StatBadge label="RUPTURE" count={unavailable} color="bg-[#e03131]" />
+            </div>
+            <div className="hidden h-8 w-px bg-[#dee2e6] xl:block" />
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#212529] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-black sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter un Produit
+            </button>
           </div>
-          <div className="h-8 w-px bg-[#dee2e6]" />
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-[#212529] hover:bg-black text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter un Produit
-          </button>
         </div>
       </header>
 
-      <main className="p-8 max-w-7xl mx-auto">
+      <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         {isAddModalOpen && session?.user?.storeId && (
           <AddProductModal 
             categories={categories} 
@@ -117,8 +119,8 @@ export default function ProductsAdminClient({ products: initialProducts, categor
             onSuccess={(newProduct) => setProducts([newProduct, ...products])}
           />
         )}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="relative w-96">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
             <input
               type="text"
@@ -135,8 +137,84 @@ export default function ProductsAdminClient({ products: initialProducts, categor
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#dee2e6] shadow-xl overflow-hidden">
-          <table className="w-full border-collapse">
+        <div className="space-y-4 md:hidden">
+          {filteredProducts.map((product) => {
+            const isEditing = editingId === product.id
+
+            return (
+              <div key={product.id} className="rounded-[1.75rem] border border-[#dee2e6] bg-white p-4 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[#dee2e6] bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] p-1.5">
+                    {product.image ? (
+                      <Image src={product.image} alt={product.name} fill className="rounded-[0.9rem] object-contain p-1" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl opacity-40">{getCategoryEmoji(product.category.name)}</div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black uppercase tracking-tight text-[#212529]">{product.name}</p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-[#adb5bd]">{product.category.name}</p>
+                      </div>
+                      <AdminStockBadge isAvailable={product.isAvailable} />
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      {isEditing ? (
+                        <div className="flex w-full items-center gap-2">
+                          <input
+                            type="number"
+                            value={editPrice}
+                            onChange={e => setEditPrice(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(product.id); if (e.key === 'Escape') cancelEdit() }}
+                            autoFocus
+                            className="min-w-0 flex-1 rounded-lg border-2 border-[#212529] bg-white px-3 py-2 text-right text-sm font-black focus:outline-none"
+                          />
+                          <button onClick={() => saveEdit(product.id)} className="rounded-lg bg-[#212529] p-2 text-white transition-colors hover:bg-black"><Check className="w-4 h-4" /></button>
+                          <button onClick={cancelEdit} className="rounded-lg bg-[#f1f3f5] p-2 text-[#495057] transition-colors hover:bg-[#dee2e6]"><X className="w-4 h-4" /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startEdit(product)} className="flex items-center gap-2">
+                          <span className="text-lg font-black text-[#212529]">{product.price.toLocaleString()}</span>
+                          <span className="text-[10px] font-bold uppercase text-[#adb5bd]">FCFA</span>
+                          <Pencil className="w-3.5 h-3.5 text-[#adb5bd]" />
+                        </button>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleToggle(product.id, product.isAvailable)}
+                          disabled={isPending}
+                          className="transition-all active:scale-95"
+                        >
+                          {product.isAvailable ? (
+                            <ToggleRight className="w-8 h-8 text-[#2f9e44]" />
+                          ) : (
+                            <ToggleLeft className="w-8 h-8 text-[#adb5bd]" />
+                          )}
+                        </button>
+                        <button className="rounded-lg p-2 transition-all hover:bg-[#f1f3f5]"><MoreVertical className="w-4 h-4 text-[#adb5bd]" /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {filteredProducts.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-[#dee2e6] bg-white py-16 text-[#adb5bd] shadow-sm">
+              <Package className="h-12 w-12 opacity-10" />
+              <p className="text-sm font-black uppercase tracking-widest">Aucun produit trouvé</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-2xl border border-[#dee2e6] bg-white shadow-xl md:block">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse">
             <thead>
               <tr className="bg-[#f8f9fa] border-b border-[#dee2e6]">
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-left p-6">Détails du Produit</th>
@@ -149,13 +227,16 @@ export default function ProductsAdminClient({ products: initialProducts, categor
             <tbody>
               {filteredProducts.map((product) => {
                 const isEditing = editingId === product.id
+                const isDrink = product.category.name.toLowerCase().includes('boisson')
                 return (
                   <tr key={product.id} className="border-b border-[#f1f3f5] hover:bg-[#fafbfc] transition-colors group">
                     <td className="p-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-[#f8f9fa] border border-[#dee2e6] flex items-center justify-center text-2xl shrink-0 overflow-hidden relative">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] border border-[#dee2e6] flex items-center justify-center shrink-0 overflow-hidden p-1.5 relative">
                           {product.image ? (
-                            <Image src={product.image} alt={product.name} fill className="object-cover" />
+                            <div className="w-full h-full rounded-[0.9rem] bg-white/90 border border-white/80 shadow-[0_8px_18px_rgba(33,37,41,0.08)] flex items-center justify-center overflow-hidden">
+                              <Image src={product.image} alt={product.name} fill className={`object-contain ${isDrink ? 'p-0.5 scale-[1.08]' : 'p-1.5'}`} />
+                            </div>
                           ) : (
                             <span className="opacity-40">{getCategoryEmoji(product.category.name)}</span>
                           )}
@@ -221,6 +302,7 @@ export default function ProductsAdminClient({ products: initialProducts, categor
               })}
             </tbody>
           </table>
+          </div>
           
           {filteredProducts.length === 0 && (
             <div className="py-20 flex flex-col items-center justify-center text-[#adb5bd] gap-4">

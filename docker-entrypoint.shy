@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+echo "⏳ Attente de la base de données..."
+until npx prisma db push --accept-data-loss --skip-generate; do
+  echo "Base indisponible, nouvel essai dans 3s..."
+  sleep 3
+done
+
+echo "✨ Lancement de l'application..."
+exec npm start
+

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Image from 'next/image'
 import { Plus } from 'lucide-react'
 
@@ -9,6 +9,7 @@ export type ProductCardItem = {
   name: string
   price: number
   image?: string | null
+  averagePrepTimeMins?: number | null
 }
 
 interface ProductCardProps {
@@ -18,6 +19,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) {
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null)
+
   const getCategoryEmoji = (name: string) => {
     const n = name.toLowerCase()
     if (n.includes('burger')) return '🍔'
@@ -29,19 +32,37 @@ export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) 
   }
 
   const emoji = getCategoryEmoji(categoryName)
+  const isDrink = categoryName.toLowerCase().includes('boisson')
+  const canDisplayImage = Boolean(product.image) && failedImageSrc !== product.image
+  const prepMinutes = Math.max(1, product.averagePrepTimeMins || 15)
 
   return (
     <div onClick={onAdd} className="bg-white rounded-3xl overflow-hidden border border-[#e9ecef] hover:border-[#212529] transition-all duration-300 cursor-pointer group flex flex-col shadow-sm hover:shadow-2xl hover:-translate-y-1.5">
-      <div className="aspect-[4/3] bg-[#f8f9fa] relative overflow-hidden flex items-center justify-center">
-        {product.image ? (
-          <Image src={product.image} alt={product.name} fill sizes="250px" className="object-cover group-hover:scale-110 transition-transform duration-700" />
+      <div className="aspect-[4/3] bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-4">
+        {canDisplayImage ? (
+          <div className="relative w-full h-full rounded-[1.5rem] bg-white/90 border border-white/80 shadow-[0_18px_40px_rgba(33,37,41,0.08)] flex items-center justify-center overflow-hidden">
+            <Image
+              src={product.image || ''}
+              alt={product.name}
+              fill
+              unoptimized
+              sizes="250px"
+              onError={() => setFailedImageSrc(product.image || null)}
+              className={`w-full h-full object-contain transition-transform duration-700 ${isDrink ? 'p-1 scale-[1.08] group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`}
+            />
+          </div>
         ) : (
-          <div className="w-full h-full bg-[#f1f3f5] flex items-center justify-center">
-             <div className="w-12 h-12 bg-white/50 rounded-full border border-white flex items-center justify-center text-[10px] font-black text-[#adb5bd]">IMAGE</div>
+          <div className="w-full h-full rounded-[1.5rem] bg-white/80 border border-white/80 flex items-center justify-center">
+            <div className="w-16 h-16 bg-white/50 rounded-full border border-white flex items-center justify-center text-2xl">
+              {emoji}
+            </div>
           </div>
         )}
         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[9px] font-black text-[#212529] border border-[#e9ecef] uppercase tracking-widest">
           {categoryName}
+        </div>
+        <div className="absolute top-4 right-4 bg-[#212529] text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">
+          ~ {prepMinutes} min
         </div>
       </div>
       <div className="p-6 pt-2 flex flex-col gap-4">

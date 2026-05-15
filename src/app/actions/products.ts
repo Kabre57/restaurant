@@ -8,6 +8,7 @@ export async function createProduct(data: {
   categoryId: string, 
   storeId: string, 
   image?: string,
+  averagePrepTimeMins?: number,
   trackStock?: boolean,
   stockQuantity?: number,
   minStockLevel?: number
@@ -20,6 +21,7 @@ export async function createProduct(data: {
         category: { connect: { id: data.categoryId } },
         store: { connect: { id: data.storeId } },
         image: data.image,
+        averagePrepTimeMins: data.averagePrepTimeMins,
         trackStock: data.trackStock,
         stockQuantity: data.stockQuantity,
         minStockLevel: data.minStockLevel
@@ -37,6 +39,7 @@ export async function updateProduct(id: string, data: {
   price?: number, 
   categoryId?: string, 
   image?: string, 
+  averagePrepTimeMins?: number,
   isAvailable?: boolean,
   trackStock?: boolean,
   stockQuantity?: number,

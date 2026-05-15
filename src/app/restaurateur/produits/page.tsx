@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Search, Package, Layers, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, Edit3, Package, X, Loader2, AlertCircle } from 'lucide-react'
 import { getProductsByStore, createProduct, updateProduct, deleteProduct, getCategories } from '@/app/actions/products'
 import { useSession } from 'next-auth/react'
+import { optimizeImageFile } from '@/lib/client-image'
 
 export default function RestaurateurProducts() {
   const { data: session } = useSession()
@@ -21,6 +22,7 @@ export default function RestaurateurProducts() {
     price: '',
     categoryId: '',
     image: '',
+    averagePrepTimeMins: '15',
     isAvailable: true,
     trackStock: false,
     stockQuantity: '0',
@@ -51,6 +53,7 @@ export default function RestaurateurProducts() {
     const payload = {
       ...formData,
       price: parseFloat(formData.price),
+      averagePrepTimeMins: parseInt(formData.averagePrepTimeMins),
       storeId: session?.user?.storeId as string,
       trackStock: formData.trackStock,
       stockQuantity: parseInt(formData.stockQuantity),
@@ -72,6 +75,7 @@ export default function RestaurateurProducts() {
         price: '', 
         categoryId: '', 
         image: '', 
+        averagePrepTimeMins: '15',
         isAvailable: true,
         trackStock: false,
         stockQuantity: '0',
@@ -109,6 +113,7 @@ export default function RestaurateurProducts() {
       price: product.price.toString(),
       categoryId: product.categoryId,
       image: product.image || '',
+      averagePrepTimeMins: (product.averagePrepTimeMins || 15).toString(),
       isAvailable: product.isAvailable,
       trackStock: product.trackStock || false,
       stockQuantity: (product.stockQuantity || 0).toString(),
@@ -117,11 +122,26 @@ export default function RestaurateurProducts() {
     setShowModal(true)
   }
 
+  function isDrinkCategory(categoryName?: string) {
+    return categoryName?.toLowerCase().includes('boisson') || false
+  }
+
+  async function handleImageSelection(file?: File | null) {
+    if (!file) return
+
+    try {
+      const optimizedImage = await optimizeImageFile(file)
+      setFormData((current) => ({ ...current, image: optimizedImage }))
+    } catch (error) {
+      setErrorModal(error instanceof Error ? error.message : "Impossible de traiter cette image.")
+    }
+  }
+
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#212529] tracking-tight uppercase">Menu & Produits</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Menu</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gérez votre carte et la disponibilité en cuisine</p>
         </div>
         <button 
@@ -132,6 +152,7 @@ export default function RestaurateurProducts() {
               price: '', 
               categoryId: '', 
               image: '', 
+              averagePrepTimeMins: '15',
               isAvailable: true,
               trackStock: false,
               stockQuantity: '0',
@@ -139,7 +160,7 @@ export default function RestaurateurProducts() {
             }); 
             setShowModal(true); 
           }}
-          className="bg-[#212529] hover:bg-black text-white px-8 py-3 rounded-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
         >
           <Plus className="w-5 h-5" />
           Ajouter un plat
@@ -149,16 +170,21 @@ export default function RestaurateurProducts() {
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product) => (
+            (() => {
+              const isDrink = isDrinkCategory(product.category?.name)
+              return (
             <div key={product.id} className={`bg-white rounded-[2rem] border border-[#dee2e6] overflow-hidden group hover:shadow-2xl transition-all ${!product.isAvailable ? 'opacity-60' : ''}`}>
-              <div className="h-40 bg-[#f1f3f5] relative overflow-hidden">
+              <div className="h-40 bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-4">
                 {product.image ? (
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <div className="w-full h-full rounded-[1.5rem] bg-white/85 shadow-[0_18px_40px_rgba(33,37,41,0.08)] border border-white/70 flex items-center justify-center overflow-hidden backdrop-blur-sm">
+                    <img src={product.image} alt={product.name} className={`w-full h-full object-contain transition-transform duration-700 ${isDrink ? 'p-1 scale-[1.08] group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`} />
+                  </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>
                 )}
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="absolute top-4 right-4 flex gap-2 transition-all sm:opacity-0 sm:group-hover:opacity-100">
                   <button onClick={() => handleEdit(product)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#212529] transition-all">
                     <Edit3 className="w-4 h-4" />
                   </button>
@@ -176,6 +202,7 @@ export default function RestaurateurProducts() {
                 <div>
                   <h3 className="text-sm font-black text-[#212529] uppercase tracking-tight line-clamp-1">{product.name}</h3>
                   <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">{product.category?.name || 'Sans Catégorie'}</p>
+                  <p className="text-[10px] font-black text-[#495057] uppercase tracking-widest mt-2">Prep ~ {product.averagePrepTimeMins || 15} min</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-black text-[#212529]">{product.price.toLocaleString()} FCFA</span>
@@ -195,15 +222,17 @@ export default function RestaurateurProducts() {
                 </div>
               </div>
             </div>
+              )
+            })()
           ))}
         </div>
       )}
 
       {/* Modal CRUD */}
       {showModal && (
-        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-in zoom-in-95 duration-300">
-            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 p-2 text-[#adb5bd] hover:text-[#212529]"><X className="w-6 h-6" /></button>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#212529]/60 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:rounded-[2.5rem] sm:p-8 lg:p-10">
+            <button onClick={() => setShowModal(false)} className="absolute right-4 top-4 p-2 text-[#adb5bd] hover:text-[#212529] sm:right-6 sm:top-6"><X className="w-6 h-6" /></button>
             
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">{editingProduct ? 'Modifier le plat' : 'Nouveau Produit'}</h2>
@@ -211,7 +240,7 @@ export default function RestaurateurProducts() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div className="space-y-2 col-span-2">
                   <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Nom du plat</label>
                   <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="EX: BURGER DOUBLE FROMAGE" />
@@ -227,6 +256,10 @@ export default function RestaurateurProducts() {
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Prep moyenne (min)</label>
+                  <input required min={1} type="number" value={formData.averagePrepTimeMins} onChange={(e) => setFormData({...formData, averagePrepTimeMins: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="15" />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -236,16 +269,16 @@ export default function RestaurateurProducts() {
                   className={`relative h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${formData.image ? 'border-[#2f9e44] bg-[#ebfbee]' : 'border-[#dee2e6] hover:border-[#212529] bg-[#f8f9fa]'}`}
                 >
                   {formData.image ? (
-                    <div className="relative w-full h-full p-2">
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                    <div className="relative w-full h-full p-2 flex items-center justify-center">
+                      <img src={formData.image} alt="Preview" className="w-full h-full object-contain rounded-xl" />
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
-                        <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l'image</span>
+                      <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l'image</span>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-[#adb5bd]">
                       <Package className="w-8 h-8" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Cliquez pour uploader (PC)</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">PNG, JPG, WEBP optimises auto</span>
                     </div>
                   )}
                   <input 
@@ -253,20 +286,16 @@ export default function RestaurateurProducts() {
                     type="file" 
                     className="hidden" 
                     accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        const reader = new FileReader()
-                        reader.onloadend = () => setFormData({...formData, image: reader.result as string})
-                        reader.readAsDataURL(file)
-                      }
+                    onChange={async (e) => {
+                      await handleImageSelection(e.target.files?.[0])
+                      e.target.value = ''
                     }}
                   />
                 </div>
               </div>
 
-              <div className="space-y-4 bg-[#f8f9fa] p-6 rounded-[2rem] border border-[#dee2e6]">
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 rounded-[2rem] border border-[#dee2e6] bg-[#f8f9fa] p-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="flex items-center gap-3">
                     <button 
                       type="button"
@@ -290,7 +319,7 @@ export default function RestaurateurProducts() {
                 </div>
 
                 {formData.trackStock && (
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#dee2e6] animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="grid grid-cols-1 gap-4 border-t border-[#dee2e6] pt-4 animate-in fade-in slide-in-from-top-2 duration-300 sm:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Quantité en stock</label>
                       <input type="number" value={formData.stockQuantity} onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})} className="w-full bg-white border border-[#dee2e6] rounded-xl px-4 py-2 text-xs font-bold" />
@@ -313,14 +342,14 @@ export default function RestaurateurProducts() {
 
       {/* Modal Confirmation de Suppression */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[#212529]/60 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300 sm:p-8">
             <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
               <Trash2 className="w-8 h-8 text-[#e03131]" />
             </div>
             <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-2">Confirmer la suppression</h2>
             <p className="text-xs font-bold text-[#adb5bd] mb-8">Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.</p>
-            <div className="flex gap-4">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:gap-4">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-4 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#212529] rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Annuler</button>
               <button onClick={confirmDelete} className="flex-1 py-4 bg-[#e03131] hover:bg-[#c92a2a] text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-red-500/20">Supprimer</button>
             </div>
@@ -330,15 +359,15 @@ export default function RestaurateurProducts() {
 
       {/* Modal Erreur / Alerte */}
       {errorModal && (
-        <div className="fixed inset-0 bg-[#212529]/60 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 text-center relative">
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#212529]/60 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="relative w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300 sm:p-8">
             <button onClick={() => setErrorModal(null)} className="absolute top-4 right-4 p-2 text-[#adb5bd] hover:text-[#212529]"><X className="w-5 h-5" /></button>
             <div className="w-16 h-16 bg-[#fff5f5] rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-[#e03131]" />
             </div>
             <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight mb-4">Action Impossible</h2>
             <p className="text-sm font-bold text-[#495057] mb-8 leading-relaxed">{errorModal}</p>
-            <button onClick={() => setErrorModal(null)} className="w-full py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">J'ai compris</button>
+            <button onClick={() => setErrorModal(null)} className="w-full py-4 bg-[#212529] hover:bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl">J&apos;ai compris</button>
           </div>
         </div>
       )}

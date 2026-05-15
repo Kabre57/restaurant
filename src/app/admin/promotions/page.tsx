@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Tag, Trash2, Power, Loader2, Store, Calendar, Ticket } from 'lucide-react'
+import { Plus, Trash2, Power, Loader2, Store, Calendar, Ticket } from 'lucide-react'
 import { getPromotions, createPromotion, deletePromotion, togglePromotionStatus } from '@/app/actions/promotions'
 import { getStores } from '@/app/actions/stores'
 import { DiscountType } from '@prisma/client'
@@ -77,15 +77,15 @@ export default function PromotionsAdminPage() {
   }
 
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#212529] tracking-tight uppercase">Gestion des Promotions</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Gestion des Promotions</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Créez et gérez les codes de réduction globaux</p>
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="bg-[#212529] hover:bg-black text-white px-8 py-3 rounded-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
         >
           <Plus className="w-5 h-5" />
           Nouvelle Promo
@@ -95,14 +95,14 @@ export default function PromotionsAdminPage() {
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {promotions.map((promo) => (
             <div key={promo.id} className="bg-white p-6 rounded-[2rem] border border-[#dee2e6] shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
               <div className="flex justify-between items-start mb-6">
                 <div className={`p-3 rounded-2xl ${promo.isActive ? 'bg-[#ebfbee] text-[#2f9e44]' : 'bg-[#f1f3f5] text-[#adb5bd]'}`}>
                   <Ticket className="w-6 h-6" />
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="flex gap-2 transition-all sm:opacity-0 sm:group-hover:opacity-100">
                   <button onClick={() => handleToggle(promo.id, promo.isActive)} className="p-2 hover:bg-[#f8f9fa] rounded-lg text-[#495057]" title="Activer/Désactiver">
                     <Power className={`w-4 h-4 ${promo.isActive ? 'text-[#2f9e44]' : 'text-[#adb5bd]'}`} />
                   </button>
@@ -139,8 +139,8 @@ export default function PromotionsAdminPage() {
 
       {/* Modal de création */}
       {showModal && (
-        <div className="fixed inset-0 bg-[#1a1d24]/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#1a1d24]/60 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:rounded-[2.5rem] sm:p-10">
             <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight mb-8">Nouvelle Promotion</h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -155,7 +155,7 @@ export default function PromotionsAdminPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-2">Type</label>
                   <select
@@ -164,7 +164,7 @@ export default function PromotionsAdminPage() {
                     className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-2xl px-5 py-4 text-sm font-bold focus:outline-none"
                   >
                     <option value="PERCENTAGE">Pourcentage (%)</option>
-                    <option value="FIXED">Montant Fixe (F)</option>
+                    <option value="FIXED_AMOUNT">Montant Fixe (F)</option>
                   </select>
                 </div>
                 <div>
@@ -204,7 +204,7 @@ export default function PromotionsAdminPage() {
                 />
               </div>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:gap-4">
                 <button 
                   type="button"
                   onClick={() => setShowModal(false)}

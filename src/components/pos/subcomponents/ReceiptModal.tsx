@@ -18,6 +18,7 @@ export type ReceiptOrder = {
   paymentMode?: string
   amountReceived?: number
   changeAmount?: number
+  estimatedPrepMinutes?: number | null
 }
 
 interface ReceiptModalProps {
@@ -26,6 +27,9 @@ interface ReceiptModalProps {
 }
 
 export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
+  const isPendingSettlement = order.paymentMode === 'A regler en caisse'
+  const orderDate = new Date(order.date || new Date())
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 overflow-y-auto">
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-10 duration-500">
@@ -33,9 +37,26 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           <div className="w-16 h-16 bg-[#212529] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white text-2xl font-black">POS</span>
           </div>
-          <h2 className="text-xl font-black text-[#212529] uppercase tracking-tighter">Ticket de Caisse</h2>
+          <h2 className="text-xl font-black text-[#212529] uppercase tracking-tighter">
+            {isPendingSettlement ? 'Bon de Commande' : 'Ticket de Caisse'}
+          </h2>
           <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Établissement #01 - Abidjan</p>
         </div>
+
+        {(isPendingSettlement || order.estimatedPrepMinutes) && (
+          <div className="bg-[#f8f9fa] rounded-2xl p-4 mb-6 space-y-2 border border-[#e9ecef]">
+            {isPendingSettlement && (
+              <p className="text-[10px] font-black text-[#f08c00] uppercase tracking-widest">
+                Paiement en attente - a regler en caisse
+              </p>
+            )}
+            {order.estimatedPrepMinutes ? (
+              <p className="text-[10px] font-black text-[#495057] uppercase tracking-widest">
+                Preparation estimee: ~ {order.estimatedPrepMinutes} min
+              </p>
+            ) : null}
+          </div>
+        )}
         
         <div className="space-y-4 mb-8">
           {order.items.map((item, i) => (
@@ -66,7 +87,7 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
 
         <div className="bg-[#f8f9fa] rounded-2xl p-4 text-center mb-8">
           <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Merci pour votre visite !</p>
-          <span className="text-[9px] font-bold text-[#adb5bd]">{new Date().toLocaleString('fr-FR')}</span>
+          <span className="text-[9px] font-bold text-[#adb5bd]">{orderDate.toLocaleString('fr-FR')}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

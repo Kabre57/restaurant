@@ -3,28 +3,42 @@
 import React, { useState, useEffect } from 'react'
 import { getStoreOrders } from '@/app/actions/orders'
 import { useSession } from 'next-auth/react'
-import { Loader2, TrendingUp, DollarSign, ShoppingBag, Users, Calendar, ArrowUpRight } from 'lucide-react'
-import { format, subDays, isAfter } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { Loader2, TrendingUp, DollarSign, ShoppingBag, Calendar, ArrowUpRight } from 'lucide-react'
+import { format } from 'date-fns'
+
+type StatsOrder = {
+  status: string
+  total: number
+  createdAt: Date | string
+}
 
 export default function RestaurateurStats() {
   const { data: session } = useSession()
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState<StatsOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
-    if (session?.user?.storeId) {
-      loadStats()
-    }
-  }, [session])
+    const storeId = session?.user?.storeId
+    if (!storeId) return
+    const activeStoreId = storeId
 
-  async function loadStats() {
-    setLoading(true)
-    const data = await getStoreOrders(session?.user?.storeId as string)
-    setOrders(data)
-    setLoading(false)
-  }
+    let isCancelled = false
+
+    async function fetchStats() {
+      setLoading(true)
+      const data = await getStoreOrders(activeStoreId)
+      if (isCancelled) return
+      setOrders(data as StatsOrder[])
+      setLoading(false)
+    }
+
+    void fetchStats()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [session?.user?.storeId])
 
   // Calculate total metrics (all time)
   const completedOrders = orders.filter(o => o.status !== 'CANCELLED')
@@ -45,16 +59,16 @@ export default function RestaurateurStats() {
   const dateRevenue = dateOrders.reduce((sum, order) => sum + order.total, 0)
 
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#212529] tracking-tight uppercase">Performance</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Performance</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Tableau de bord et indicateurs clés</p>
         </div>
-        <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-[#dee2e6] shadow-sm">
+        <div className="flex w-full items-center gap-4 rounded-2xl border border-[#dee2e6] bg-white px-5 py-3 shadow-sm sm:w-auto sm:px-6">
           <Calendar className="w-5 h-5 text-[#adb5bd]" />
           <div className="flex flex-col">
-            <span className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Période d'analyse</span>
+            <span className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Période d&apos;analyse</span>
             <input 
               type="date" 
               value={selectedDate}
@@ -70,7 +84,7 @@ export default function RestaurateurStats() {
       ) : (
         <div className="space-y-8">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <div className="bg-white p-6 rounded-[2rem] border border-[#dee2e6] shadow-sm flex flex-col gap-4 relative overflow-hidden group">
               <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#ebfbee] rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500" />
               <div className="flex items-center gap-4 relative z-10">
@@ -78,7 +92,7 @@ export default function RestaurateurStats() {
                   <DollarSign className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Chiffre d'affaires</p>
+                  <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Chiffre d&apos;affaires</p>
                   <h3 className="text-2xl font-black text-[#212529]">{totalRevenue.toLocaleString()} FCFA</h3>
                 </div>
               </div>
@@ -126,11 +140,11 @@ export default function RestaurateurStats() {
           </div>
 
           {/* Simple Chart / Insights Placeholder */}
-          <div className="bg-white p-10 rounded-[2.5rem] border border-[#dee2e6] shadow-sm">
+          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:rounded-[2.5rem] sm:p-10">
             <h3 className="text-lg font-black text-[#212529] uppercase tracking-tight mb-8">Aperçu Récent</h3>
             <div className="flex flex-col items-center justify-center py-10 text-[#adb5bd] gap-4 bg-[#f8f9fa] rounded-[2rem] border border-dashed border-[#dee2e6]">
               <TrendingUp className="w-12 h-12 opacity-20" />
-              <p className="text-xs font-black uppercase tracking-widest">Les graphiques détaillés seront disponibles après plus d'activité.</p>
+              <p className="text-xs font-black uppercase tracking-widest">Les graphiques détaillés seront disponibles après plus d&apos;activité.</p>
             </div>
           </div>
         </div>

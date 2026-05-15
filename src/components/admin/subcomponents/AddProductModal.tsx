@@ -125,8 +125,10 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
               className={`relative h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${image ? 'border-[#2f9e44] bg-[#ebfbee]' : 'border-[#dee2e6] hover:border-[#212529] bg-[#f8f9fa]'}`}
             >
               {image ? (
-                <div className="relative w-full h-full p-2">
-                  <Image src={image} alt="Preview" fill className="object-cover rounded-xl" />
+                <div className="relative w-full h-full p-2 flex items-center justify-center">
+                  <div className="relative w-full h-full rounded-xl bg-white/90 border border-white/80 shadow-[0_18px_40px_rgba(33,37,41,0.08)] overflow-hidden">
+                    <Image src={image} alt="Preview" fill className="object-contain p-3 rounded-xl" />
+                  </div>
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
                     <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l&apos;image</span>
                   </div>

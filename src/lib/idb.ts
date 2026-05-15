@@ -7,6 +7,7 @@ export type CachedProduct = {
   name: string;
   price: number;
   image: string | null;
+  averagePrepTimeMins?: number | null;
   isAvailable?: boolean;
 };
 export type QueuedOrder = {

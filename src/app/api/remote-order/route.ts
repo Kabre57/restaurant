@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { DeliveryPlatform, Prisma } from '@prisma/client'
+import {
+  createExternalDeliveryOrder,
+  getApiKeyFromRequest,
+  IntegrationError,
+  normalizePlatform,
+  resolveExternalItems,
+  resolveStoreForExternalOrder
+} from '@/lib/external-orders'
 
 /**
  * API pour recevoir des commandes de plateformes externes (Glovo, UberEats, etc.)
@@ -9,44 +16,63 @@ import { OrderStatus, OrderType } from '@prisma/client'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { apiKey, storeId, items, total, customerName, customerPhone, deliveryAddress } = body
+    const {
+      apiKey: bodyApiKey,
+      platform: rawPlatform,
+      externalOrderId,
+      externalStoreId,
+      storeId,
+      items,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+      customerNotes
+    } = body
 
-    // 1. Vérification de sécurité (Clé API à configurer dans .env)
-    if (apiKey !== process.env.EXTERNAL_API_KEY) {
+    const apiKey = getApiKeyFromRequest(req, bodyApiKey)
+    if (!process.env.EXTERNAL_API_KEY || apiKey !== process.env.EXTERNAL_API_KEY) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // 2. Création de la commande "Remote"
-    const order = await prisma.order.create({
-      data: {
-        storeId,
-        total,
-        type: OrderType.DELIVERY,
-        status: OrderStatus.EN_ATTENTE,
-        clientRequestId: `remote_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            options: item.options || null
-          }))
-        }
-      },
-      include: {
-        items: true
-      }
+    const platform = normalizePlatform(rawPlatform) || DeliveryPlatform.GENERIC
+
+    if (!externalOrderId || typeof externalOrderId !== 'string') {
+      throw new IntegrationError('externalOrderId est requis', 400)
+    }
+
+    const resolvedStore = await resolveStoreForExternalOrder({
+      platform,
+      storeId,
+      externalStoreId
     })
 
-    // On pourrait ici ajouter des logs ou notifier le KDS via Redis
+    const resolvedItems = await resolveExternalItems(platform, resolvedStore.storeId, items)
+
+    const result = await createExternalDeliveryOrder({
+      platform,
+      storeId: resolvedStore.storeId,
+      externalStoreId: resolvedStore.externalStoreId,
+      externalOrderId,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+      customerNotes,
+      externalPayload: body as Prisma.InputJsonValue,
+      items: resolvedItems
+    })
 
     return NextResponse.json({ 
       success: true, 
-      orderId: order.id, 
-      message: 'Commande reçue et ajoutée à la file d\'attente' 
+      orderId: result.order.id,
+      replayed: result.replayed,
+      message: 'Commande reçue et ajoutée à la file d\'attente'
     })
 
   } catch (error: any) {
+    if (error instanceof IntegrationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+
     console.error('Erreur API Remote Order:', error)
     return NextResponse.json({ error: 'Échec du traitement de la commande' }, { status: 500 })
   }

@@ -24,6 +24,8 @@ model Store {
   promotions   Promotion[]
   reservations Reservation[]
   tables       Table[]
+  platformConnections StorePlatformConnection[]
+  productMappings ProductPlatformMapping[]
   users        User[]
 }
 
@@ -96,13 +98,16 @@ model Product {
   price         Float
   image         String?
   isAvailable   Boolean             @default(true)
+  averagePrepTimeMins Int           @default(15)
   createdAt     DateTime            @default(now())
+  prepTimeSamples Int               @default(0)
   updatedAt     DateTime            @updatedAt
   minStockLevel Int                 @default(5)
   stockQuantity Int                 @default(0)
   trackStock    Boolean             @default(false)
   orderItems    OrderItem[]
   category      Category            @relation(fields: [categoryId], references: [id])
+  externalMappings ProductPlatformMapping[]
   store         Store               @relation(fields: [storeId], references: [id])
   ingredients   ProductIngredient[]
 }
@@ -113,13 +118,27 @@ model Order {
   cashierId        String?
   customerId       String?
   tableId          String?
+  estimatedPrepMinutes Int?
+  estimatedReadyAt DateTime?
   status           OrderStatus     @default(EN_ATTENTE)
   type             OrderType       @default(DINE_IN)
   total            Float
+  actualPrepMinutes Int?
   createdAt        DateTime        @default(now())
+  preparationStartedAt DateTime?
+  readyAt          DateTime?
+  servedAt         DateTime?
   updatedAt        DateTime        @updatedAt
   deliveryPersonId String?
   clientRequestId  String?         @unique
+  sourcePlatform   DeliveryPlatform?
+  externalOrderId  String?
+  externalStoreId  String?
+  customerName     String?
+  customerPhone    String?
+  deliveryAddress  String?
+  customerNotes    String?
+  externalPayload  Json?
   discount         Float           @default(0)
   promotionId      String?
   cashier          User?           @relation("CashierOrders", fields: [cashierId], references: [id])
@@ -130,6 +149,37 @@ model Order {
   table            Table?          @relation(fields: [tableId], references: [id])
   items            OrderItem[]
   payments         Payment[]
+
+  @@unique([sourcePlatform, externalOrderId])
+}
+
+model StorePlatformConnection {
+  id              String           @id @default(cuid())
+  storeId         String
+  platform        DeliveryPlatform
+  externalStoreId String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  store           Store            @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, platform])
+  @@unique([platform, externalStoreId])
+}
+
+model ProductPlatformMapping {
+  id                String           @id @default(cuid())
+  storeId           String
+  productId         String
+  platform          DeliveryPlatform
+  externalProductId String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  store             Store            @relation(fields: [storeId], references: [id])
+  product           Product          @relation(fields: [productId], references: [id])
+
+  @@unique([productId, platform])
+  @@unique([storeId, platform, externalProductId])
 }
 
 model Promotion {
@@ -274,7 +324,8 @@ enum Role {
   ADMIN
   RESTAURATEUR
   CASHIER
-  KITCHEN
+  SERVER
+   KITCHEN
   DELIVERY
 }
 
@@ -295,6 +346,13 @@ enum DeliveryStatus {
   ONLINE
   OFFLINE
   BUSY
+}
+
+enum DeliveryPlatform {
+  GLOVO
+  UBER_EATS
+  DELIVEROO
+  GENERIC
 }
 
 enum OrderStatus {

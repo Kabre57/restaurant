@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Settings, Save, ShieldCheck, Globe, Mail, Phone, Percent, Wallet, BellRing } from 'lucide-react'
+import { Save, ShieldCheck, Globe, Mail, Phone, Percent, Wallet } from 'lucide-react'
 
 export default function AdminConfig() {
   const [config, setConfig] = useState({
@@ -17,13 +17,13 @@ export default function AdminConfig() {
   })
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-4 sm:px-0 sm:py-0">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-[#212529] tracking-tight uppercase">Configuration</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Configuration</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Paramètres globaux du système de supervision</p>
         </div>
-        <button className="bg-[#212529] hover:bg-black text-white px-8 py-3 rounded-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl">
+        <button className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8">
           <Save className="w-5 h-5" />
           Sauvegarder
         </button>
@@ -31,7 +31,7 @@ export default function AdminConfig() {
 
       <div className="grid grid-cols-1 gap-8">
         {/* Section 1: Identité */}
-        <div className="bg-white p-10 rounded-[2.5rem] border border-[#dee2e6] shadow-sm">
+        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:rounded-[2.5rem] sm:p-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2 bg-[#f1f3f5] rounded-xl"><Globe className="w-5 h-5 text-[#212529]" /></div>
             <h2 className="text-sm font-black text-[#212529] uppercase tracking-widest">Identité & Localisation</h2>
@@ -43,7 +43,7 @@ export default function AdminConfig() {
         </div>
 
         {/* Section 2: Support */}
-        <div className="bg-white p-10 rounded-[2.5rem] border border-[#dee2e6] shadow-sm">
+        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:rounded-[2.5rem] sm:p-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2 bg-[#f1f3f5] rounded-xl"><Mail className="w-5 h-5 text-[#212529]" /></div>
             <h2 className="text-sm font-black text-[#212529] uppercase tracking-widest">Support & Contact</h2>
@@ -55,7 +55,7 @@ export default function AdminConfig() {
         </div>
 
         {/* Section 3: Économie */}
-        <div className="bg-white p-10 rounded-[2.5rem] border border-[#dee2e6] shadow-sm">
+        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:rounded-[2.5rem] sm:p-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2 bg-[#f1f3f5] rounded-xl"><Percent className="w-5 h-5 text-[#212529]" /></div>
             <h2 className="text-sm font-black text-[#212529] uppercase tracking-widest">Paramètres Financiers</h2>
@@ -67,7 +67,7 @@ export default function AdminConfig() {
         </div>
 
         {/* Section 4: Sécurité & Rapports */}
-        <div className="bg-white p-10 rounded-[2.5rem] border border-[#dee2e6] shadow-sm">
+        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:rounded-[2.5rem] sm:p-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2 bg-[#f1f3f5] rounded-xl"><ShieldCheck className="w-5 h-5 text-[#212529]" /></div>
             <h2 className="text-sm font-black text-[#212529] uppercase tracking-widest">Sécurité & Reporting</h2>
@@ -101,12 +101,12 @@ function ConfigInput({ label, value, icon }: { label: string, value: string, ico
 
 function ConfigToggle({ label, description, active }: { label: string, description: string, active: boolean }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h4 className="text-xs font-black text-[#212529] uppercase tracking-tight">{label}</h4>
         <p className="text-[10px] font-bold text-[#adb5bd] uppercase mt-0.5">{description}</p>
       </div>
-      <button className={`w-12 h-6 rounded-full transition-all relative ${active ? 'bg-[#51cf66]' : 'bg-[#dee2e6]'}`}>
+      <button className={`relative h-6 w-12 rounded-full transition-all ${active ? 'bg-[#51cf66]' : 'bg-[#dee2e6]'}`}>
         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${active ? 'left-7' : 'left-1'}`} />
       </button>
     </div>

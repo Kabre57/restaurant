@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import Image from 'next/image'
+import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { getStoreDetails } from '@/app/actions/stores'
 import {
@@ -17,102 +18,171 @@ import {
   LayoutGrid,
   Layers,
   Package,
-  Truck
+  Truck,
+  Menu,
+  X,
 } from 'lucide-react'
+
+type StoreSummary = {
+  name?: string | null
+  logo?: string | null
+}
+
+const menuItems = [
+  { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
+  { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
+  { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks' },
+  { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
+  { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
+  { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
+  { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
+  { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
+  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
+]
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
-  const [store, setStore] = useState<any>(null)
+  const [store, setStore] = useState<StoreSummary | null>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
-    if (session?.user?.storeId) {
-      getStoreDetails(session.user.storeId).then(data => {
-        if (data) setStore(data)
-      })
-    }
-  }, [session])
+    if (!session?.user?.storeId) return
 
-  const menuItems = [
-    { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
-    { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
-    { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks' },
-    { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
-    { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
-    { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
-    { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
-    { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
-    { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
-  ]
+    let isCancelled = false
+
+    getStoreDetails(session.user.storeId).then((data) => {
+      if (isCancelled || !data) return
+      setStore(data as StoreSummary)
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [session?.user?.storeId])
+
+  const handleLogout = async () => {
+    setIsSidebarOpen(false)
+    await signOut({ redirect: false })
+    router.replace('/login')
+    router.refresh()
+  }
 
   return (
-    <div className="flex h-screen bg-[#f1f3f5] text-[#212529] font-sans overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-20 lg:w-64 bg-[#1a1d24] text-white flex flex-col shadow-2xl z-30 transition-all border-r border-white/5">
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shadow-lg">
-            <Store className="w-6 h-6 text-white" />
+    <div className="flex min-h-screen bg-[#f1f3f5] text-[#212529] font-sans">
+      {isSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Fermer le menu"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-[#0f1115]/60 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col border-r border-white/5 bg-[#1a1d24] text-white shadow-2xl transition-transform duration-300 lg:static lg:w-20 lg:max-w-none lg:translate-x-0 xl:w-64 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between p-5 lg:justify-center lg:p-6 xl:justify-start xl:p-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 shadow-lg">
+              <Store className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-lg font-black uppercase tracking-tighter text-white lg:hidden xl:block">Restaurateur</span>
           </div>
-          <span className="font-black tracking-tighter text-lg uppercase hidden lg:block text-white">Restaurateur</span>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="rounded-xl p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 py-8 space-y-4">
+        <nav className="flex-1 space-y-3 px-4 py-6 lg:items-center lg:px-3 xl:px-4">
           {menuItems.map((item) => {
             const active = pathname.startsWith(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${active
-                  ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
-                  : 'text-white/40 hover:text-white hover:bg-white/5'
-                  }`}
+                onClick={() => setIsSidebarOpen(false)}
+                className={`flex items-center gap-4 rounded-2xl px-4 py-3 transition-all ${
+                  active
+                    ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
+                    : 'text-white/40 hover:bg-white/5 hover:text-white'
+                }`}
               >
-                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'w-5 h-5' })}
-                <span className="font-black text-[10px] uppercase tracking-widest hidden lg:block">{item.name}</span>
+                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
+                <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">{item.name}</span>
               </Link>
             )
           })}
         </nav>
 
-        <div className="p-4 mt-auto space-y-2">
+        <div className="mt-auto space-y-2 p-4 lg:px-3 xl:px-4">
           <Link
             href="/"
-            className="flex items-center gap-4 px-4 py-3 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 transition-all"
+            onClick={() => setIsSidebarOpen(false)}
+            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white"
           >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="font-black text-[10px] uppercase tracking-widest hidden lg:block">Retour POS</span>
+            <ChevronLeft className="h-5 w-5 shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">Retour POS</span>
           </Link>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-white/40 hover:text-[#ff6b6b] hover:bg-[#ff6b6b]/5 transition-all"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-white/40 transition-all hover:bg-[#ff6b6b]/5 hover:text-[#ff6b6b]"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="font-black text-[10px] uppercase tracking-widest hidden lg:block">Déconnexion</span>
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">Déconnexion</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-20 bg-white border-b border-[#dee2e6] flex items-center justify-between px-10 z-20">
-          <div className="flex items-center gap-4">
-            <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Espace Gestion Restaurant</span>
-            <div className="h-4 w-px bg-[#dee2e6]" />
-            <h2 className="text-xs font-black text-[#212529] uppercase tracking-tight">{store?.name || 'Chargement...'}</h2>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex min-h-16 items-center justify-between gap-4 border-b border-[#dee2e6] bg-white px-4 py-3 md:px-6 lg:min-h-20 lg:px-10">
+          <div className="flex min-w-0 items-center gap-3 md:gap-4">
+            <button
+              type="button"
+              aria-label="Ouvrir le menu"
+              onClick={() => setIsSidebarOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] text-[#212529] transition-all hover:bg-[#f1f3f5] lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <span className="block truncate text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
+                Espace Gestion Restaurant
+              </span>
+              <h2 className="mt-1 truncate text-xs font-black uppercase tracking-tight text-[#212529]">
+                {store?.name || 'Chargement...'}
+              </h2>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex shrink-0 items-center gap-3">
             {store?.logo ? (
-              <img src={store.logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain border border-[#dee2e6] bg-white" />
+              <div className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-xl border border-[#dee2e6] bg-white px-2 sm:h-11 sm:w-16">
+                <Image
+                  src={store.logo}
+                  alt="Logo"
+                  width={64}
+                  height={44}
+                  unoptimized
+                  className="h-full w-full object-contain"
+                />
+              </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-[#f8f9fa] border border-[#dee2e6] flex items-center justify-center">
-                <Store className="w-5 h-5 text-[#adb5bd]" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dee2e6] bg-[#f8f9fa]">
+                <Store className="h-5 w-5 text-[#adb5bd]" />
               </div>
             )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#f8f9fa]">
+        <main className="flex-1 overflow-y-auto bg-[#f8f9fa] p-4 md:p-6 lg:p-8">
           {children}
         </main>
       </div>

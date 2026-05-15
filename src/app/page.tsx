@@ -17,6 +17,7 @@ export default async function Home() {
   // Role-based routing: redirect non-cashier roles to their space
   const role = session.user.role;
   if (role === 'KITCHEN') redirect('/kds');
+  if (role === 'SERVER') redirect('/serveur');
   if (role === 'RESTAURATEUR') redirect('/restaurateur/produits');
   if (role === 'ADMIN' || role === 'SUPER_ADMIN') redirect('/admin/dashboard');
 

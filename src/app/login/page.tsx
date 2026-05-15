@@ -17,14 +17,25 @@ import {
 const ROLES = [
   {
     key: 'CASHIER',
-    label: 'Serveur / Caissier',
+    label: 'Caissier',
     icon: UtensilsCrossed,
-    description: 'Prise de commande & encaissement',
+    description: 'Encaissement & commandes directes',
     color: 'bg-orange-500',
     textColor: 'text-orange-500',
     borderColor: 'border-orange-500',
     bgLight: 'bg-orange-50',
     redirect: '/'
+  },
+  {
+    key: 'SERVER',
+    label: 'Serveur',
+    icon: Utensils,
+    description: 'Service en salle & suivi des tables',
+    color: 'bg-emerald-600',
+    textColor: 'text-emerald-600',
+    borderColor: 'border-emerald-600',
+    bgLight: 'bg-emerald-50',
+    redirect: '/serveur'
   },
   {
     key: 'KITCHEN',
@@ -107,10 +118,10 @@ export default function LoginPage() {
   const activeRole = ROLES.find(r => r.key === selectedRole)
 
   return (
-    <div className="min-h-screen bg-slate-900 flex font-sans">
+    <div className="flex min-h-screen flex-col bg-slate-900 font-sans lg:flex-row">
       
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-16 relative overflow-hidden">
+      <div className="relative hidden overflow-hidden lg:flex lg:w-1/2 lg:flex-col lg:items-center lg:justify-center lg:p-16">
         {/* Animated background orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -left-40 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse" />
@@ -147,12 +158,25 @@ export default function LoginPage() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-8 lg:p-8">
+        <div className="w-full max-w-md space-y-6 sm:space-y-8">
+          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl lg:hidden">
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/10 blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-purple-500/10 blur-3xl" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-500/30">
+                <Utensils className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-300">POS Restaurant</p>
+                <p className="mt-1 text-sm font-medium text-slate-300">Connexion rapide pour la caisse, la salle et la cuisine.</p>
+              </div>
+            </div>
+          </div>
           
           {/* Header */}
           <div className="text-center">
-            <div className="lg:hidden w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 lg:hidden">
               <Utensils className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl font-black text-white">Connexion</h2>
@@ -162,7 +186,7 @@ export default function LoginPage() {
           {/* Role Selection */}
           <div className="space-y-3">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Votre rôle</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {ROLES.map(role => {
                 const Icon = role.icon
                 const isActive = selectedRole === role.key
@@ -171,16 +195,21 @@ export default function LoginPage() {
                     key={role.key}
                     type="button"
                     onClick={() => setSelectedRole(role.key)}
-                    className={`p-4 rounded-2xl border-2 text-left transition-all group ${
+                    className={`group rounded-2xl border-2 p-4 text-left transition-all ${
                       isActive
                         ? `${role.bgLight} ${role.borderColor}`
                         : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                     }`}
                   >
-                    <div className={`w-8 h-8 ${role.color} rounded-xl flex items-center justify-center mb-2 shadow-lg`}>
-                      <Icon className="w-4 h-4 text-white" />
+                    <div className="flex items-center gap-3 sm:block">
+                      <div className={`mb-0 flex h-10 w-10 items-center justify-center rounded-xl ${role.color} shadow-lg sm:mb-2`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-bold leading-tight sm:text-xs ${isActive ? role.textColor : 'text-white'}`}>{role.label}</p>
+                        <p className={`mt-1 text-xs leading-tight sm:hidden ${isActive ? 'text-slate-600' : 'text-slate-400'}`}>{role.description}</p>
+                      </div>
                     </div>
-                    <p className={`text-xs font-bold leading-tight ${isActive ? role.textColor : 'text-white'}`}>{role.label}</p>
                   </button>
                 )
               })}
@@ -188,7 +217,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <div className={`bg-white/5 rounded-3xl p-8 border transition-all ${activeRole ? `border-white/20` : 'border-white/10'}`}>
+          <div className={`rounded-3xl border bg-white/5 p-5 transition-all sm:p-8 ${activeRole ? 'border-white/20' : 'border-white/10'}`}>
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm text-center font-medium">
