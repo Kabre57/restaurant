@@ -21,6 +21,7 @@ import {
   Truck,
   Menu,
   X,
+  Compass,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -38,6 +39,7 @@ const menuItems = [
   { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
   { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
   { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
+  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
 ]
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {

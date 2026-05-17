@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Clock, ArrowLeft, Check, Play, PackageCheck, Utensils, LayoutGrid, Radio, Menu, X, LogOut } from 'lucide-react'
+import { Clock, ArrowLeft, Check, Play, PackageCheck, Utensils, LayoutGrid, Radio, Menu, X, LogOut, BellRing } from 'lucide-react'
 import { updateOrderStatus } from '@/app/actions/orders'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -36,6 +36,12 @@ export type KDSOrder = {
 }
 
 type Order = Omit<KDSOrder, 'status'> & { status: OrderStatus }
+
+type ServerCallAlert = {
+  tableId: string
+  tableNumber?: number
+  timestamp: string
+}
 
 function normalizeStatus(status: string): OrderStatus {
   if (status === 'PRÉPARATION' || status === 'PREPARATION') return 'PREPARATION'
@@ -80,6 +86,7 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
   const [retryDelay, setRetryDelay] = useState(1000)
   const [currentTime, setCurrentTime] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [serverCalls, setServerCalls] = useState<ServerCallAlert[]>([])
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -95,7 +102,7 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
       eventSourceRef.current?.close()
       setStreamStatus(attempt === 0 ? 'connecting' : 'reconnecting')
 
-      const eventSource = new EventSource(`/api/kds/stream?storeId=${encodeURIComponent(storeId)}`)
+      const eventSource = new EventSource(`/api/kds/stream?storeId=${encodeURIComponent(storeId)}&station=${prepZone}`)
       eventSourceRef.current = eventSource
 
       eventSource.onopen = () => {
@@ -133,6 +140,11 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
         setStreamStatus('connected')
       })
 
+      eventSource.addEventListener('server-call', (event) => {
+        const call = JSON.parse(event.data) as ServerCallAlert
+        setServerCalls(prev => [call, ...prev.filter(item => item.tableId !== call.tableId)].slice(0, 4))
+      })
+
       eventSource.onerror = () => {
         eventSource.close()
         if (stopped) return
@@ -151,7 +163,7 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
       eventSourceRef.current?.close()
     }
-  }, [storeId])
+  }, [storeId, prepZone])
 
   useEffect(() => {
     const refreshClock = () => {
@@ -218,7 +230,6 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-[16rem] max-w-[84vw] flex-col gap-8 border-r border-[#dee2e6] bg-white px-4 py-6 shadow-sm transition-transform duration-300 lg:static lg:w-20 lg:max-w-none lg:translate-x-0 lg:items-center lg:px-0 lg:py-8 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
@@ -258,10 +269,7 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* Header */}
         <header className="border-b border-[#dee2e6] bg-white px-4 py-4 z-10 shadow-sm md:px-6 lg:px-10">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-start gap-4 xl:items-center xl:gap-6">
@@ -320,7 +328,29 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
           </div>
         </header>
 
-        {/* Columns */}
+        {serverCalls.length > 0 && (
+          <div className="border-b border-[#ffd43b] bg-[#fff9db] px-4 py-3 md:px-6 lg:px-10">
+            <div className="flex flex-wrap items-center gap-3">
+              {serverCalls.map(call => (
+                <div key={`${call.tableId}-${call.timestamp}`} className="flex items-center gap-3 rounded-xl border border-[#fcc419] bg-white px-4 py-2 text-[#f08c00] shadow-sm">
+                  <BellRing className="h-4 w-4 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    Appel serveur {call.tableNumber ? `Table ${call.tableNumber}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setServerCalls(prev => prev.filter(item => item.tableId !== call.tableId))}
+                    className="rounded-lg p-1 text-[#adb5bd] hover:bg-[#f1f3f5] hover:text-[#212529]"
+                    aria-label="Masquer l'appel serveur"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-x-auto bg-[#f1f3f5] p-4 sm:p-6 lg:p-8 flex gap-6 lg:gap-8">
           <KDSColumn 
             title="Nouvelles Commandes" 

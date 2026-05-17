@@ -43,9 +43,10 @@ type UsePOSRealtimeOptions = {
   initialOrders: RealtimeOrder[]
   storeId: string
   onReadyOrder?: (message: string) => void
+  onServerCall?: (message: string) => void
 }
 
-export function usePOSRealtime({ initialOrders, storeId, onReadyOrder }: UsePOSRealtimeOptions) {
+export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerCall }: UsePOSRealtimeOptions) {
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([])
   const [liveActiveOrders, setLiveActiveOrders] = useState<RealtimeOrder[]>(() => initialOrders.map(normalizeLiveOrder))
   const readyOrderIdsRef = useRef(
@@ -103,6 +104,7 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder }: UsePOSR
 
     const alertSource = new EventSource(`/api/stock/alerts?storeId=${storeId}`)
     const orderSource = new EventSource(`/api/kds/stream?storeId=${encodeURIComponent(storeId)}`)
+    const posAlertSource = new EventSource(`/api/pos/alerts?storeId=${encodeURIComponent(storeId)}`)
 
     alertSource.onmessage = (event) => {
       const data = JSON.parse(event.data) as StockAlert
@@ -126,12 +128,21 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder }: UsePOSR
 
     orderSource.addEventListener('new-order', handleOrderStreamEvent as EventListener)
     orderSource.addEventListener('order-updated', handleOrderStreamEvent as EventListener)
+    posAlertSource.addEventListener('server-call', (event) => {
+      try {
+        const call = JSON.parse(event.data) as { tableNumber?: number }
+        onServerCall?.(call.tableNumber ? `La table ${call.tableNumber} appelle un serveur.` : 'Un client appelle un serveur.')
+      } catch (error) {
+        console.error('Failed to parse POS alert event:', error)
+      }
+    })
 
     return () => {
       alertSource.close()
       orderSource.close()
+      posAlertSource.close()
     }
-  }, [mergeLiveOrder, storeId])
+  }, [mergeLiveOrder, onServerCall, storeId])
 
   return {
     stockAlerts,

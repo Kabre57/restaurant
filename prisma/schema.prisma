@@ -36,6 +36,7 @@ model User {
   email     String          @unique
   password  String
   role      Role            @default(CASHIER)
+  approvalStatus ApprovalStatus @default(APPROVED)
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   orders    Order[]         @relation("CashierOrders")
@@ -71,6 +72,7 @@ model DeliveryPerson {
   name        String
   phone       String
   status      DeliveryStatus @default(OFFLINE)
+  approvalStatus ApprovalStatus @default(APPROVED)
   vehicleType String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -327,6 +329,12 @@ enum Role {
   SERVER
    KITCHEN
   DELIVERY
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum TicketStatus {

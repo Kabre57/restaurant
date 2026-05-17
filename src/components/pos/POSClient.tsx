@@ -141,6 +141,13 @@ export default function POSClient({
         type: 'success',
       })
     },
+    onServerCall: (message) => {
+      setAlertState({
+        title: 'Appel serveur',
+        message,
+        type: 'info',
+      })
+    },
   })
 
   useEffect(() => {

@@ -9,39 +9,51 @@ import {
   AlertCircle, 
   Clock,
   MoreVertical,
+  DollarSign
 } from 'lucide-react'
-import { getSalesReport, getGlobalStats } from '@/app/actions/admin'
+import { getSalesReport, getGlobalStats, getPendingValidations } from '@/app/actions/admin'
 import SalesChart from '@/components/admin/SalesChart'
 
 type GlobalStats = {
   orderCount: number
   storeCount: number
   totalRevenue: number
+  totalCommissions: number
+  topStores: { id: string, name: string, orderCount: number, revenue: number }[]
+}
+
+type PendingStats = {
+  pendingRestaurateurs: number
+  pendingDelivery: number
+  totalPending: number
 }
 
 export default function AdminDashboard() {
   const [salesData, setSalesData] = React.useState<{name: string, value: number}[]>([])
   const [globalStats, setGlobalStats] = React.useState<GlobalStats | null>(null)
+  const [pendingStats, setPendingStats] = React.useState<PendingStats | null>(null)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
     async function loadData() {
-      const [sales, stats] = await Promise.all([
-        getSalesReport('store_01', 'daily'), // Adjust storeId as needed
-        getGlobalStats()
+      const [sales, stats, pending] = await Promise.all([
+        getSalesReport('store_01', 'daily'),
+        getGlobalStats() as unknown as GlobalStats,
+        getPendingValidations()
       ])
       setSalesData(sales)
       setGlobalStats(stats)
+      setPendingStats(pending)
       setLoading(false)
     }
     loadData()
   }, [])
 
   const stats = [
-    { name: 'Commandes du jour', value: globalStats?.orderCount?.toString() || '0', icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
+    { name: 'Commandes globales', value: globalStats?.orderCount?.toString() || '0', icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
     { name: 'Restaurants Actifs', value: globalStats?.storeCount?.toString() || '0', icon: <Store />, color: 'bg-[#51cf66]', trend: '+2' },
-    { name: 'Livreurs Actifs', value: '18', icon: <Truck />, color: 'bg-[#fcc419]', trend: '+3' },
-    { name: 'Chiffre d\'affaires', value: `${(globalStats?.totalRevenue || 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#ae3ec9]', trend: '+8%' },
+    { name: 'Chiffre d\'affaires total', value: `${(globalStats?.totalRevenue || 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#fcc419]', trend: '+8%' },
+    { name: 'Commissions (15%)', value: `${(globalStats?.totalCommissions || 0).toLocaleString()} F`, icon: <DollarSign />, color: 'bg-[#ae3ec9]', trend: '+8%' },
   ]
 
   return (
@@ -104,18 +116,17 @@ export default function AdminDashboard() {
               <button className="text-[10px] font-black text-[#339af0] hover:underline uppercase tracking-widest">Voir tout</button>
             </div>
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="group flex flex-col gap-4 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
+              {globalStats?.topStores?.map((store, idx) => (
+                <div key={store.id || idx} className="group flex flex-col gap-4 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white border border-[#dee2e6] flex items-center justify-center text-xl">🏪</div>
                     <div>
-                      <h4 className="text-xs font-black text-[#212529] uppercase tracking-tight">Le Gourmet Abidjan</h4>
-                      <p className="text-[9px] font-bold text-[#adb5bd] uppercase mt-0.5">342 Commandes • Score 4.8</p>
+                      <h4 className="text-xs font-black text-[#212529] uppercase tracking-tight">{store.name}</h4>
+                      <p className="text-[9px] font-bold text-[#adb5bd] uppercase mt-0.5">{store.orderCount} Commandes</p>
                     </div>
                   </div>
                   <div className="text-left sm:text-right">
-                    <p className="text-xs font-black text-[#212529]">1.2M FCFA</p>
-                    <p className="text-[9px] font-bold text-[#51cf66] uppercase mt-0.5">+15%</p>
+                    <p className="text-xs font-black text-[#212529]">{store.revenue.toLocaleString()} FCFA</p>
                   </div>
                 </div>
               ))}
@@ -128,15 +139,15 @@ export default function AdminDashboard() {
           <div className="relative overflow-hidden rounded-[2rem] bg-[#212529] p-5 text-white shadow-xl sm:p-8">
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-2">Validations en attente</h3>
-              <p className="mb-6 text-2xl font-black sm:text-3xl">08</p>
+              <p className="mb-6 text-2xl font-black sm:text-3xl">{pendingStats?.totalPending.toString().padStart(2, '0')}</p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
                   <span className="text-[10px] font-bold uppercase">Restaurateurs</span>
-                  <span className="text-xs font-black">05</span>
+                  <span className="text-xs font-black">{pendingStats?.pendingRestaurateurs.toString().padStart(2, '0')}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
                   <span className="text-[10px] font-bold uppercase">Livreurs</span>
-                  <span className="text-xs font-black">03</span>
+                  <span className="text-xs font-black">{pendingStats?.pendingDelivery.toString().padStart(2, '0')}</span>
                 </div>
               </div>
               <button className="w-full mt-6 bg-white text-[#212529] py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#f1f3f5] transition-all">

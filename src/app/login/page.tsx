@@ -3,6 +3,7 @@
 import { signIn, getSession } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { 
   Utensils, 
   ChefHat, 
@@ -61,9 +62,9 @@ const ROLES = [
   },
   {
     key: 'ADMIN',
-    label: 'Administrateur',
+    label: 'Franchiseur',
     icon: ShieldCheck,
-    description: 'Supervision globale de la plateforme',
+    description: 'Multi-sites, commissions & validations',
     color: 'bg-purple-600',
     textColor: 'text-purple-600',
     borderColor: 'border-purple-600',
@@ -181,6 +182,12 @@ export default function LoginPage() {
             </div>
             <h2 className="text-3xl font-black text-white">Connexion</h2>
             <p className="text-slate-400 mt-2 text-sm">Sélectionnez votre profil puis identifiez-vous</p>
+            <Link
+              href="/espaces"
+              className="mt-4 inline-flex rounded-xl border border-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+            >
+              Voir tous les espaces
+            </Link>
           </div>
 
           {/* Role Selection */}

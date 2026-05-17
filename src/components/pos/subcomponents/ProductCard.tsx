@@ -37,8 +37,8 @@ export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) 
   const prepMinutes = Math.max(1, product.averagePrepTimeMins || 15)
 
   return (
-    <div onClick={onAdd} className="bg-white rounded-3xl overflow-hidden border border-[#e9ecef] hover:border-[#212529] transition-all duration-300 cursor-pointer group flex flex-col shadow-sm hover:shadow-2xl hover:-translate-y-1.5">
-      <div className="aspect-[4/3] bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-4">
+    <div onClick={onAdd} className="bg-pos-surface rounded-3xl overflow-hidden border border-pos-border hover:border-brand-500 transition-all duration-300 cursor-pointer group flex flex-col shadow-soft hover:shadow-xl hover:-translate-y-1.5">
+      <div className="aspect-[4/3] bg-gradient-to-b from-pos-bg to-pos-border/30 relative overflow-hidden p-4">
         {canDisplayImage ? (
           <div className="relative w-full h-full rounded-[1.5rem] bg-white/90 border border-white/80 shadow-[0_18px_40px_rgba(33,37,41,0.08)] flex items-center justify-center overflow-hidden">
             <Image
@@ -58,21 +58,21 @@ export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) 
             </div>
           </div>
         )}
-        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[9px] font-black text-[#212529] border border-[#e9ecef] uppercase tracking-widest">
+        <div className="absolute top-4 left-4 bg-pos-surface/90 backdrop-blur px-3 py-1 rounded-full text-[9px] font-bold text-pos-text border border-pos-border uppercase tracking-widest">
           {categoryName}
         </div>
-        <div className="absolute top-4 right-4 bg-[#212529] text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">
+        <div className="absolute top-4 right-4 bg-brand-500 text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-brand/20">
           ~ {prepMinutes} min
         </div>
       </div>
-      <div className="p-6 pt-2 flex flex-col gap-4">
-        <h3 className="font-black text-sm text-[#212529] uppercase leading-tight tracking-tight min-h-[2.5rem] flex items-center">{product.name}</h3>
+      <div className="p-6 pt-3 flex flex-col gap-4">
+        <h3 className="font-bold text-sm text-pos-text uppercase leading-tight tracking-tight min-h-[2.5rem] flex items-center">{product.name}</h3>
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest leading-none mb-1">Prix</span>
-            <span className="font-black text-[#212529] text-lg leading-none">{product.price.toLocaleString()} <span className="text-[10px]">FCFA</span></span>
+            <span className="text-[10px] font-bold text-pos-text-muted uppercase tracking-widest leading-none mb-1">Prix</span>
+            <span className="font-bold text-brand-600 text-lg leading-none">{product.price.toLocaleString()} <span className="text-[10px] text-pos-text-muted">FCFA</span></span>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-[#f8f9fa] group-hover:bg-[#212529] flex items-center justify-center group-hover:text-white transition-all shadow-sm">
+          <div className="w-10 h-10 rounded-2xl bg-brand-50 group-hover:bg-brand-500 flex items-center justify-center text-brand-600 group-hover:text-white transition-all shadow-sm">
             <Plus className="w-5 h-5" />
           </div>
         </div>

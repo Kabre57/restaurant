@@ -64,18 +64,18 @@ export function POSWorkspace({
   // En mode serveur, on force d'abord le choix de la table avant d'afficher la carte.
   if (orderFlowMode === 'TABLE_SERVICE' && !selectedTable) {
     return (
-      <div className="flex-1 p-8">
-        <div className="h-full rounded-[2.5rem] border border-dashed border-[#ced4da] bg-white/70 flex flex-col items-center justify-center text-center px-10">
-          <div className="w-24 h-24 rounded-[2rem] bg-[#f1f3f5] flex items-center justify-center mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-white border border-[#dee2e6]" />
+      <div className="flex-1 p-8 bg-pos-bg">
+        <div className="h-full rounded-2xl border-2 border-dashed border-pos-border bg-pos-surface flex flex-col items-center justify-center text-center px-10 shadow-soft">
+          <div className="w-24 h-24 rounded-full bg-brand-50 flex items-center justify-center mb-6">
+            <div className="w-10 h-10 rounded-full bg-brand-500 shadow-md" />
           </div>
-          <h3 className="text-2xl font-black text-[#212529] uppercase tracking-tight mb-3">Service a table</h3>
-          <p className="max-w-xl text-sm font-bold text-[#868e96] leading-relaxed mb-8">
-            Le serveur commence par la table, puis ajoute les menus et boissons. Choisissez d&apos;abord la table a servir.
+          <h3 className="text-2xl font-bold text-pos-text mb-3">Service à table</h3>
+          <p className="max-w-xl text-sm text-pos-text-muted leading-relaxed mb-8">
+            Le serveur commence par la table, puis ajoute les menus et boissons. Choisissez d&apos;abord la table à servir.
           </p>
           <button
             onClick={onChooseTable}
-            className="bg-[#212529] hover:bg-black text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all"
+            className="bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-xl font-semibold text-sm shadow-brand/20 transition-all active:scale-95"
           >
             Choisir une table
           </button>
@@ -98,11 +98,11 @@ export function POSWorkspace({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-      <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
+    <div className="flex-1 overflow-y-auto p-6 bg-pos-bg custom-scrollbar">
+      <div className="flex gap-3 mb-8 overflow-x-auto pb-4 no-scrollbar">
         <button
           onClick={() => onCategoryChange(null)}
-          className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${!activeCategory ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
+          className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${!activeCategory ? 'bg-brand-500 text-white shadow-md' : 'bg-pos-surface text-pos-text-muted hover:bg-brand-50 border border-pos-border'}`}
         >
           Tous les produits
         </button>
@@ -110,7 +110,7 @@ export function POSWorkspace({
           <button
             key={category.id}
             onClick={() => onCategoryChange(category.id)}
-            className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${activeCategory === category.id ? 'bg-[#212529] text-white shadow-xl scale-105' : 'bg-white text-[#adb5bd] hover:bg-[#f8f9fa] border border-[#e9ecef]'}`}
+            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${activeCategory === category.id ? 'bg-brand-500 text-white shadow-md' : 'bg-pos-surface text-pos-text-muted hover:bg-brand-50 border border-pos-border'}`}
           >
             {category.name}
           </button>

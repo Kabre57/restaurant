@@ -7,6 +7,7 @@ import {
   getCategoriesFromIDB,
   getProductsFromIDB,
   getSyncQueue,
+  purgeStaleSyncQueue,
   saveCategoriesToIDB,
   saveProductsToIDB,
 } from '@/lib/idb'
@@ -37,6 +38,7 @@ export function usePOSSyncState({
   const [sessionTotal, setSessionTotal] = useState(0)
 
   const refreshSyncQueueCount = useCallback(async () => {
+    await purgeStaleSyncQueue()
     const queue = await getSyncQueue()
     setSyncQueueCount(queue.length)
     return queue

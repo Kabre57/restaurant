@@ -22,6 +22,8 @@ export type QueuedOrder = {
   createdAt: number;
 };
 
+const DEFAULT_SYNC_QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
+
 interface POSDB extends DBSchema {
   categories: {
     key: string;
@@ -94,6 +96,20 @@ export async function getSyncQueue(): Promise<QueuedOrder[]> {
   if (!dbPromise) return [];
   const db = await dbPromise;
   return db.getAll('sync_orders');
+}
+
+export async function purgeStaleSyncQueue(maxAgeMs = DEFAULT_SYNC_QUEUE_TTL_MS) {
+  if (!dbPromise) return 0;
+  const db = await dbPromise;
+  const cutoff = Date.now() - maxAgeMs;
+  const tx = db.transaction('sync_orders', 'readwrite');
+  const orders = await tx.store.getAll();
+  const staleOrders = orders.filter(order => typeof order.id === 'number' && order.createdAt < cutoff);
+
+  await Promise.all(staleOrders.map(order => tx.store.delete(order.id as number)));
+  await tx.done;
+
+  return staleOrders.length;
 }
 
 export async function clearSyncQueueItem(id: number) {

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Save, Store, MapPin, Phone, Loader2, CheckCircle2 } from 'lucide-react'
+import Link from 'next/link'
+import { Save, Store, MapPin, Phone, Loader2, CheckCircle2, QrCode, UtensilsCrossed } from 'lucide-react'
 import { getStoreDetails } from '@/app/actions/stores'
 import { updateStoreConfig } from '@/app/actions/storeConfig'
 import { useSession } from 'next-auth/react'
@@ -155,6 +156,36 @@ export default function RestaurateurConfig() {
                   }}
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                <QrCode className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Configuration Carte/Menu</h2>
+                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-[#adb5bd]">
+                  Le manager prépare la carte, puis associe chaque étiquette ou tablette à une table.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link
+                href="/restaurateur/produits"
+                className="flex items-center gap-3 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
+              >
+                <UtensilsCrossed className="h-5 w-5 text-brand-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Configurer les plats, boissons et formules</span>
+              </Link>
+              <Link
+                href="/restaurateur/tables"
+                className="flex items-center gap-3 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
+              >
+                <QrCode className="h-5 w-5 text-brand-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Générer les liens Carte/Menu par table</span>
+              </Link>
             </div>
           </div>
 

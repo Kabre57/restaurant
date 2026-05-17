@@ -138,16 +138,35 @@ export async function getGlobalStats() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const [orderCount, storeCount, totalRevenue] = await Promise.all([
-      prisma.order.count({
-        where: { createdAt: { gte: today } }
-      }),
-      prisma.store.count(),
-      prisma.order.aggregate({
-        _sum: { total: true },
-        where: { status: 'COMPLETED' }
-      })
-    ])
+    const orderCount = await prisma.order.count({
+      where: { createdAt: { gte: today } }
+    })
+    
+    const storeCount = await prisma.store.count()
+
+    const stores = await prisma.store.findMany({
+      include: {
+        orders: {
+          where: { status: 'COMPLETED' },
+          select: { total: true }
+        }
+      }
+    })
+
+    let totalRevenue = 0
+    let totalCommissions = 0
+
+    const topStoresData = stores.map(store => {
+      const storeRevenue = store.orders.reduce((sum, o) => sum + o.total, 0)
+      totalRevenue += storeRevenue
+      totalCommissions += storeRevenue * ((store.commission || 15) / 100)
+      return {
+        id: store.id,
+        name: store.name,
+        orderCount: store.orders.length,
+        revenue: storeRevenue
+      }
+    }).sort((a, b) => b.revenue - a.revenue).slice(0, 3)
 
     const recentOrders = await prisma.order.findMany({
       take: 5,
@@ -155,30 +174,44 @@ export async function getGlobalStats() {
       include: { store: true }
     })
 
-    const topStores = await prisma.store.findMany({
-      take: 3,
-      include: {
-        _count: {
-          select: { orders: true }
-        }
-      },
-      // In a real scenario, we'd sum the 'total' of orders
-    })
-
     return {
       orderCount,
       storeCount,
-      totalRevenue: totalRevenue._sum.total || 0,
+      totalRevenue,
+      totalCommissions,
       recentOrders,
-      topStores: topStores.map(s => ({
-        id: s.id,
-        name: s.name,
-        orderCount: s._count.orders,
-        revenue: 0 // Summing would be better but let's keep it simple for now
-      }))
+      topStores: topStoresData
     }
   } catch (error) {
     console.error("Failed to fetch global stats:", error)
     return null
+  }
+}
+
+export async function getPendingValidations() {
+  try {
+    const restaurateurRows = await prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "User"
+      WHERE "role" = 'RESTAURATEUR' AND "approvalStatus" = 'PENDING'
+    `
+    
+    const deliveryRows = await prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "DeliveryPerson"
+      WHERE "approvalStatus" = 'PENDING'
+    `
+
+    const pendingRestaurateurs = Number(restaurateurRows[0]?.count || 0)
+    const pendingDelivery = Number(deliveryRows[0]?.count || 0)
+    
+    return {
+      pendingRestaurateurs,
+      pendingDelivery,
+      totalPending: pendingRestaurateurs + pendingDelivery
+    }
+  } catch (error) {
+    console.error("Failed to fetch pending validations:", error)
+    return { pendingRestaurateurs: 0, pendingDelivery: 0, totalPending: 0 }
   }
 }

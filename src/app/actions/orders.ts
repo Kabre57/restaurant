@@ -37,6 +37,7 @@ type OrderInput = {
   promotionId?: string
   discount?: number
   customerId?: string
+  externalPayload?: Prisma.InputJsonValue
 }
 
 function normalizePaymentMethod(method?: PaymentMethod | string): PaymentMethod {
@@ -174,6 +175,7 @@ export async function createOrder(data: OrderInput) {
         status: OrderStatus.EN_ATTENTE,
         estimatedPrepMinutes,
         estimatedReadyAt,
+        externalPayload: data.externalPayload ?? Prisma.JsonNull,
         items: {
           create: data.items.map(item => ({
             productId: item.productId,

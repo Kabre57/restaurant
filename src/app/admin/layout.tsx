@@ -15,6 +15,7 @@ import {
   Bell,
   Menu,
   X,
+  Compass,
 } from 'lucide-react'
 
 const menuItems = [
@@ -24,6 +25,7 @@ const menuItems = [
   { name: 'Promotions', icon: <Package />, href: '/admin/promotions' },
   { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
   { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },
+  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -115,7 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
             <div className="min-w-0">
               <span className="block truncate text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
-                Espace Administration
+                Espace Franchiseur
               </span>
             </div>
           </div>

@@ -67,3 +67,47 @@ export async function togglePromotionStatus(id: string, isActive: boolean) {
     return { success: false, error: "Erreur lors de la modification du statut" }
   }
 }
+
+export async function verifyPromoCode(code: string, storeId: string, subtotal: number) {
+  try {
+    const normalizedCode = code.trim().toUpperCase()
+
+    if (!normalizedCode) {
+      return { success: false, error: 'Code promotionnel requis' }
+    }
+
+    const promotion = await prisma.promotion.findFirst({
+      where: {
+        code: normalizedCode,
+        storeId,
+        isActive: true,
+        OR: [{ startDate: null }, { startDate: { lte: new Date() } }],
+      },
+    })
+
+    if (!promotion || (promotion.endDate && promotion.endDate < new Date())) {
+      return { success: false, error: 'Code promotionnel invalide ou expiré' }
+    }
+
+    if (promotion.usageLimit !== null && promotion.usedCount >= promotion.usageLimit) {
+      return { success: false, error: 'La limite d’utilisation de ce code est atteinte' }
+    }
+
+    const rawDiscount = promotion.discountType === DiscountType.PERCENTAGE
+      ? subtotal * (promotion.value / 100)
+      : promotion.value
+    const discount = Math.min(Math.max(Math.round(rawDiscount), 0), subtotal)
+
+    return {
+      success: true,
+      promotionId: promotion.id,
+      code: promotion.code,
+      discount,
+      total: Math.max(0, subtotal - discount),
+      description: promotion.description,
+    }
+  } catch (error) {
+    console.error('Failed to verify promo code:', error)
+    return { success: false, error: 'Impossible de valider le code promotionnel' }
+  }
+}
