@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, Trash2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import type { Reservation, Table } from '@prisma/client'
-import { updateOrderStatus } from '@/app/actions/orders'
+import { markOrderServed } from '@/app/actions/orders'
 
 import type { CachedCategory, CachedProduct } from '@/lib/idb'
 import { useCart } from '@/store/useCart'
@@ -37,6 +37,7 @@ type LiveOrder = {
   tableId?: string | null
   status: string
   total?: number
+  servedAt?: Date | string | null
   table?: {
     number: number
   } | null
@@ -218,17 +219,17 @@ export default function POSClient({
   const handleMarkOrderServed = async () => {
     if (!activeTableOrder) return
 
-    const result = await updateOrderStatus(activeTableOrder.id, 'COMPLETED', storeId)
+    const result = await markOrderServed(activeTableOrder.id, storeId)
     if (result.success && result.order) {
       mergeLiveOrder(result.order)
-      setShowTableStatusModal(null)
       setAlertState({
         title: 'Commande servie',
-        message: activeTableOrder.table?.number
-          ? `La table ${activeTableOrder.table.number} a ete marquee comme servie.`
-          : 'La commande a ete marquee comme servie.',
+        message: result.hasPendingPayment
+          ? 'Commande servie. La table reste occupée jusqu’à l’encaissement.'
+          : 'Commande servie et clôturée.',
         type: 'success',
       })
+      if (!result.hasPendingPayment) setShowTableStatusModal(null)
       return
     }
 
@@ -336,6 +337,22 @@ export default function POSClient({
 
               if (tableOrder) {
                 setShowTableStatusModal(table)
+                return
+              }
+
+              const reserved = reservations.some(
+                (reservation) =>
+                  reservation.tableId === table.id &&
+                  reservation.status !== 'CANCELLED' &&
+                  reservation.status !== 'COMPLETED'
+              )
+
+              if (reserved) {
+                setAlertState({
+                  title: 'Table réservée',
+                  message: 'Cette table est réservée. Libérez ou modifiez la réservation avant de démarrer un service.',
+                  type: 'info',
+                })
                 return
               }
 

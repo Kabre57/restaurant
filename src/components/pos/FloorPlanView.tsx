@@ -7,7 +7,11 @@ import { Utensils, Calendar } from 'lucide-react';
 interface FloorPlanViewProps {
   tables: Table[];
   reservations: Reservation[];
-  activeOrders: any[];
+  activeOrders: Array<{
+    tableId?: string | null;
+    status: string;
+    servedAt?: Date | string | null;
+  }>;
   onTableSelect: (table: Table) => void;
   onTableBook: (table: Table) => void;
   selectedTableId?: string | null;
@@ -22,7 +26,6 @@ export default function FloorPlanView({
   selectedTableId 
 }: FloorPlanViewProps) {
   
-  // Helper to check if a table is reserved "soon" (e.g., today)
   const getTableReservations = (tableId: string) => {
     return reservations.filter(r => r.tableId === tableId && r.status !== 'CANCELLED' && r.status !== 'COMPLETED');
   };
@@ -34,7 +37,8 @@ export default function FloorPlanView({
           const tableReservations = getTableReservations(table.id);
           const tableOrder = activeOrders.find(o => o.tableId === table.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
           
-          const isOccupied = !!tableOrder && (tableOrder.status === 'EN_ATTENTE' || tableOrder.status === 'PREPARATION' || tableOrder.status === 'PRÉPARATION');
+          const isServedAwaitingPayment = Boolean(tableOrder?.servedAt);
+          const isOccupied = !!tableOrder && !isServedAwaitingPayment && (tableOrder.status === 'EN_ATTENTE' || tableOrder.status === 'PREPARATION' || tableOrder.status === 'PRÉPARATION');
           const isReady = !!tableOrder && (tableOrder.status === 'PRET' || tableOrder.status === 'PRÊT');
           const isReserved = !tableOrder && (table.status === 'RESERVED' || tableReservations.length > 0);
           const isSelected = selectedTableId === table.id;
@@ -42,6 +46,7 @@ export default function FloorPlanView({
           let statusColor = 'bg-pos-surface border-pos-border text-pos-text';
           if (isOccupied) statusColor = 'bg-orange-50 border-orange-500 text-orange-600';
           if (isReady) statusColor = 'bg-green-50 border-green-500 text-green-600';
+          if (isServedAwaitingPayment) statusColor = 'bg-yellow-50 border-yellow-500 text-yellow-700';
           if (isReserved) statusColor = 'bg-blue-50 border-blue-400 text-blue-600';
           if (isSelected) statusColor = 'bg-brand-500 border-brand-600 text-white shadow-xl scale-105 z-10';
 
@@ -88,9 +93,14 @@ export default function FloorPlanView({
                   Occupée
                 </div>
               )}
-              {isReady && !isSelected && (
+              {isReady && !isServedAwaitingPayment && !isSelected && (
                 <div className="absolute -top-2 -left-2 bg-green-500 text-white text-[8px] font-bold px-2 py-1 rounded-full uppercase tracking-widest shadow-md">
                   Prêt
+                </div>
+              )}
+              {isServedAwaitingPayment && !isSelected && (
+                <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[8px] font-bold px-2 py-1 rounded-full uppercase tracking-widest shadow-md">
+                  À encaisser
                 </div>
               )}
               {isReserved && !isOccupied && !isReady && !isSelected && (
@@ -117,6 +127,10 @@ export default function FloorPlanView({
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-pos-text-muted">Prêt</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-yellow-500" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-pos-text-muted">Servie / caisse</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />

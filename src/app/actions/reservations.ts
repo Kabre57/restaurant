@@ -3,6 +3,15 @@
 import { ReservationStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { redis } from '@/lib/redis'
+
+async function publishReservationAlert(storeId: string, payload: unknown) {
+  try {
+    await redis.publish(`store:${storeId}:pos-alerts`, JSON.stringify(payload))
+  } catch (error) {
+    console.error('Failed to publish reservation alert:', error)
+  }
+}
 
 export async function getReservationsByStore(storeId: string) {
   try {
@@ -30,7 +39,17 @@ export async function createReservation(data: {
       data: {
         ...data,
         status: 'EN_ATTENTE'
-      }
+      },
+      include: { table: true }
+    })
+    await publishReservationAlert(data.storeId, {
+      type: 'TABLE_RESERVED',
+      storeId: data.storeId,
+      tableId: data.tableId,
+      tableNumber: reservation.table.number,
+      customerName: data.customerName,
+      date: data.date.toISOString(),
+      timestamp: new Date().toISOString(),
     })
     revalidatePath('/')
     revalidatePath('/restaurateur/tables')
@@ -45,13 +64,23 @@ export async function updateReservationStatus(id: string, status: ReservationSta
   try {
     const reservation = await prisma.reservation.update({
       where: { id },
-      data: { status }
+      data: { status },
+      include: { table: true }
     })
-    
-    // If confirmed, we might want to update the table status, but usually, 
-    // table status changes when the customer actually arrives.
+    if (status === 'CONFIRMED') {
+      await publishReservationAlert(reservation.storeId, {
+        type: 'TABLE_RESERVED',
+        storeId: reservation.storeId,
+        tableId: reservation.tableId,
+        tableNumber: reservation.table.number,
+        customerName: reservation.customerName,
+        date: reservation.date.toISOString(),
+        timestamp: new Date().toISOString(),
+      })
+    }
     
     revalidatePath('/')
+    revalidatePath('/restaurateur/tables')
     return { success: true, reservation }
   } catch (error) {
     console.error("Failed to update reservation:", error)

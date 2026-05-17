@@ -1,13 +1,13 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Clock, ArrowLeft, Check, Play, PackageCheck, Utensils, LayoutGrid, Radio, Menu, X, LogOut, BellRing } from 'lucide-react'
+import { ArrowLeft, Check, Play, Utensils, LayoutGrid, Radio, Menu, X, LogOut, BellRing } from 'lucide-react'
 import { updateOrderStatus } from '@/app/actions/orders'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { KDSColumn, StatusCounter, type OrderStatus } from './KDSColumn'
 
-type OrderStatus = 'EN_ATTENTE' | 'PREPARATION' | 'PRET' | 'COMPLETED' | 'CANCELLED'
 type StreamStatus = 'connecting' | 'connected' | 'reconnecting'
 
 type OrderItem = {
@@ -31,6 +31,7 @@ export type KDSOrder = {
   actualPrepMinutes?: number | null
   preparationStartedAt?: Date | string | null
   readyAt?: Date | string | null
+  servedAt?: Date | string | null
   items: OrderItem[]
   table?: { number: number } | null
 }
@@ -41,6 +42,12 @@ type ServerCallAlert = {
   tableId: string
   tableNumber?: number
   timestamp: string
+}
+
+type KitchenAlert = {
+  id: string
+  message: string
+  tone: 'info' | 'success' | 'warning'
 }
 
 function normalizeStatus(status: string): OrderStatus {
@@ -58,26 +65,6 @@ function normalizeOrder(order: KDSOrder): Order {
   }
 }
 
-function useElapsedSeconds(createdAt: Date): number {
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    const refreshElapsed = () => {
-      setElapsed(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000))
-    }
-
-    refreshElapsed()
-    const id = setInterval(refreshElapsed, 1000)
-    return () => clearInterval(id)
-  }, [createdAt])
-  return elapsed
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
 export default function KDSClient({ initialOrders, storeId, storeName }: { initialOrders: KDSOrder[], storeId: string, storeName: string }) {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizeOrder))
@@ -87,8 +74,13 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
   const [currentTime, setCurrentTime] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [serverCalls, setServerCalls] = useState<ServerCallAlert[]>([])
+  const [kitchenAlerts, setKitchenAlerts] = useState<KitchenAlert[]>([])
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const pushKitchenAlert = (alert: KitchenAlert) => {
+    setKitchenAlerts(prev => [alert, ...prev.filter(item => item.id !== alert.id)].slice(0, 4))
+  }
 
   useEffect(() => {
     let stopped = false
@@ -113,6 +105,13 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
       eventSource.addEventListener('new-order', (event) => {
         const newOrder = normalizeOrder(JSON.parse(event.data))
         if (newOrder.storeId !== storeId) return
+        pushKitchenAlert({
+          id: `new-${newOrder.id}`,
+          message: newOrder.table?.number
+            ? `Nouvelle commande table ${newOrder.table.number}`
+            : 'Nouvelle commande',
+          tone: 'info',
+        })
 
         setOrders(prev => {
           const exists = prev.some(order => order.id === newOrder.id)
@@ -123,6 +122,19 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
       eventSource.addEventListener('order-updated', (event) => {
         const updatedOrder = normalizeOrder(JSON.parse(event.data))
         if (updatedOrder.storeId !== storeId) return
+        if (updatedOrder.servedAt) {
+          setOrders(prev => prev.filter(o => o.id !== updatedOrder.id))
+          return
+        }
+        if (updatedOrder.status === 'PRET') {
+          pushKitchenAlert({
+            id: `ready-${updatedOrder.id}`,
+            message: updatedOrder.table?.number
+              ? `Commande prete table ${updatedOrder.table.number}`
+              : 'Commande prete',
+            tone: 'success',
+          })
+        }
 
         setOrders(prev => {
           if (updatedOrder.status === 'COMPLETED' || updatedOrder.status === 'CANCELLED') {
@@ -143,6 +155,11 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
       eventSource.addEventListener('server-call', (event) => {
         const call = JSON.parse(event.data) as ServerCallAlert
         setServerCalls(prev => [call, ...prev.filter(item => item.tableId !== call.tableId)].slice(0, 4))
+        pushKitchenAlert({
+          id: `call-${call.tableId}`,
+          message: call.tableNumber ? `Appel serveur table ${call.tableNumber}` : 'Appel serveur',
+          tone: 'warning',
+        })
       })
 
       eventSource.onerror = () => {
@@ -206,7 +223,7 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
     router.refresh()
   }
 
-  const processedOrders = orders.map(order => {
+  const processedOrders = orders.filter(order => !order.servedAt).map(order => {
     const filteredItems = order.items.filter(item => {
       if (prepZone === 'ALL') return true
       const isDrink = item.product.category?.name.toLowerCase().includes('boisson') || false
@@ -351,6 +368,36 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
           </div>
         )}
 
+        {kitchenAlerts.length > 0 && (
+          <div className="border-b border-[#dee2e6] bg-white px-4 py-3 md:px-6 lg:px-10">
+            <div className="flex flex-wrap items-center gap-3">
+              {kitchenAlerts.map(alert => (
+                <div
+                  key={alert.id}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-2 shadow-sm ${
+                    alert.tone === 'success'
+                      ? 'border-[#b2f2bb] bg-[#ebfbee] text-[#2f9e44]'
+                      : alert.tone === 'warning'
+                        ? 'border-[#ffd43b] bg-[#fff9db] text-[#f08c00]'
+                        : 'border-[#a5d8ff] bg-[#e7f5ff] text-[#1971c2]'
+                  }`}
+                >
+                  <BellRing className="h-4 w-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{alert.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setKitchenAlerts(prev => prev.filter(item => item.id !== alert.id))}
+                    className="rounded-lg p-1 text-current/60 hover:bg-white/60 hover:text-current"
+                    aria-label="Masquer la notification"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-x-auto bg-[#f1f3f5] p-4 sm:p-6 lg:p-8 flex gap-6 lg:gap-8">
           <KDSColumn 
             title="Nouvelles Commandes" 
@@ -375,125 +422,6 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
           />
         </div>
       </main>
-    </div>
-  )
-}
-
-function StatusCounter({ label, count, color }: { label: string, count: number, color: string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-1">{label}</span>
-      <div className={`px-4 py-1 ${color} text-white rounded-full text-xs font-black min-w-[40px] text-center shadow-lg shadow-black/10`}>
-        {count}
-      </div>
-    </div>
-  )
-}
-
-function KDSColumn({ title, color, orders, onAction, icon, actionLabel }: {
-  title: string
-  color: string
-  orders: Order[]
-  onAction?: (id: string, s: OrderStatus) => void
-  icon?: React.ReactNode
-  actionLabel?: string
-}) {
-  return (
-    <div className="flex min-w-[320px] flex-1 flex-col overflow-hidden rounded-[2.5rem] border border-[#dee2e6] bg-white shadow-xl sm:min-w-[360px] xl:min-w-[400px]">
-      <div className="p-6 flex justify-between items-center" style={{ backgroundColor: color }}>
-        <h2 className="text-sm font-black text-white tracking-widest uppercase">{title}</h2>
-        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-black">{orders.length}</span>
-      </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
-        {orders.map(order => (
-          <div key={order.id} className="group space-y-4 rounded-3xl border border-[#dee2e6] bg-[#f8f9fa] p-5 transition-all hover:shadow-lg sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Commande</span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-xl font-black text-[#212529] tracking-tighter">
-                    #{order.id.slice(-5).toUpperCase()}
-                  </h3>
-                  {order.table && (
-                    <div className="bg-[#212529] text-white px-4 py-1.5 rounded-xl flex items-center gap-2 shadow-lg scale-110">
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Table</span>
-                      <span className="text-xl font-black">{order.table.number}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <Timer createdAt={order.createdAt} />
-            </div>
-            
-            <div className="space-y-2">
-              {(order.estimatedPrepMinutes || order.actualPrepMinutes) && (
-                <div className="flex flex-wrap gap-2">
-                  {order.estimatedPrepMinutes && (
-                    <div className="bg-white px-3 py-2 rounded-xl border border-[#dee2e6]">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[#adb5bd]">Estime</span>
-                      <p className="text-sm font-black text-[#212529]">~ {order.estimatedPrepMinutes} min</p>
-                    </div>
-                  )}
-                  {order.actualPrepMinutes && (
-                    <div className="bg-white px-3 py-2 rounded-xl border border-[#dee2e6]">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[#adb5bd]">Reel</span>
-                      <p className="text-sm font-black text-[#212529]">{order.actualPrepMinutes} min</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {order.items.map(item => (
-                <div key={item.id} className="bg-white p-3 rounded-xl border border-[#dee2e6]">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-black text-[#212529] uppercase">{item.product.name}</span>
-                    <span className="text-xs font-black bg-[#f1f3f5] px-2 py-0.5 rounded-lg">x{item.quantity}</span>
-                  </div>
-                  {item.options && (
-                    <p className="text-[10px] font-black text-[#e03131] uppercase tracking-widest mt-2 bg-[#fff5f5] p-2 rounded-lg border border-[#ffa8a8]">
-                      ⚠️ {item.options}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {onAction && actionLabel ? (
-              <button
-                onClick={() => onAction(order.id, order.status)}
-                className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-lg active:scale-95"
-                style={{ backgroundColor: color }}
-              >
-                {icon}
-                {actionLabel}
-              </button>
-            ) : (
-              <div className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest border border-[#dee2e6] bg-white text-[#2f9e44]">
-                <PackageCheck className="w-5 h-5" />
-                En attente du serveur
-              </div>
-            )}
-          </div>
-        ))}
-        {orders.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-[#adb5bd] gap-4 opacity-30">
-            <Utensils className="w-12 h-12" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Aucune commande</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Timer({ createdAt }: { createdAt: Date }) {
-  const elapsed = useElapsedSeconds(createdAt)
-  const isWarning = elapsed > 300
-  const isCritical = elapsed > 600
-
-  return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-xl border font-black text-xs ${isCritical ? 'bg-[#fff5f5] border-[#ffa8a8] text-[#e03131]' : isWarning ? 'bg-[#fff9db] border-[#ffe066] text-[#f08c00]' : 'bg-[#f1f3f5] border-[#dee2e6] text-[#495057]'}`}>
-      <Clock className="w-3 h-3" />
-      {formatTime(elapsed)}
     </div>
   )
 }

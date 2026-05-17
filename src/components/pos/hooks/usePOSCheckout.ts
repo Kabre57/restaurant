@@ -7,22 +7,20 @@ import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/
 import { searchCustomer, validatePromotion } from '@/app/actions/loyalty'
 import { addOrderToSyncQueue } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
-import type { PaymentCustomer } from '../lib/payment-types'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
 import { createClientRequestId, type OrderFlowMode, type PaymentMode } from '../lib/pos-helpers'
 import type { RealtimeOrder } from './usePOSRealtime'
-
-type AlertPayload = {
-  title: string
-  message: string
-  type?: 'error' | 'success' | 'info'
-}
+import {
+  buildCashReceiptMeta,
+  buildReceiptItemsFromCart,
+  buildReceiptItemsFromOrder,
+  type AlertPayload,
+  type PaymentContext,
+  type PaymentCustomer,
+} from './usePOSCheckout.helpers'
+import { submitServerOrderFlow } from './serverOrderFlow'
 
 type POSOperatorRole = 'CASHIER' | 'SERVER'
-
-type PaymentContext =
-  | { kind: 'NEW_ORDER' }
-  | { kind: 'SETTLEMENT'; order: RealtimeOrder }
 
 type UsePOSCheckoutOptions = {
   cashierId: string
@@ -43,22 +41,6 @@ type UsePOSCheckoutOptions = {
   onRequireTable: () => void
   onAlert: (alert: AlertPayload) => void
   operatorRole?: POSOperatorRole
-}
-
-function buildReceiptItemsFromCart(items: CartItem[]): ReceiptOrder['items'] {
-  return items.map((item) => ({
-    name: item.name,
-    quantity: item.quantity,
-    price: item.price,
-  }))
-}
-
-function buildReceiptItemsFromOrder(order: RealtimeOrder): ReceiptOrder['items'] {
-  return (order.items || []).map((item) => ({
-    name: item.product?.name || 'Produit',
-    quantity: item.quantity,
-    price: Number(item.price || 0),
-  }))
 }
 
 export function usePOSCheckout({
@@ -169,11 +151,8 @@ export function usePOSCheckout({
     setCustomerResults(results as PaymentCustomer[])
   }
 
-  const buildCashReceiptMeta = (mode: PaymentMode, total: number) => ({
-    paymentMode: mode,
-    amountReceived: mode === 'ESPECES' ? parseInt(amountReceived || '0', 10) : total,
-    changeAmount: mode === 'ESPECES' ? changeAmount ?? 0 : 0,
-  })
+  const getReceiptPaymentMeta = (mode: PaymentMode, total: number) =>
+    buildCashReceiptMeta(mode, total, amountReceived, changeAmount)
 
   const openSettlementForOrder = (order: RealtimeOrder) => {
     setPaymentContext({ kind: 'SETTLEMENT', order })
@@ -206,136 +185,27 @@ export function usePOSCheckout({
     openNewOrderPayment()
   }
 
-  // Le serveur enregistre une commande non encaissee, qui sera reglee plus tard a la caisse.
   const submitServerOrder = async () => {
-    const currentTotal = grossTotal
     setIsProcessing(true)
-
-    const existingOrder = getSelectedActiveTableOrder()
-
     try {
-      if (existingOrder) {
-        const result = await addItemsToOrder(
-          existingOrder.id,
-          items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            options: item.options,
-          })),
-          currentTotal
-        )
-
-        if (result.success && result.order) {
-          mergeLiveOrder(result.order)
-          setLastOrder({
-            id: result.order.id,
-            displayId: orderId,
-            items: buildReceiptItemsFromCart(items),
-            total: currentTotal,
-            date: new Date(),
-            paymentMode: 'A regler en caisse',
-            estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-          })
-
-          clearCart()
-          setShowReceipt(true)
-          advanceOrderId()
-          onAfterCheckout()
-          return
-        }
-
-        onAlert({
-          title: 'Erreur',
-          message: result.error || "Impossible d'ajouter ces articles a la commande de la table.",
-        })
-        return
-      }
-
-      const orderData = {
-        clientRequestId: createClientRequestId(storeId, cashierId),
-        storeId,
+      await submitServerOrderFlow({
         cashierId,
-        total: currentTotal,
-        items: items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          name: item.name,
-        })),
-        type: 'DINE_IN' as const,
-        paymentMode: 'ESPECES' as const,
-        paymentStatus: 'EN_ATTENTE' as const,
-        tableId: selectedTable?.id || undefined,
-      }
-
-      if (isOnline) {
-        const result = await createOrder(orderData)
-        if (result.success && result.order) {
-          mergeLiveOrder(result.order)
-          setLastOrder({
-            ...orderData,
-            id: result.order.id,
-            paymentMode: 'A regler en caisse',
-            estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-          })
-          setShowReceipt(true)
-          clearCart()
-          advanceOrderId()
-          onAfterCheckout()
-          return
-        }
-
-        onAlert({
-          title: 'Commande non envoyee',
-          message: result.error || "La commande n'a pas pu etre envoyee en cuisine.",
-        })
-        return
-      }
-
-      await addOrderToSyncQueue(orderData)
-      await refreshSyncQueueCount()
-      setLastOrder({
-        ...orderData,
-        id: orderData.clientRequestId,
-        isOffline: true,
-        paymentMode: 'A regler en caisse',
-      })
-      setShowReceipt(true)
-      clearCart()
-      advanceOrderId()
-      onAfterCheckout()
-    } catch (error) {
-      console.error('Server order failed, order queued for sync:', error)
-      const orderData = {
-        clientRequestId: createClientRequestId(storeId, cashierId),
         storeId,
-        cashierId,
-        total: currentTotal,
-        items: items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          name: item.name,
-        })),
-        type: 'DINE_IN' as const,
-        paymentMode: 'ESPECES' as const,
-        paymentStatus: 'EN_ATTENTE' as const,
-        tableId: selectedTable?.id || undefined,
-      }
-
-      await addOrderToSyncQueue(orderData)
-      await refreshSyncQueueCount()
-      setLastOrder({
-        ...orderData,
-        id: orderData.clientRequestId,
-        isOffline: true,
-        paymentMode: 'A regler en caisse',
+        orderId,
+        selectedTable,
+        liveActiveOrders,
+        items,
+        isOnline,
+        total: grossTotal,
+        clearCart,
+        refreshSyncQueueCount,
+        advanceOrderId,
+        mergeLiveOrder,
+        onAfterCheckout,
+        onAlert,
+        setLastOrder,
+        setShowReceipt,
       })
-      setShowReceipt(true)
-      clearCart()
-      advanceOrderId()
-      onAfterCheckout()
     } finally {
       setIsProcessing(false)
     }
@@ -366,7 +236,7 @@ export function usePOSCheckout({
           total: Number(result.order.total || paymentTotal),
           date: new Date(),
           estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-          ...buildCashReceiptMeta(mode, Number(result.order.total || paymentTotal)),
+          ...getReceiptPaymentMeta(mode, Number(result.order.total || paymentTotal)),
         })
 
         updateSessionStats(Number(result.order.total || paymentTotal))
@@ -416,7 +286,7 @@ export function usePOSCheckout({
             total: currentTotal,
             date: new Date(),
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-            ...buildCashReceiptMeta(paymentMode, currentTotal),
+            ...getReceiptPaymentMeta(paymentMode, currentTotal),
           })
 
           clearCart()
@@ -462,7 +332,7 @@ export function usePOSCheckout({
             ...orderData,
             id: result.order.id,
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-            ...buildCashReceiptMeta(paymentMode, currentTotal),
+            ...getReceiptPaymentMeta(paymentMode, currentTotal),
           })
           updateSessionStats(currentTotal)
           setShowReceipt(true)
@@ -484,7 +354,7 @@ export function usePOSCheckout({
           ...orderData,
           id: orderData.clientRequestId,
           isOffline: true,
-          ...buildCashReceiptMeta(paymentMode, currentTotal),
+          ...getReceiptPaymentMeta(paymentMode, currentTotal),
         })
         setShowReceipt(true)
         closePaymentModal()
@@ -519,7 +389,7 @@ export function usePOSCheckout({
         ...orderData,
         id: orderData.clientRequestId,
         isOffline: true,
-        ...buildCashReceiptMeta(paymentMode, currentTotal),
+        ...getReceiptPaymentMeta(paymentMode, currentTotal),
       })
       setShowReceipt(true)
       closePaymentModal()

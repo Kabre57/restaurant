@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   LogOut,
   Package,
+  Building2,
   Bell,
   Menu,
   X,
@@ -20,6 +21,7 @@ import {
 
 const menuItems = [
   { name: 'Tableau de bord', icon: <LayoutDashboard />, href: '/admin/dashboard' },
+  { name: 'Restaurants', icon: <Building2 />, href: '/admin/restaurants' },
   { name: 'Finances', icon: <Wallet />, href: '/admin/finances' },
   { name: 'Analytics', icon: <BarChart3 />, href: '/admin/analytics' },
   { name: 'Promotions', icon: <Package />, href: '/admin/promotions' },

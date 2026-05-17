@@ -1,9 +1,10 @@
 'use server'
 
 import { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client'
-import { redis } from '@/lib/redis'
 import prisma from '@/lib/prisma'
 import { computeEstimatedPrepMinutes } from '@/lib/prep-estimates'
+import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
+import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
 
 const orderInclude = {
   items: {
@@ -59,24 +60,6 @@ function normalizeOrderStatus(status: OrderStatus | string): OrderStatus {
   if (status === OrderStatus.COMPLETED) return OrderStatus.COMPLETED
   if (status === OrderStatus.CANCELLED) return OrderStatus.CANCELLED
   return OrderStatus.EN_ATTENTE
-}
-
-async function publishStockAlert(storeId: string, product: { name: string, stockQuantity: number }) {
-  try {
-    await redis.publish(`store:${storeId}:stock-alert`, JSON.stringify(product))
-  } catch (error) {
-    console.error("Failed to publish stock alert:", error)
-  }
-}
-
-async function publishOrderEvent(eventName: 'new-order' | 'order-updated', order: { storeId?: string }) {
-  if (!order.storeId) return
-
-  try {
-    await redis.publish(`store:${order.storeId}:orders:${eventName}`, JSON.stringify(order))
-  } catch (error) {
-    console.error(`Failed to publish ${eventName} to KDS:`, error)
-  }
 }
 
 function buildEstimatedReadyAt(prepMinutes: number, baseDate = new Date()) {
@@ -164,7 +147,6 @@ export async function createOrder(data: OrderInput) {
     const order = await prisma.$transaction(async (tx) => {
       const productMap = new Map(availableProducts.map((product) => [product.id, product]))
 
-      // Construction dynamique pour contourner les problèmes de synchronisation du client Prisma
       const orderCreateData: Prisma.OrderUncheckedCreateInput = {
         clientRequestId: data.clientRequestId || null,
         storeId: data.storeId,
@@ -250,6 +232,7 @@ export async function createOrder(data: OrderInput) {
     })
 
     await publishOrderEvent('new-order', order)
+    await publishPOSOrderAlert('ORDER_CREATED', order)
 
     return { success: true, order };
   } catch (error) {
@@ -393,77 +376,8 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
   }
 }
 
-export async function settleOrderPayment(orderId: string, paymentMode: PaymentMethod | string, storeId?: string) {
-  try {
-    const existingOrder = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: orderInclude,
-    })
-
-    if (!existingOrder) {
-      return { success: false, error: 'Commande introuvable' }
-    }
-
-    if (storeId && existingOrder.storeId !== storeId) {
-      return { success: false, error: 'Commande hors périmètre restaurant' }
-    }
-
-    if (existingOrder.status === OrderStatus.CANCELLED) {
-      return { success: false, error: 'Cette commande a ete annulee et ne peut plus etre encaissee' }
-    }
-
-    const paymentMethod = normalizePaymentMethod(paymentMode)
-
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      const pendingPayment = await tx.payment.findFirst({
-        where: {
-          orderId,
-          status: PaymentStatus.EN_ATTENTE,
-        },
-        orderBy: {
-          createdAt: 'asc',
-        }
-      })
-
-      if (pendingPayment) {
-        await tx.payment.update({
-          where: { id: pendingPayment.id },
-          data: {
-            method: paymentMethod,
-            status: PaymentStatus.REUSSIE,
-            amount: existingOrder.total,
-          }
-        })
-      } else {
-        await tx.payment.create({
-          data: {
-            orderId,
-            method: paymentMethod,
-            status: PaymentStatus.REUSSIE,
-            amount: existingOrder.total,
-          }
-        })
-      }
-
-      return tx.order.findUnique({
-        where: { id: orderId },
-        include: orderInclude,
-      })
-    })
-
-    if (!updatedOrder) {
-      return { success: false, error: 'Commande introuvable apres encaissement' }
-    }
-
-    await publishOrderEvent('order-updated', updatedOrder)
-
-    return { success: true, order: updatedOrder }
-  } catch (error) {
-    console.error('Failed to settle order payment:', error)
-    return { success: false, error: "Erreur lors de l'encaissement de la commande" }
-  }
-}
-
+export async function settleOrderPayment(orderId: string, paymentMode: PaymentMethod | string, storeId?: string) { return settleOrderPaymentAction(orderId, paymentMode, storeId) }
+export async function markOrderServed(orderId: string, storeId?: string) { return markOrderServedAction(orderId, storeId) }
 export async function syncOrdersBatch(orders: OrderInput[]) {
   const batch = orders.slice(0, 10)
   const results = []
@@ -501,14 +415,13 @@ export async function getStoreOrders(storeId: string) {
       where: { storeId },
       include: orderInclude,
       orderBy: { createdAt: 'desc' },
-      take: 100 // Limit to recent 100 for performance
+      take: 100
     })
   } catch (error) {
     console.error("Failed to fetch store orders:", error)
     return []
   }
 }
-
 export async function updateOrderStatus(orderId: string, status: OrderStatus | string, storeId?: string) {
   try {
     const nextStatus = normalizeOrderStatus(status)
@@ -575,6 +488,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus | s
     })
 
     await publishOrderEvent('order-updated', order)
+    if (order.status === OrderStatus.PRET) {
+      await publishPOSOrderAlert('ORDER_READY', order)
+    }
 
     return { success: true, order };
   } catch (error) {

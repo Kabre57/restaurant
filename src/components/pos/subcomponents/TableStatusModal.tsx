@@ -35,7 +35,8 @@ export function TableStatusModal({
     .reduce((total, payment) => total + payment.amount, 0)
 
   const hasPendingPayment = pendingPaymentAmount > 0
-  const canMarkServed = order.status === 'PRET'
+  const isServed = Boolean(order.servedAt)
+  const canMarkServed = order.status === 'PRET' && !isServed
 
   const getStatusColor = (status: string) => {
     const normalizedStatus = status.toUpperCase()
@@ -96,6 +97,15 @@ export function TableStatusModal({
             <BellRing className="w-4 h-4 text-[#2f9e44]" />
             <p className="text-[10px] font-black text-[#2f9e44] uppercase tracking-widest">
               La cuisine a valide cette commande. Le serveur peut maintenant la marquer comme servie.
+            </p>
+          </div>
+        )}
+
+        {isServed && hasPendingPayment && (
+          <div className="mb-6 rounded-2xl bg-[#fff9db] border border-[#ffe066] px-4 py-3 flex items-center gap-3">
+            <ReceiptText className="w-4 h-4 text-[#f08c00]" />
+            <p className="text-[10px] font-black text-[#f08c00] uppercase tracking-widest">
+              La table est servie, mais reste occupée tant que l’encaissement n’est pas terminé.
             </p>
           </div>
         )}

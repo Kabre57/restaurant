@@ -18,6 +18,7 @@ export type RealtimeOrder = {
   actualPrepMinutes?: number | null
   preparationStartedAt?: Date | string | null
   readyAt?: Date | string | null
+  servedAt?: Date | string | null
   items?: Array<{
     id: string
     quantity: number
@@ -44,6 +45,37 @@ type UsePOSRealtimeOptions = {
   storeId: string
   onReadyOrder?: (message: string) => void
   onServerCall?: (message: string) => void
+}
+
+type POSAlertEvent = {
+  type?: 'CALL_SERVER' | 'TABLE_RESERVED' | 'ORDER_CREATED' | 'ORDER_READY'
+  tableNumber?: number
+  customerName?: string
+  total?: number
+}
+
+function buildPOSAlertMessage(alert: POSAlertEvent) {
+  if (alert.type === 'TABLE_RESERVED') {
+    return alert.tableNumber
+      ? `La table ${alert.tableNumber} vient d'etre reservee${alert.customerName ? ` par ${alert.customerName}` : ''}.`
+      : 'Une table vient d’etre reservee.'
+  }
+
+  if (alert.type === 'ORDER_CREATED') {
+    return alert.tableNumber
+      ? `Nouvelle commande passee depuis la table ${alert.tableNumber}.`
+      : 'Nouvelle commande passee.'
+  }
+
+  if (alert.type === 'ORDER_READY') {
+    return alert.tableNumber
+      ? `La commande de la table ${alert.tableNumber} est prete.`
+      : 'Une commande est prete.'
+  }
+
+  return alert.tableNumber
+    ? `La table ${alert.tableNumber} appelle un serveur.`
+    : 'Un client appelle un serveur.'
 }
 
 export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerCall }: UsePOSRealtimeOptions) {
@@ -130,8 +162,8 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerC
     orderSource.addEventListener('order-updated', handleOrderStreamEvent as EventListener)
     posAlertSource.addEventListener('server-call', (event) => {
       try {
-        const call = JSON.parse(event.data) as { tableNumber?: number }
-        onServerCall?.(call.tableNumber ? `La table ${call.tableNumber} appelle un serveur.` : 'Un client appelle un serveur.')
+        const alert = JSON.parse(event.data) as POSAlertEvent
+        onServerCall?.(buildPOSAlertMessage(alert))
       } catch (error) {
         console.error('Failed to parse POS alert event:', error)
       }
