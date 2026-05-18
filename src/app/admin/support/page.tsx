@@ -1,14 +1,81 @@
 'use client'
 
-import React from 'react'
-import { LifeBuoy, Plus, Search, Filter, MessageSquare, AlertTriangle, Clock, MoreVertical } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Priority, TicketStatus } from '@prisma/client'
+import { LifeBuoy, Plus, Search, Filter, MessageSquare, AlertTriangle, Clock, Loader2 } from 'lucide-react'
+import { createSupportTicket, getSupportStats, getSupportTickets, updateSupportTicketStatus } from '@/app/actions/support'
+
+type TicketRow = Awaited<ReturnType<typeof getSupportTickets>>[number]
+type SupportStats = Awaited<ReturnType<typeof getSupportStats>>
+type SupportForm = { subject: string; description: string; priority: Priority }
+
+const initialForm: SupportForm = { subject: '', description: '', priority: Priority.MEDIUM }
 
 export default function AdminSupport() {
-  const tickets = [
-    { id: '1', subject: 'Échec de paiement mobile money', restaurant: 'Gourmet Abidjan', status: 'OPEN', priority: 'HIGH', date: 'Il y a 10 min' },
-    { id: '2', subject: 'Livreur indisponible pour validation', restaurant: 'Moussa Traoré', status: 'IN_PROGRESS', priority: 'MEDIUM', date: 'Il y a 1h' },
-    { id: '3', subject: 'Problème affichage menu KDS', restaurant: 'Burger King Plateau', status: 'CLOSED', priority: 'LOW', date: 'Hier' },
-  ]
+  const [tickets, setTickets] = useState<TicketRow[]>([])
+  const [stats, setStats] = useState<SupportStats>({ open: 0, inProgress: 0, closed: 0, critical: 0 })
+  const [query, setQuery] = useState('')
+  const [form, setForm] = useState(initialForm)
+  const [showForm, setShowForm] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState('')
+
+  async function refreshData() {
+    const [ticketRows, statRows] = await Promise.all([getSupportTickets(), getSupportStats()])
+    setTickets(ticketRows)
+    setStats(statRows)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([getSupportTickets(), getSupportStats()])
+      .then(([ticketRows, statRows]) => {
+        if (cancelled) return
+        setTickets(ticketRows)
+        setStats(statRows)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredTickets = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized) return tickets
+    return tickets.filter((ticket) =>
+      [ticket.subject, ticket.description, ticket.user?.store?.name, ticket.user?.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalized))
+    )
+  }, [query, tickets])
+
+  async function handleCreateTicket(event: React.FormEvent) {
+    event.preventDefault()
+    setIsSaving(true)
+    setMessage('')
+
+    const result = await createSupportTicket(form)
+    if (result.success) {
+      setForm(initialForm)
+      setShowForm(false)
+      await refreshData()
+    } else {
+      setMessage(result.error || 'Création impossible.')
+    }
+
+    setIsSaving(false)
+  }
+
+  async function handleStatusChange(id: string, status: TicketStatus) {
+    await updateSupportTicketStatus(id, status)
+    await refreshData()
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-0 sm:py-0">
@@ -17,17 +84,53 @@ export default function AdminSupport() {
           <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Support & Assistance</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gestion des incidents et des alertes plateforme</p>
         </div>
-        <button className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8">
+        <button
+          onClick={() => setShowForm((current) => !current)}
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
+        >
           <Plus className="w-5 h-5" />
           Nouveau Ticket
         </button>
       </div>
 
+      {showForm && (
+        <form onSubmit={handleCreateTicket} className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[1fr_180px]">
+            <Field label="Sujet" value={form.subject} onChange={(value) => setForm({ ...form, subject: value })} />
+            <label className="space-y-2">
+              <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Priorité</span>
+              <select
+                value={form.priority}
+                onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })}
+                className="w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-[#212529]"
+              >
+                {Object.values(Priority).map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="mt-4 block space-y-2">
+            <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Description</span>
+            <textarea
+              required
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+              className="min-h-28 w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-[#212529]"
+            />
+          </label>
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-bold text-[#e03131]">{message}</p>
+            <button disabled={isSaving} className="rounded-xl bg-[#212529] px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50">
+              {isSaving ? 'Enregistrement...' : 'Créer'}
+            </button>
+          </div>
+        </form>
+      )}
+
       {/* Stats Summary */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        <SupportStat label="Tickets Ouverts" count={12} color="text-[#e03131]" bg="bg-[#fff5f5]" icon={<MessageSquare className="w-5 h-5" />} />
-        <SupportStat label="En Cours" count={5} color="text-[#339af0]" bg="bg-[#e7f5ff]" icon={<Clock className="w-5 h-5" />} />
-        <SupportStat label="Alertes Automatiques" count={3} color="text-[#fcc419]" bg="bg-[#fff9db]" icon={<AlertTriangle className="w-5 h-5" />} />
+        <SupportStat label="Tickets Ouverts" count={stats.open} color="text-[#e03131]" bg="bg-[#fff5f5]" icon={<MessageSquare className="w-5 h-5" />} />
+        <SupportStat label="En Cours" count={stats.inProgress} color="text-[#339af0]" bg="bg-[#e7f5ff]" icon={<Clock className="w-5 h-5" />} />
+        <SupportStat label="Critiques" count={stats.critical} color="text-[#fcc419]" bg="bg-[#fff9db]" icon={<AlertTriangle className="w-5 h-5" />} />
       </div>
 
       {/* Tickets List */}
@@ -37,6 +140,8 @@ export default function AdminSupport() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
             <input 
               type="text" 
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="RECHERCHER UN INCIDENT..." 
               className="w-full bg-white border border-[#dee2e6] rounded-xl pl-11 pr-4 py-3 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
             />
@@ -47,7 +152,8 @@ export default function AdminSupport() {
         </div>
 
         <div className="divide-y divide-[#f1f3f5]">
-          {tickets.map((ticket) => (
+          {isLoading && <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-[#adb5bd]" /></div>}
+          {!isLoading && filteredTickets.map((ticket) => (
             <div key={ticket.id} className="group cursor-pointer p-4 transition-all hover:bg-[#fafbfc] sm:p-6 lg:p-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-start gap-4 sm:gap-6">
@@ -57,9 +163,9 @@ export default function AdminSupport() {
                   <div className="min-w-0">
                     <h3 className="text-xs font-black text-[#212529] uppercase tracking-tight leading-tight">{ticket.subject}</h3>
                     <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                      <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">{ticket.restaurant}</span>
+                      <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">{ticket.user?.store?.name || 'Plateforme'}</span>
                       <div className="w-1 h-1 bg-[#dee2e6] rounded-full" />
-                      <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">{ticket.date}</span>
+                      <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest">{new Date(ticket.createdAt).toLocaleDateString('fr-FR')}</span>
                     </div>
                   </div>
                 </div>
@@ -74,20 +180,41 @@ export default function AdminSupport() {
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">{ticket.status}</span>
                     </div>
                   </div>
-                  <button className="rounded-lg p-2 text-[#adb5bd] transition-all hover:bg-[#f1f3f5] sm:opacity-0 sm:group-hover:opacity-100">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                  <select
+                    value={ticket.status}
+                    onChange={(event) => void handleStatusChange(ticket.id, event.target.value as TicketStatus)}
+                    className="rounded-lg border border-[#dee2e6] bg-white px-3 py-2 text-[9px] font-black uppercase tracking-widest text-[#495057]"
+                  >
+                    {Object.values(TicketStatus).map((status) => <option key={status} value={status}>{status}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
           ))}
+          {!isLoading && filteredTickets.length === 0 && (
+            <p className="p-8 text-center text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Aucun ticket support</p>
+          )}
         </div>
 
         <div className="bg-[#fafbfc] p-5 text-center sm:p-8">
-          <button className="text-[10px] font-black text-[#adb5bd] hover:text-[#212529] uppercase tracking-[0.2em] transition-all">Charger plus d'incidents</button>
+          <button className="text-[10px] font-black text-[#adb5bd] hover:text-[#212529] uppercase tracking-[0.2em] transition-all">Charger plus d&apos;incidents</button>
         </div>
       </div>
     </div>
+  )
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="space-y-2">
+      <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</span>
+      <input
+        required
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-[#212529]"
+      />
+    </label>
   )
 }
 

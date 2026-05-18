@@ -38,7 +38,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
-          storeId: user.storeId
+          storeId: user.storeId ?? ''
         };
       }
     })
@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
-        token.storeId = user.storeId;
+        token.storeId = user.storeId ?? '';
       }
       return token;
     },

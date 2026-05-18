@@ -31,7 +31,7 @@ model Store {
 
 model User {
   id        String          @id @default(cuid())
-  storeId   String
+  storeId   String?
   name      String
   email     String          @unique
   password  String
@@ -41,7 +41,7 @@ model User {
   updatedAt DateTime        @updatedAt
   orders    Order[]         @relation("CashierOrders")
   tickets   SupportTicket[]
-  store     Store           @relation(fields: [storeId], references: [id])
+  store     Store?          @relation(fields: [storeId], references: [id])
 }
 
 model PlatformConfig {

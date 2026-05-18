@@ -4,23 +4,34 @@ import React, { useState, useEffect } from 'react'
 import { Wallet, ArrowDownRight, DollarSign, Download, Filter, Loader2 } from 'lucide-react'
 import { getFinancialSummary } from '@/app/actions/finances'
 
+type FinancialSummary = NonNullable<Awaited<ReturnType<typeof getFinancialSummary>>>
+
 export default function FinancesAdminPage() {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<FinancialSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getFinancialSummary().then(res => {
-      setData(res)
-      setLoading(false)
-    })
+    let cancelled = false
+
+    getFinancialSummary()
+      .then((res) => {
+        if (!cancelled) setData(res)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
 
   const metrics = [
-    { name: 'Volume Total', value: `${data?.totalVolume?.toLocaleString()} F`, icon: <Wallet />, color: 'bg-[#339af0]', trend: '+15.4%' },
-    { name: 'Commissions (10%)', value: `${data?.totalCommission?.toLocaleString()} F`, icon: <DollarSign />, color: 'bg-[#51cf66]', trend: '+8.2%' },
-    { name: 'Versements Restants', value: '1.2M F', icon: <ArrowDownRight />, color: 'bg-[#fcc419]', trend: '4 stores' },
+    { name: 'Volume encaissé', value: `${(data?.totalVolume || 0).toLocaleString()} F`, icon: <Wallet />, color: 'bg-[#339af0]', detail: `${data?.transactions.length || 0} transactions récentes` },
+    { name: 'Commissions réelles', value: `${(data?.totalCommission || 0).toLocaleString()} F`, icon: <DollarSign />, color: 'bg-[#51cf66]', detail: `${(data?.averageCommissionRate || 0).toFixed(1)}% moyen` },
+    { name: 'Net restaurateurs', value: `${(data?.totalNetToRestaurants || 0).toLocaleString()} F`, icon: <ArrowDownRight />, color: 'bg-[#fcc419]', detail: `${data?.stores.length || 0} restaurants` },
   ]
 
   return (
@@ -32,11 +43,14 @@ export default function FinancesAdminPage() {
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Suivi des flux monétaires et revenus de la plateforme</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#dee2e6] bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-[#495057] transition-all hover:bg-[#f8f9fa] sm:w-auto sm:px-6">
-            <Download className="w-4 h-4" /> Exporter PDF
-          </button>
-          <button className="w-full rounded-2xl bg-[#212529] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8">
-            Nouveau Versement
+          <a href="/api/exports/finances?format=pdf" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#dee2e6] bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-[#495057] transition-all hover:bg-[#f8f9fa] sm:w-auto sm:px-6">
+            <Download className="w-4 h-4" /> PDF
+          </a>
+          <a href="/api/exports/finances?format=xls" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#dee2e6] bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-[#495057] transition-all hover:bg-[#f8f9fa] sm:w-auto sm:px-6">
+            <Download className="w-4 h-4" /> Excel
+          </a>
+          <button disabled className="w-full rounded-2xl bg-[#adb5bd] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all sm:w-auto sm:px-8">
+            Versements à configurer
           </button>
         </div>
       </div>
@@ -49,7 +63,7 @@ export default function FinancesAdminPage() {
               <div className={`p-4 rounded-2xl ${m.color} text-white shadow-lg`}>
                 {React.cloneElement(m.icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })}
               </div>
-              <span className="text-[10px] font-black text-[#51cf66] bg-[#ebfbee] px-2 py-1 rounded-lg">{m.trend}</span>
+              <span className="text-[10px] font-black text-[#495057] bg-[#f1f3f5] px-2 py-1 rounded-lg">{m.detail}</span>
             </div>
             <h3 className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-2">{m.name}</h3>
             <p className="text-2xl font-black tracking-tight text-[#212529] sm:text-3xl">{m.value}</p>
@@ -75,7 +89,7 @@ export default function FinancesAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f3f5]">
-                {data?.transactions.map((t: any) => (
+                {data?.transactions.map((t) => (
                   <tr key={t.id} className="hover:bg-[#f8f9fa] transition-all">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
@@ -103,25 +117,28 @@ export default function FinancesAdminPage() {
         <div className="rounded-[2rem] bg-[#212529] p-6 text-white shadow-xl sm:rounded-[2.5rem] sm:p-8">
           <h3 className="text-sm font-black uppercase tracking-widest mb-8">Revenue par Store</h3>
           <div className="space-y-6">
-            {data?.stores.map((s: any) => (
+            {data?.stores.map((s) => (
               <div key={s.id} className="space-y-2">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                   <span>{s.name}</span>
-                  <span>{s.orderCount} commandes</span>
+                  <span>{s.revenue.toLocaleString()} F</span>
                 </div>
                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#339af0]" style={{ width: '60%' }} />
+                  <div className="h-full bg-[#339af0]" style={{ width: `${Math.max(4, Math.round((s.revenue / Math.max(...data.stores.map((store) => store.revenue), 1)) * 100))}%` }} />
                 </div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/50">
+                  Commission {s.commissionRate}%: {s.commission.toLocaleString()} F
+                </p>
               </div>
             ))}
           </div>
 
           <div className="mt-12 pt-8 border-t border-white/10">
             <div className="rounded-[1.75rem] bg-white/5 p-5 sm:p-6">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-2">Prochain Versement</h4>
-              <p className="text-2xl font-black mb-4">450.000 F</p>
-              <button className="w-full bg-[#51cf66] text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#40c057] transition-all">
-                Démarrer le virement
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-2">Net total restaurateurs</h4>
+              <p className="text-2xl font-black mb-4">{(data?.totalNetToRestaurants || 0).toLocaleString()} F</p>
+              <button disabled className="w-full bg-white/10 text-white/60 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest">
+                Module versement non activé
               </button>
             </div>
           </div>

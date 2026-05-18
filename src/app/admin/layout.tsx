@@ -17,10 +17,12 @@ import {
   Menu,
   X,
   Compass,
+  UserCog,
 } from 'lucide-react'
 
 const menuItems = [
   { name: 'Tableau de bord', icon: <LayoutDashboard />, href: '/admin/dashboard' },
+  { name: 'Franchiseurs', icon: <UserCog />, href: '/admin/franchiseurs' },
   { name: 'Restaurants', icon: <Building2 />, href: '/admin/restaurants' },
   { name: 'Finances', icon: <Wallet />, href: '/admin/finances' },
   { name: 'Analytics', icon: <BarChart3 />, href: '/admin/analytics' },

@@ -29,10 +29,30 @@ interface ReceiptModalProps {
 export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
   const isPendingSettlement = order.paymentMode === 'A regler en caisse'
   const orderDate = new Date(order.date || new Date())
+  const subtotal = Math.round(order.total / 1.18)
+  const tax = order.total - subtotal
+
+  async function handlePrint() {
+    await fetch('/api/hardware/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order }),
+    }).catch(() => null)
+
+    if (order.paymentMode === 'ESPECES' && !isPendingSettlement) {
+      await fetch('/api/hardware/cash-drawer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, total: order.total }),
+      }).catch(() => null)
+    }
+
+    window.print()
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 overflow-y-auto">
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-10 duration-500">
+      <div className="receipt-print-area bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-10 duration-500">
         <div className="text-center border-b border-dashed border-[#dee2e6] pb-6 mb-6">
           <div className="w-16 h-16 bg-[#212529] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white text-2xl font-black">POS</span>
@@ -40,7 +60,7 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           <h2 className="text-xl font-black text-[#212529] uppercase tracking-tighter">
             {isPendingSettlement ? 'Bon de Commande' : 'Ticket de Caisse'}
           </h2>
-          <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Établissement #01 - Abidjan</p>
+          <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Commande #{order.displayId || order.id}</p>
         </div>
 
         {(isPendingSettlement || order.estimatedPrepMinutes) && (
@@ -73,12 +93,30 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
         <div className="py-6 border-t border-dashed border-[#dee2e6] space-y-2">
           <div className="flex justify-between items-center text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">
             <span>Sous-total</span>
-            <span>{(order.total * 0.82).toLocaleString()} FCFA</span>
+            <span>{subtotal.toLocaleString()} FCFA</span>
           </div>
           <div className="flex justify-between items-center text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">
             <span>TVA (18%)</span>
-            <span>{(order.total * 0.18).toLocaleString()} FCFA</span>
+            <span>{tax.toLocaleString()} FCFA</span>
           </div>
+          {order.paymentMode && (
+            <div className="flex justify-between items-center text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">
+              <span>Paiement</span>
+              <span>{order.paymentMode}</span>
+            </div>
+          )}
+          {typeof order.amountReceived === 'number' && (
+            <div className="flex justify-between items-center text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">
+              <span>Reçu</span>
+              <span>{order.amountReceived.toLocaleString()} FCFA</span>
+            </div>
+          )}
+          {typeof order.changeAmount === 'number' && (
+            <div className="flex justify-between items-center text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">
+              <span>Monnaie</span>
+              <span>{order.changeAmount.toLocaleString()} FCFA</span>
+            </div>
+          )}
           <div className="flex justify-between items-center text-xl font-black text-[#212529] pt-2">
             <span>TOTAL</span>
             <span>{order.total.toLocaleString()} FCFA</span>
@@ -90,8 +128,8 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           <span className="text-[9px] font-bold text-[#adb5bd]">{orderDate.toLocaleString('fr-FR')}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <button className="py-3 rounded-xl border-2 border-[#dee2e6] text-[10px] font-black uppercase tracking-widest hover:bg-[#f8f9fa] transition-all">Imprimer</button>
+        <div className="receipt-actions grid grid-cols-2 gap-4">
+          <button onClick={() => void handlePrint()} className="py-3 rounded-xl border-2 border-[#dee2e6] text-[10px] font-black uppercase tracking-widest hover:bg-[#f8f9fa] transition-all">Imprimer</button>
           <button onClick={onClose} className="py-3 rounded-xl bg-[#212529] text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Fermer</button>
         </div>
       </div>

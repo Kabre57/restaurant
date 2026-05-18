@@ -2,10 +2,13 @@
 node_modules/
 .next/
 Doc/
+analyse/
 dist/
 build/
 .env
 
+.codex/
+.agents/
 # Fichiers spécifiques
 *.log
 .DS_Store

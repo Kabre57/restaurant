@@ -80,3 +80,6 @@ pm2 save
 - `pm2 logs`: Voir les erreurs en direct.
 - `pm2 status`: Vérifier si le serveur tourne.
 - `./update-db.sh`: À chaque fois que vous changez quelque chose au code.
+
+
+docker compose up -d --build app

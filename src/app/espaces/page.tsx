@@ -47,9 +47,9 @@ const spaces = [
   },
   {
     title: 'Carte / Menu',
-    href: '/menu/[storeId]/[tableId]',
+    href: '/restaurateur/tables',
     icon: QrCode,
-    description: 'Entrées, plats, boissons, formules et desserts liés à une table.',
+    description: 'Liens de table gérés par le manager pour entrées, plats, boissons, formules et desserts.',
     badge: 'Table',
   },
 ]
@@ -102,8 +102,8 @@ export default function SpacesPage() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-[#dee2e6] bg-white p-5 text-sm font-semibold text-[#495057]">
-          La Carte/Menu utilise une URL générée par table : remplacez <span className="font-black">[storeId]</span> et{' '}
-          <span className="font-black">[tableId]</span> par les identifiants réels de la table.
+          La Carte/Menu utilise une URL générée par table depuis l’espace Manager. Le client scanne ce lien pour
+          commander sur la table associée.
         </div>
       </div>
     </main>
