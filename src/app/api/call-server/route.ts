@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
+import { callServerSchema, formatZodError } from '@/lib/validation/schemas';
 
 /**
  * Endpoint pour gérer l'appel d'un serveur depuis une table
@@ -7,12 +9,14 @@ import { redis } from '@/lib/redis';
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { storeId, tableId, tableNumber } = body;
+    const limit = await checkRateLimit(rateLimitKey('call-server', req), 10, 60);
+    if (!limit.allowed) return rateLimitResponse(limit);
 
-    if (!storeId || !tableId) {
-      return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    const parsed = callServerSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 });
     }
+    const { storeId, tableId, tableNumber } = parsed.data;
 
     // On publie l'événement sur Redis. 
     // Le POS et le KDS peuvent s'abonner à ce canal.

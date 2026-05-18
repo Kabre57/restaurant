@@ -7,6 +7,8 @@ import {
   resolveStoreForExternalOrder,
   verifyHmacSignature
 } from '@/lib/external-orders'
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit'
+import { formatZodError, glovoWebhookSchema } from '@/lib/validation/schemas'
 
 /**
  * WEBHOOK GLOVO
@@ -14,6 +16,9 @@ import {
  */
 export async function POST(req: Request) {
   try {
+    const limit = await checkRateLimit(rateLimitKey('glovo-webhook', req), 120, 60)
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const rawBody = await req.text()
     const signature = req.headers.get('x-glovo-signature')
 
@@ -22,6 +27,10 @@ export async function POST(req: Request) {
     }
 
     const body = JSON.parse(rawBody)
+    const parsed = glovoWebhookSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ status: 'REJECTED', error: formatZodError(parsed.error) }, { status: 400 })
+    }
     const {
       order_code,
       store_id,
@@ -29,7 +38,7 @@ export async function POST(req: Request) {
       customer_notes,
       customer: customerPayload,
       delivery_address
-    } = body
+    } = parsed.data
 
     if (!order_code || typeof order_code !== 'string') {
       throw new IntegrationError('order_code manquant', 400)

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { adminCategorySchema } from '@/lib/validation/schemas'
 
 export async function getAdminCategories() {
   try {
@@ -20,15 +21,16 @@ export async function getAdminCategories() {
 
 export async function createAdminCategory(data: { name: string; storeId: string; imageUrl?: string }) {
   try {
-    if (!data.name.trim() || !data.storeId) {
-      return { success: false, error: 'Nom et restaurant requis.' }
+    const parsed = adminCategorySchema.safeParse(data)
+    if (!parsed.success) {
+      return { success: false, error: 'Données catégorie invalides.' }
     }
 
     const category = await prisma.category.create({
       data: {
-        name: data.name.trim(),
-        storeId: data.storeId,
-        imageUrl: data.imageUrl?.trim() || null,
+        name: parsed.data.name,
+        storeId: parsed.data.storeId,
+        imageUrl: parsed.data.imageUrl?.trim() || null,
       },
     })
 

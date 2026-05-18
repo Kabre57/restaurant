@@ -2,10 +2,10 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
+import { formatZodError, mobilePaymentSchema } from '@/lib/validation/schemas';
 
 const CINETPAY_PAYMENT_URL = 'https://api-checkout.cinetpay.com/v2/payment';
-
-type MobileProvider = 'WAVE' | 'ORANGE' | 'MTN' | 'MOOV' | 'TRESOR';
 
 type CinetPayResponse = {
   code?: string;
@@ -17,10 +17,6 @@ type CinetPayResponse = {
   };
   api_response_id?: string;
 };
-
-function isMobileProvider(provider: unknown): provider is MobileProvider {
-  return ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'TRESOR'].includes(String(provider));
-}
 
 function getPublicBaseUrl(req: NextRequest) {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || req.nextUrl.origin;
@@ -85,12 +81,14 @@ async function upsertPendingMobilePayment(orderId: string, amount: number, exter
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { orderId, provider, phone, amount } = body;
+    const limit = await checkRateLimit(rateLimitKey('mobile-payment', req), 20, 60);
+    if (!limit.allowed) return rateLimitResponse(limit);
 
-    if (!orderId || !isMobileProvider(provider) || !phone || !amount) {
-      return NextResponse.json({ error: 'Champs de paiement mobile invalides' }, { status: 400 });
+    const parsed = mobilePaymentSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 });
     }
+    const { orderId, provider, phone, amount } = parsed.data;
 
     const numericAmount = Math.round(Number(amount));
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {

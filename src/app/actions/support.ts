@@ -3,6 +3,7 @@
 import { Priority, TicketStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
+import { supportStatusSchema, supportTicketSchema } from '@/lib/validation/schemas'
 
 export async function getSupportTickets() {
   try {
@@ -59,16 +60,17 @@ export async function createSupportTicket(data: {
   userId?: string
 }) {
   try {
-    if (!data.subject.trim() || !data.description.trim()) {
-      return { success: false, error: 'Sujet et description requis.' }
+    const parsed = supportTicketSchema.safeParse(data)
+    if (!parsed.success) {
+      return { success: false, error: 'Données du ticket invalides.' }
     }
 
     const ticket = await prisma.supportTicket.create({
       data: {
-        subject: data.subject.trim(),
-        description: data.description.trim(),
-        priority: data.priority,
-        userId: data.userId || null,
+        subject: parsed.data.subject,
+        description: parsed.data.description,
+        priority: parsed.data.priority,
+        userId: parsed.data.userId || null,
       },
     })
 
@@ -82,9 +84,12 @@ export async function createSupportTicket(data: {
 
 export async function updateSupportTicketStatus(id: string, status: TicketStatus) {
   try {
+    const parsed = supportStatusSchema.safeParse({ id, status })
+    if (!parsed.success) return { success: false, error: 'Statut invalide.' }
+
     const ticket = await prisma.supportTicket.update({
-      where: { id },
-      data: { status },
+      where: { id: parsed.data.id },
+      data: { status: parsed.data.status },
     })
 
     revalidatePath('/admin/support')

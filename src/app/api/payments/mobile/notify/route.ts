@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
 
 function mapCinetPayStatus(status: unknown) {
   if (status === 'ACCEPTED') return PaymentStatus.REUSSIE;
@@ -10,6 +11,9 @@ function mapCinetPayStatus(status: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
+    const limit = await checkRateLimit(rateLimitKey('mobile-notify', req), 120, 60);
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const contentType = req.headers.get('content-type') || '';
     const payload = contentType.includes('application/json')
       ? await req.json()

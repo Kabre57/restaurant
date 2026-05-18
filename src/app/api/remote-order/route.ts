@@ -8,6 +8,8 @@ import {
   resolveExternalItems,
   resolveStoreForExternalOrder
 } from '@/lib/external-orders'
+import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit'
+import { formatZodError, remoteOrderSchema } from '@/lib/validation/schemas'
 
 /**
  * API pour recevoir des commandes de plateformes externes (Glovo, UberEats, etc.)
@@ -15,7 +17,14 @@ import {
  */
 export async function POST(req: Request) {
   try {
+    const limit = await checkRateLimit(rateLimitKey('remote-order', req), 60, 60)
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const body = await req.json()
+    const parsed = remoteOrderSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
+    }
     const {
       apiKey: bodyApiKey,
       platform: rawPlatform,
@@ -27,7 +36,7 @@ export async function POST(req: Request) {
       customerPhone,
       deliveryAddress,
       customerNotes
-    } = body
+    } = parsed.data
 
     const apiKey = getApiKeyFromRequest(req, bodyApiKey)
     if (!process.env.EXTERNAL_API_KEY || apiKey !== process.env.EXTERNAL_API_KEY) {
@@ -68,7 +77,7 @@ export async function POST(req: Request) {
       message: 'Commande reçue et ajoutée à la file d\'attente'
     })
 
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof IntegrationError) {
       return NextResponse.json({ error: error.message }, { status: error.status })
     }

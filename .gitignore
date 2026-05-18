@@ -4,6 +4,7 @@ node_modules/
 Doc/
 analyse/
 dist/
+suivi/
 build/
 .env
 
@@ -22,3 +23,6 @@ temp_*
 # Artefacts PWA generes au build
 public/sw.js
 public/workbox-*.js
+
+
+read_docx.py

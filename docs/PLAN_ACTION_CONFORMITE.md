@@ -29,6 +29,14 @@ Ces points doivent etre traites en premier, car ils donnent une fausse impressio
 4. Monitoring Sentry.
 5. Documentation technique et procedures d'exploitation.
 
+Etat au 18 mai 2026:
+
+- Validation Zod ajoutee sur les entrees publiques et sensibles: appel serveur, paiement mobile, notification paiement, commande externe, webhook Glovo, support et categories admin.
+- Rate limiting Redis ajoute sur les routes sensibles exposees.
+- Suite E2E Playwright ajoutee et validee sur les routes publiques/protegees et la validation API.
+- Monitoring Sentry prepare cote serveur et navigateur via variables d'environnement.
+- Documentation d'exploitation creee dans `docs/EXPLOITATION_TECHNIQUE.md`.
+
 ## 2. Phase 1 - Suppression des mocks et donnees hardcodees
 
 ### 2.1. Support admin reel
