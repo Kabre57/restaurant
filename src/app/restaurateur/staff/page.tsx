@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import type { Role } from '@prisma/client'
-import { UserPlus, Trash2, Edit3, X, Loader2, AlertCircle } from 'lucide-react'
+import { Trash2, Edit3, X, Loader2, AlertCircle } from 'lucide-react'
 import { getStoreStaff, createStaffMember, updateStaffMember, deleteStaffMember } from '@/app/actions/staff'
 import { useSession } from 'next-auth/react'
+import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudStatus, CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 type RestaurantStaffRole = 'CASHIER' | 'SERVER' | 'KITCHEN' | 'RESTAURATEUR'
 type StaffMember = {
@@ -35,6 +36,8 @@ export default function StaffManagement() {
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [errorModal, setErrorModal] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -121,6 +124,13 @@ export default function StaffManagement() {
     setDeleteTarget(id)
   }
 
+  const visibleStaff = staff.filter((member) => {
+    const query = search.toLowerCase()
+    const matchesSearch = member.name.toLowerCase().includes(query) || member.email.toLowerCase().includes(query)
+    const matchesRole = roleFilter ? member.role === roleFilter : true
+    return matchesSearch && matchesRole
+  })
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -128,21 +138,32 @@ export default function StaffManagement() {
           <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Gestion du Personnel</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gerez vos caissiers, serveurs, cuisiniers et managers</p>
         </div>
-        <button 
+        <CrudPrimaryButton
           onClick={() => { setEditingStaff(null); setFormData({ name: '', email: '', password: '', role: 'CASHIER' }); setShowModal(true); }}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
         >
-          <UserPlus className="w-5 h-5" />
           Ajouter un membre
-        </button>
+        </CrudPrimaryButton>
       </div>
+
+      <CrudFilterBar
+        searchValue={search}
+        searchPlaceholder="Nom ou email"
+        statusValue={roleFilter}
+        statusOptions={STAFF_ROLE_OPTIONS.map((roleOption) => ({ value: roleOption.value, label: roleOption.label }))}
+        onSearchChange={setSearch}
+        onStatusChange={setRoleFilter}
+        onReset={() => {
+          setSearch('')
+          setRoleFilter('')
+        }}
+      />
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       ) : (
         <>
           <div className="space-y-4 md:hidden">
-            {staff.map((member) => (
+            {visibleStaff.map((member) => (
               <div key={member.id} className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -173,49 +194,41 @@ export default function StaffManagement() {
             ))}
           </div>
 
-          <div className="hidden overflow-hidden rounded-[2.5rem] border border-[#dee2e6] bg-white shadow-sm md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left border-collapse">
-            <thead>
-              <tr className="bg-[#fafbfc] border-b border-[#f1f3f5]">
-                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Nom</th>
-                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Email</th>
-                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Rôle</th>
-                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f1f3f5]">
-              {staff.map((member) => (
-                <tr key={member.id} className="hover:bg-[#fafbfc] transition-all group">
-                  <td className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#f1f3f5] flex items-center justify-center font-black text-[#212529] uppercase">{member.name[0]}</div>
-                      <span className="text-sm font-black text-[#212529] uppercase">{member.name}</span>
+          <div className="hidden md:block">
+            <CrudTable
+              title="Liste du personnel"
+              rows={visibleStaff}
+              emptyLabel="Aucun membre trouvé"
+              columns={[
+                { key: 'serial', label: 'N° de série' },
+                { key: 'name', label: 'Nom' },
+                { key: 'email', label: 'Email' },
+                { key: 'role', label: 'Statut' },
+                { key: 'actions', label: 'Actes', className: 'text-right' },
+              ]}
+              footerLabel={`Page 1 sur 1, affichant ${visibleStaff.length} membre${visibleStaff.length > 1 ? 's' : ''} sur ${staff.length} au total.`}
+              renderRow={(member, index) => (
+                <tr key={member.id} className="transition hover:bg-[#fafbfc]">
+                  <td className="px-6 py-4 text-sm font-bold text-[#72788f]">{index + 1}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eef1ff] text-xs font-black uppercase text-[var(--parabellum-primary)]">{member.name[0]}</div>
+                      <span className="text-sm font-bold text-[#495057]">{member.name}</span>
                     </div>
                   </td>
-                  <td className="p-6 text-xs font-bold text-[#495057]">{member.email}</td>
-                  <td className="p-6">
-                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getRoleMeta(member.role).badgeClassName}`}>
-                      {getRoleMeta(member.role).label}
-                    </span>
-                  </td>
-                  <td className="p-6 text-right">
+                  <td className="px-6 py-4 text-sm font-medium text-[#72788f]">{member.email}</td>
+                  <td className="px-6 py-4"><CrudStatus tone="info">{getRoleMeta(member.role).label}</CrudStatus></td>
+                  <td className="px-6 py-4">
                     {member.id !== session?.user?.id && (
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => handleEdit(member)} className="p-2 text-[#adb5bd] hover:text-[#212529] hover:bg-[#f1f3f5] rounded-xl transition-all">
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteClick(member.id)} className="p-2 text-[#adb5bd] hover:text-[#e03131] hover:bg-[#fff5f5] rounded-xl transition-all">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="flex justify-end gap-2">
+                        <CrudActionButton label="Modifier le membre" tone="edit" onClick={() => handleEdit(member)} />
+                        <CrudActionButton label="Supprimer le membre" tone="delete" onClick={() => handleDeleteClick(member.id)} />
                       </div>
                     )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-            </div>
+              )}
+            />
           </div>
         </>
       )}

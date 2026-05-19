@@ -4,7 +4,6 @@ import React from 'react'
 import { 
   ShoppingBag, 
   Store, 
-  Truck, 
   TrendingUp, 
   AlertCircle, 
   Clock,
@@ -50,59 +49,59 @@ export default function AdminDashboard() {
   }, [])
 
   const stats = [
-    { name: 'Commandes globales', value: globalStats?.orderCount?.toString() || '0', icon: <ShoppingBag />, color: 'bg-[#339af0]', trend: '+12%' },
-    { name: 'Restaurants Actifs', value: globalStats?.storeCount?.toString() || '0', icon: <Store />, color: 'bg-[#51cf66]', trend: '+2' },
-    { name: 'Chiffre d\'affaires total', value: `${(globalStats?.totalRevenue || 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'bg-[#fcc419]', trend: '+8%' },
-    { name: 'Commissions (15%)', value: `${(globalStats?.totalCommissions || 0).toLocaleString()} F`, icon: <DollarSign />, color: 'bg-[#ae3ec9]', trend: '+8%' },
+    { name: 'Commandes totales', value: globalStats?.orderCount?.toString() || '0', icon: <ShoppingBag />, color: 'text-[var(--parabellum-primary)]', bg: 'bg-[#eef1ff]' },
+    { name: 'Restaurants actifs', value: globalStats?.storeCount?.toString() || '0', icon: <Store />, color: 'text-[var(--parabellum-success)]', bg: 'bg-[#e8f9ee]' },
+    { name: 'Revenu total', value: `${(globalStats?.totalRevenue || 0).toLocaleString()} F`, icon: <TrendingUp />, color: 'text-[var(--parabellum-warning)]', bg: 'bg-[#fff7df]' },
+    { name: 'Commissions', value: `${(globalStats?.totalCommissions || 0).toLocaleString()} F`, icon: <DollarSign />, color: 'text-[var(--parabellum-primary)]', bg: 'bg-[#eef1ff]' },
   ]
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Welcome Message */}
+    <div className="mx-auto max-w-[96rem] space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#212529] sm:text-3xl">Tableau de bord</h1>
-          <p className="mt-1 text-xs font-bold uppercase tracking-widest text-[#adb5bd] sm:text-sm">Supervision de la plateforme en temps réel</p>
+          <h1 className="text-3xl font-black tracking-tight text-[var(--parabellum-primary)] sm:text-4xl">ParabellumPOS</h1>
+          <p className="mt-2 text-base font-medium text-[#6b7280]">Bienvenue sur l’espace Franchiseur</p>
         </div>
         <div className="flex w-full gap-3 md:w-auto">
-          <div className="flex w-full items-center gap-2 rounded-xl border border-[#e03131]/20 bg-[#e03131]/10 px-4 py-2 text-[#e03131] md:w-auto">
+          <div className="flex w-full items-center gap-3 rounded-xl border border-[var(--parabellum-primary)]/15 bg-[#eef1ff] px-5 py-3 text-[var(--parabellum-primary)] md:w-auto">
             <AlertCircle className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">3 Alertes Critiques</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {pendingStats?.totalPending || 0} validations en attente
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.name} className="group rounded-3xl border border-[#dee2e6] bg-white p-5 shadow-sm transition-all hover:shadow-xl sm:p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg`}>
-                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })}
+          <div key={stat.name} className="group rounded-xl bg-white p-6 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)] transition-all hover:-translate-y-1 hover:shadow-[0_1rem_2.5rem_rgba(47,76,221,0.14)]">
+            <div className="flex items-center gap-5">
+              <div className={`flex h-[5.3rem] w-[5.3rem] shrink-0 items-center justify-center rounded-full ${stat.bg} ${stat.color}`}>
+                {React.cloneElement(stat.icon as React.ReactElement<{ className?: string }>, { className: 'h-10 w-10 stroke-[1.7]' })}
               </div>
-              <span className="text-[10px] font-black text-[#51cf66] bg-[#ebfbee] px-2 py-1 rounded-lg">{stat.trend}</span>
+              <div className="min-w-0">
+                <p className="truncate text-[2.35rem] font-black leading-none tracking-tight text-black">{stat.value}</p>
+                <h3 className="mt-3 text-sm font-bold uppercase text-[#72788f]">{stat.name}</h3>
+              </div>
             </div>
-            <h3 className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-1">{stat.name}</h3>
-            <p className="text-2xl font-black tracking-tight text-[#212529] sm:text-3xl">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Activity Chart Area (Placeholder) */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
+          <div className="relative overflow-hidden rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
             <div className="mb-8 flex items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest">Activité Horaire</h3>
-                <p className="text-[10px] font-bold text-[#adb5bd] uppercase mt-1">Volume de commandes sur 24h</p>
+                <h3 className="text-2xl font-black text-black">Résumé des commandes</h3>
+                <p className="mt-2 text-sm font-medium text-[#72788f]">Volume de commandes sur 24h</p>
               </div>
-              <button className="p-2 hover:bg-[#f1f3f5] rounded-lg transition-all text-[#adb5bd]"><MoreVertical className="w-4 h-4" /></button>
+              <button className="rounded-lg p-2 text-[var(--parabellum-muted)] transition-all hover:bg-[#eef1ff] hover:text-[var(--parabellum-primary)]"><MoreVertical className="w-4 h-4" /></button>
             </div>
             <div className="min-h-[16rem] w-full">
               {loading ? (
                 <div className="h-64 flex items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-[#339af0] border-t-transparent rounded-full animate-spin" />
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--parabellum-primary)] border-t-transparent" />
                 </div>
               ) : (
                 <SalesChart data={salesData} title="Évolution des Ventes" />
@@ -110,23 +109,25 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
+          <div className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
             <div className="mb-8 flex items-center justify-between gap-4">
-              <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest">Top Restaurants</h3>
-              <button className="text-[10px] font-black text-[#339af0] hover:underline uppercase tracking-widest">Voir tout</button>
+              <h3 className="text-2xl font-black text-black">Top Restaurants</h3>
+              <button className="text-sm font-black text-[var(--parabellum-primary)] hover:underline">Voir tout</button>
             </div>
             <div className="space-y-4">
               {globalStats?.topStores?.map((store, idx) => (
-                <div key={store.id || idx} className="group flex flex-col gap-4 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
+                <div key={store.id || idx} className="group flex flex-col gap-4 rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] p-4 transition-all hover:bg-white hover:shadow-lg sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-[#dee2e6] flex items-center justify-center text-xl">🏪</div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef1ff] text-[var(--parabellum-primary)]">
+                      <Store className="h-6 w-6" />
+                    </div>
                     <div>
-                      <h4 className="text-xs font-black text-[#212529] uppercase tracking-tight">{store.name}</h4>
-                      <p className="text-[9px] font-bold text-[#adb5bd] uppercase mt-0.5">{store.orderCount} Commandes</p>
+                      <h4 className="text-sm font-black text-black">{store.name}</h4>
+                      <p className="mt-1 text-xs font-semibold text-[#72788f]">{store.orderCount} commandes</p>
                     </div>
                   </div>
                   <div className="text-left sm:text-right">
-                    <p className="text-xs font-black text-[#212529]">{store.revenue.toLocaleString()} FCFA</p>
+                    <p className="text-sm font-black text-black">{store.revenue.toLocaleString()} FCFA</p>
                   </div>
                 </div>
               ))}
@@ -134,9 +135,8 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Sidebar Space in Dashboard */}
         <div className="space-y-8">
-          <div className="relative overflow-hidden rounded-[2rem] bg-[#212529] p-5 text-white shadow-xl sm:p-8">
+          <div className="parabellum-gradient relative overflow-hidden rounded-xl p-7 text-white shadow-xl">
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-2">Validations en attente</h3>
               <p className="mb-6 text-2xl font-black sm:text-3xl">{pendingStats?.totalPending.toString().padStart(2, '0')}</p>
@@ -150,29 +150,35 @@ export default function AdminDashboard() {
                   <span className="text-xs font-black">{pendingStats?.pendingDelivery.toString().padStart(2, '0')}</span>
                 </div>
               </div>
-              <button className="w-full mt-6 bg-white text-[#212529] py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#f1f3f5] transition-all">
+              <button className="mt-6 w-full rounded-xl bg-white py-3 text-[10px] font-black uppercase tracking-widest text-[var(--parabellum-primary)] transition-all hover:bg-[#f8f9ff]">
                 Traiter maintenant
               </button>
             </div>
             <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
           </div>
 
-          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm sm:p-8">
-            <h3 className="text-sm font-black text-[#212529] uppercase tracking-widest mb-6">Logs d&apos;activité</h3>
+          <div className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
+            <h3 className="mb-6 text-2xl font-black text-black">Activité restaurants</h3>
             <div className="space-y-6">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-[#f1f3f5] flex items-center justify-center shrink-0">
-                    <Clock className="w-4 h-4 text-[#adb5bd]" />
+              {globalStats?.topStores?.length ? (
+                globalStats.topStores.slice(0, 4).map((store) => (
+                  <div key={store.id} className="flex gap-4">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--parabellum-primary)]/10">
+                      <Clock className="w-4 h-4 text-[var(--parabellum-primary)]" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] leading-tight text-[var(--parabellum-muted)]">
+                        <span className="font-black text-[var(--parabellum-text)]">{store.name}</span> a enregistré <span className="font-black text-[var(--parabellum-text)]">{store.orderCount}</span> commandes.
+                      </p>
+                      <span className="mt-1 block text-[9px] font-bold uppercase text-[var(--parabellum-muted)]">{store.revenue.toLocaleString()} FCFA</span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-[#495057] leading-tight">
-                      <span className="font-black text-[#212529]">Admin</span> a validé le compte du livreur <span className="font-black text-[#212529]">Moussa Traoré</span>
-                    </p>
-                    <span className="text-[9px] font-bold text-[#adb5bd] uppercase mt-1 block">Il y a 2h</span>
-                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[var(--parabellum-border)] bg-[#f8f9ff] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--parabellum-muted)]">Aucune activité restaurant disponible.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

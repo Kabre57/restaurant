@@ -5,6 +5,15 @@
   --color-brand-100: #ffedd5;
   --color-brand-500: #f97316;
   --color-brand-600: #ea580c;
+  --color-parabellum-primary: #2f4cdd;
+  --color-parabellum-primary-2: #d45bff;
+  --color-parabellum-sidebar: #1f2433;
+  --color-parabellum-sidebar-soft: #2b3144;
+  --color-parabellum-body: #f4f6fb;
+  --color-parabellum-card: #ffffff;
+  --color-parabellum-border: #e7eaf3;
+  --color-parabellum-text: #232946;
+  --color-parabellum-muted: #8b93a7;
   --color-pos-bg: #f8fafc;
   --color-pos-surface: #ffffff;
   --color-pos-border: #e2e8f0;
@@ -15,11 +24,25 @@
   --radius-2xl: 1.5rem;
   
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  --shadow-parabellum: 0 0.75rem 1.875rem rgba(47, 76, 221, 0.08);
 }
 
 :root {
   --background: var(--color-pos-bg);
   --foreground: var(--color-pos-text);
+  --parabellum-primary: #2f4cdd;
+  --parabellum-primary-2: #d45bff;
+  --parabellum-sidebar: #1f2433;
+  --parabellum-sidebar-soft: #2b3144;
+  --parabellum-body: #f4f6fb;
+  --parabellum-card: #ffffff;
+  --parabellum-border: #e7eaf3;
+  --parabellum-text: #232946;
+  --parabellum-muted: #8b93a7;
+  --parabellum-success: #2bc155;
+  --parabellum-warning: #ffb800;
+  --parabellum-danger: #f72b50;
+  --parabellum-info: #58bad7;
 }
 
 @theme inline {
@@ -44,7 +67,48 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-sans), "Poppins", "Open Sans", Arial, sans-serif;
+}
+
+.parabellum-shell {
+  background:
+    radial-gradient(circle at top right, rgba(47, 76, 221, 0.08), transparent 34rem),
+    var(--parabellum-body);
+  color: var(--parabellum-text);
+}
+
+.parabellum-sidebar {
+  background: linear-gradient(180deg, var(--parabellum-sidebar) 0%, #171b29 100%);
+  color: #ffffff;
+}
+
+.parabellum-card {
+  border: 1px solid var(--parabellum-border);
+  background: var(--parabellum-card);
+  box-shadow: var(--shadow-parabellum);
+}
+
+.parabellum-card-muted {
+  border: 1px solid var(--parabellum-border);
+  background: #f8f9ff;
+}
+
+.parabellum-gradient {
+  background: linear-gradient(135deg, var(--parabellum-primary) 0%, var(--parabellum-primary-2) 100%);
+}
+
+.parabellum-topbar {
+  border-bottom: 1px solid var(--parabellum-border);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+}
+
+.parabellum-kicker {
+  color: var(--parabellum-muted);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 @media print {

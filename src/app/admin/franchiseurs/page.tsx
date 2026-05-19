@@ -76,13 +76,13 @@ export default function AdminFranchiseursPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-[96rem] space-y-8">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#f08c00]">Super-admin plateforme</p>
-        <h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-[#212529] sm:text-3xl">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--parabellum-primary)]">Super-admin plateforme</p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-black sm:text-4xl">
           Comptes Franchiseurs
         </h1>
-        <p className="mt-1 text-sm font-bold uppercase tracking-widest text-[#adb5bd]">
+        <p className="mt-2 text-base font-medium text-[#72788f]">
           Multi-sites, commissions et validations sans rattachement à un restaurant unique.
         </p>
       </div>
@@ -93,12 +93,12 @@ export default function AdminFranchiseursPage() {
         <SummaryCard icon={CheckCircle2} label="Validations en attente" value={validations?.totalPending ?? 0} />
       </section>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+      <form onSubmit={handleSubmit} className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f1f3f5]">
-            <UserCog className="h-5 w-5 text-[#212529]" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef1ff] text-[var(--parabellum-primary)]">
+            <UserCog className="h-5 w-5" />
           </div>
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Nouveau Franchiseur</h2>
+          <h2 className="text-lg font-black text-black">Nouveau Franchiseur</h2>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -116,7 +116,7 @@ export default function AdminFranchiseursPage() {
           <p className="text-xs font-bold text-[#868e96]">{message}</p>
           <button
             disabled={isSaving}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#212529] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--parabellum-primary)] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             Créer le compte
@@ -124,25 +124,25 @@ export default function AdminFranchiseursPage() {
         </div>
       </form>
 
-      <section className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Franchiseurs existants</h2>
+      <section className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
+        <h2 className="text-lg font-black text-black">Franchiseurs existants</h2>
 
         {isLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-[#adb5bd]" /></div>
         ) : (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {accounts.map((account) => (
-              <article key={account.id} className="rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-5">
+              <article key={account.id} className="rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] p-5 transition-all hover:bg-white hover:shadow-lg">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-tight text-[#212529]">{account.name}</h3>
-                    <p className="mt-1 text-xs font-semibold text-[#868e96]">{account.email}</p>
+                    <h3 className="text-sm font-black text-black">{account.name}</h3>
+                    <p className="mt-1 text-xs font-semibold text-[#72788f]">{account.email}</p>
                   </div>
-                  <span className="rounded-lg bg-[#e7f5ff] px-3 py-1 text-[9px] font-black uppercase tracking-widest text-[#1971c2]">
+                  <span className="rounded-lg bg-[#eef1ff] px-3 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--parabellum-primary)]">
                     Multi-sites
                   </span>
                 </div>
-                <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Statut: approuvé</p>
+                <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-[#8a92a6]">Statut: approuvé</p>
               </article>
             ))}
           </div>
@@ -160,13 +160,13 @@ function Field({ label, value, onChange, type = 'text' }: {
 }) {
   return (
     <label className="space-y-2">
-      <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</span>
+      <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#8a92a6]">{label}</span>
       <input
         required
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none transition-all focus:ring-2 focus:ring-[#212529]"
+        className="w-full rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] px-4 py-3 text-xs font-bold outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[var(--parabellum-primary)]"
       />
     </label>
   )
@@ -174,14 +174,14 @@ function Field({ label, value, onChange, type = 'text' }: {
 
 function SummaryCard({ icon: Icon, label, value }: { icon: typeof Store; label: string; value: number | string }) {
   return (
-    <article className="rounded-2xl border border-[#dee2e6] bg-white p-5 shadow-sm">
+    <article className="rounded-xl bg-white p-6 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</p>
-          <p className="mt-2 text-2xl font-black text-[#212529]">{value}</p>
+          <p className="text-sm font-bold uppercase text-[#72788f]">{label}</p>
+          <p className="mt-2 text-2xl font-black text-black">{value}</p>
         </div>
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f1f3f5]">
-          <Icon className="h-5 w-5 text-[#212529]" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eef1ff] text-[var(--parabellum-primary)]">
+          <Icon className="h-6 w-6" />
         </div>
       </div>
     </article>

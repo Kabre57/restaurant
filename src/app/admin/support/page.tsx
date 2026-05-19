@@ -78,15 +78,15 @@ export default function AdminSupport() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-0 sm:py-0">
+    <div className="mx-auto max-w-[96rem] space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Support & Assistance</h1>
-          <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gestion des incidents et des alertes plateforme</p>
+          <h1 className="text-3xl font-black tracking-tight text-black sm:text-4xl">Support & Assistance</h1>
+          <p className="mt-2 text-base font-medium text-[#72788f]">Gestion des incidents et des alertes plateforme</p>
         </div>
         <button
           onClick={() => setShowForm((current) => !current)}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
+          className="flex w-full items-center justify-center gap-3 rounded-xl bg-[var(--parabellum-primary)] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-[#253ec7] sm:w-auto sm:px-8"
         >
           <Plus className="w-5 h-5" />
           Nouveau Ticket
@@ -94,7 +94,7 @@ export default function AdminSupport() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreateTicket} className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+        <form onSubmit={handleCreateTicket} className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
           <div className="grid gap-4 lg:grid-cols-[1fr_180px]">
             <Field label="Sujet" value={form.subject} onChange={(value) => setForm({ ...form, subject: value })} />
             <label className="space-y-2">
@@ -102,7 +102,7 @@ export default function AdminSupport() {
               <select
                 value={form.priority}
                 onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })}
-                className="w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-[#212529]"
+                className="w-full rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:ring-2 focus:ring-[var(--parabellum-primary)]"
               >
                 {Object.values(Priority).map((priority) => <option key={priority} value={priority}>{priority}</option>)}
               </select>
@@ -114,12 +114,12 @@ export default function AdminSupport() {
               required
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
-              className="min-h-28 w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-[#212529]"
+              className="min-h-28 w-full rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:ring-2 focus:ring-[var(--parabellum-primary)]"
             />
           </label>
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-xs font-bold text-[#e03131]">{message}</p>
-            <button disabled={isSaving} className="rounded-xl bg-[#212529] px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50">
+            <button disabled={isSaving} className="rounded-xl bg-[var(--parabellum-primary)] px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50">
               {isSaving ? 'Enregistrement...' : 'Créer'}
             </button>
           </div>
@@ -134,8 +134,8 @@ export default function AdminSupport() {
       </div>
 
       {/* Tickets List */}
-      <div className="overflow-hidden rounded-[2rem] border border-[#dee2e6] bg-white shadow-sm sm:rounded-[2.5rem]">
-        <div className="flex flex-col gap-4 border-b border-[#f1f3f5] bg-[#fafbfc] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 lg:p-8">
+      <div className="overflow-hidden rounded-xl bg-white shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
+        <div className="flex flex-col gap-4 border-b border-[#f0f1f6] bg-white p-5 sm:flex-row sm:items-center sm:justify-between lg:p-7">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
             <input 
@@ -143,11 +143,11 @@ export default function AdminSupport() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="RECHERCHER UN INCIDENT..." 
-              className="w-full bg-white border border-[#dee2e6] rounded-xl pl-11 pr-4 py-3 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
+              className="w-full rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] py-3 pl-11 pr-4 text-[10px] font-black uppercase tracking-widest transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--parabellum-primary)]"
             />
           </div>
           <div className="flex gap-2">
-            <button className="p-3 hover:bg-[#f1f3f5] rounded-xl text-[#adb5bd] transition-all border border-transparent hover:border-[#dee2e6]"><Filter className="w-4 h-4" /></button>
+            <button className="rounded-xl border border-transparent p-3 text-[var(--parabellum-primary)] transition-all hover:border-[#e8eaf4] hover:bg-[#eef1ff]"><Filter className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -220,12 +220,12 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 function SupportStat({ label, count, color, bg, icon }: { label: string, count: number, color: string, bg: string, icon: React.ReactNode }) {
   return (
-    <div className="relative flex flex-col gap-4 overflow-hidden rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-8">
+    <div className="relative flex flex-col gap-4 overflow-hidden rounded-xl bg-white p-6 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)] sm:flex-row sm:items-center sm:justify-between">
       <div className="relative z-10">
-        <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-1">{label}</p>
+        <p className="mb-1 text-sm font-bold uppercase text-[#72788f]">{label}</p>
         <p className={`text-3xl font-black ${color}`}>{count}</p>
       </div>
-      <div className={`p-4 rounded-2xl ${bg} ${color} relative z-10 shadow-sm`}>
+      <div className={`relative z-10 rounded-full p-5 ${bg} ${color}`}>
         {icon}
       </div>
     </div>

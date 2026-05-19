@@ -2,11 +2,13 @@
 node_modules/
 .next/
 Doc/
+docs
 analyse/
 dist/
 suivi/
 build/
 .env
+template/
 
 .codex/
 .agents/

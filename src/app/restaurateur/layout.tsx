@@ -74,7 +74,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f1f3f5] text-[#212529] font-sans">
+    <div className="parabellum-shell flex min-h-screen font-sans">
       {isSidebarOpen && (
         <button
           type="button"
@@ -85,13 +85,13 @@ export default function RestaurateurLayout({ children }: { children: React.React
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col border-r border-white/5 bg-[#1a1d24] text-white shadow-2xl transition-transform duration-300 lg:static lg:w-20 lg:max-w-none lg:translate-x-0 xl:w-64 ${
+        className={`parabellum-sidebar fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col border-r border-white/5 shadow-2xl transition-transform duration-300 lg:static lg:w-20 lg:max-w-none lg:translate-x-0 xl:w-64 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between p-5 lg:justify-center lg:p-6 xl:justify-start xl:p-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 shadow-lg">
+            <div className="parabellum-gradient flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg">
               <Store className="h-6 w-6 text-white" />
             </div>
             <span className="text-lg font-black uppercase tracking-tighter text-white lg:hidden xl:block">Restaurateur</span>
@@ -115,8 +115,8 @@ export default function RestaurateurLayout({ children }: { children: React.React
                 onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center gap-4 rounded-2xl px-4 py-3 transition-all ${
                   active
-                    ? 'bg-white text-[#1a1d24] shadow-xl shadow-black/20'
-                    : 'text-white/40 hover:bg-white/5 hover:text-white'
+                    ? 'bg-white text-[var(--parabellum-primary)] shadow-xl shadow-black/20'
+                    : 'text-white/55 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
@@ -130,14 +130,14 @@ export default function RestaurateurLayout({ children }: { children: React.React
           <Link
             href="/"
             onClick={() => setIsSidebarOpen(false)}
-            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white"
+            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-white/55 transition-all hover:bg-white/10 hover:text-white"
           >
             <ChevronLeft className="h-5 w-5 shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">Retour POS</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-white/40 transition-all hover:bg-[#ff6b6b]/5 hover:text-[#ff6b6b]"
+            className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-white/55 transition-all hover:bg-white/10 hover:text-[var(--parabellum-danger)]"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">Déconnexion</span>
@@ -146,21 +146,21 @@ export default function RestaurateurLayout({ children }: { children: React.React
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex min-h-16 items-center justify-between gap-4 border-b border-[#dee2e6] bg-white px-4 py-3 md:px-6 lg:min-h-20 lg:px-10">
+        <header className="parabellum-topbar flex min-h-16 items-center justify-between gap-4 px-4 py-3 md:px-6 lg:min-h-20 lg:px-10">
           <div className="flex min-w-0 items-center gap-3 md:gap-4">
             <button
               type="button"
               aria-label="Ouvrir le menu"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] text-[#212529] transition-all hover:bg-[#f1f3f5] lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--parabellum-border)] bg-white text-[var(--parabellum-text)] transition-all hover:bg-[#f8f9ff] lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <span className="block truncate text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
+              <span className="parabellum-kicker block truncate">
                 Espace Gestion Restaurant
               </span>
-              <h2 className="mt-1 truncate text-xs font-black uppercase tracking-tight text-[#212529]">
+              <h2 className="mt-1 truncate text-xs font-black uppercase tracking-tight text-[var(--parabellum-text)]">
                 {store?.name || 'Chargement...'}
               </h2>
             </div>
@@ -168,7 +168,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
 
           <div className="flex shrink-0 items-center gap-3">
             {store?.logo ? (
-              <div className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-xl border border-[#dee2e6] bg-white px-2 sm:h-11 sm:w-16">
+              <div className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-xl border border-[var(--parabellum-border)] bg-white px-2 shadow-sm sm:h-11 sm:w-16">
                 <Image
                   src={store.logo}
                   alt="Logo"
@@ -179,14 +179,14 @@ export default function RestaurateurLayout({ children }: { children: React.React
                 />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dee2e6] bg-[#f8f9fa]">
-                <Store className="h-5 w-5 text-[#adb5bd]" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--parabellum-border)] bg-white shadow-sm">
+                <Store className="h-5 w-5 text-[var(--parabellum-muted)]" />
               </div>
             )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#f8f9fa] p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
         </main>
       </div>

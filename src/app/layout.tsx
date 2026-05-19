@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "POS Restaurant | Système de Caisse",
+  title: "ParabellumPOS | Système de Caisse",
   description: "Système de point de vente (POS) hors-ligne pour la restauration rapide.",
   manifest: "/manifest.json",
 };

@@ -16,6 +16,7 @@ import {
   Bell,
   Menu,
   X,
+  Search,
   Compass,
   UserCog,
 } from 'lucide-react'
@@ -29,7 +30,7 @@ const menuItems = [
   { name: 'Promotions', icon: <Package />, href: '/admin/promotions' },
   { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
   { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },
-  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
+  { name: 'Espaces', icon: <Compass />, href: '/admin/espaces' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -45,38 +46,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fa] text-[#212529] font-sans">
+    <div className="flex min-h-screen bg-[#eeeeee] font-sans text-[var(--parabellum-text)]">
       {isSidebarOpen && (
         <button
           type="button"
           aria-label="Fermer le menu"
           onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 z-30 bg-[#1a1d24]/55 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-[#1a1d24]/35 backdrop-blur-sm lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col bg-[#212529] text-white shadow-2xl transition-transform duration-300 lg:static lg:w-64 lg:max-w-none lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col border-r border-[#f0f1f6] bg-white text-[var(--parabellum-text)] shadow-2xl transition-transform duration-300 lg:static lg:w-[18.5rem] lg:max-w-none lg:translate-x-0 lg:shadow-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-5 sm:p-6 lg:p-8">
+        <div className="flex h-[6.25rem] items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+            <div className="parabellum-gradient flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg">
               <Package className="h-6 w-6 text-white" />
             </div>
-            <span className="text-lg font-black uppercase tracking-widest">Supervision</span>
+            <span className="text-2xl font-black tracking-tight text-[#343957]">ParabellumPOS</span>
           </div>
           <button
             type="button"
             onClick={() => setIsSidebarOpen(false)}
-            className="rounded-xl p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white lg:hidden"
+            className="rounded-xl p-2 text-[var(--parabellum-muted)] transition-all hover:bg-[#eef1ff] hover:text-[var(--parabellum-primary)] lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-2 px-4 py-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-0 py-4">
           {menuItems.map((item) => {
             const active = pathname === item.href
             return (
@@ -84,65 +85,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all ${
+                className={`relative mx-0 flex items-center gap-4 border-l-[0.35rem] px-7 py-3.5 text-[0.94rem] font-semibold transition-all ${
                   active
-                    ? 'bg-white text-[#212529] shadow-lg'
-                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                    ? 'border-[var(--parabellum-primary)] bg-[#eef1ff] text-[var(--parabellum-primary)]'
+                    : 'border-transparent text-[#8a92a6] hover:bg-[#f7f8ff] hover:text-[var(--parabellum-primary)]'
                 }`}
               >
-                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-4 w-4' })}
+                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5' })}
                 <span>{item.name}</span>
               </Link>
             )
           })}
         </nav>
 
-        <div className="mt-auto p-4">
+        <div className="mt-auto p-5">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-widest text-white/50 transition-all hover:bg-white/5 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#8a92a6] transition-all hover:bg-[#fff0f3] hover:text-[var(--parabellum-danger)]"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-5 w-5" />
             Déconnexion
           </button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex min-h-16 items-center justify-between gap-4 border-b border-[#dee2e6] bg-white px-4 py-3 shadow-sm md:px-6 lg:px-8">
+        <header className="flex min-h-[6.25rem] items-center justify-between gap-4 bg-white px-4 py-3 shadow-sm md:px-8 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Ouvrir le menu"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] text-[#212529] transition-all hover:bg-[#f1f3f5] lg:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--parabellum-border)] bg-white text-[var(--parabellum-primary)] transition-all hover:bg-[#eef1ff] lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="min-w-0">
-              <span className="block truncate text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
-                Espace Franchiseur
+            <div className="hidden min-w-0 items-center gap-3 rounded-2xl bg-[#f3f3f3] px-5 py-3 md:flex md:w-[20rem] lg:w-[25rem]">
+              <span className="flex h-7 w-7 items-center justify-center text-[var(--parabellum-muted)]">
+                <Search className="h-5 w-5" />
               </span>
+              <span className="text-sm font-medium text-[#8a92a6]">Rechercher ici...</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
-            <button className="relative rounded-xl p-2 text-[#adb5bd] transition-all hover:text-[#212529]">
+            <button className="relative rounded-xl p-2 text-[var(--parabellum-muted)] transition-all hover:bg-[#eef1ff] hover:text-[var(--parabellum-primary)]">
               <Bell className="h-5 w-5" />
-              <div className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-[#e03131]" />
+              <div className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-[var(--parabellum-danger)]" />
             </button>
 
-            <div className="hidden items-center gap-3 sm:flex">
-              <div className="flex flex-col items-end">
-                <span className="text-xs font-black text-[#212529]">Admin Superviseur</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#adb5bd]">Niveau 1</span>
+            <div className="hidden items-center overflow-hidden rounded-l-[2rem] bg-[var(--parabellum-primary)] pl-6 text-white shadow-lg sm:flex">
+              <div className="flex flex-col items-end py-3 pr-4">
+                <span className="text-sm font-black">Bonjour Admin</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-white/70">Franchiseur</span>
               </div>
-              <div className="h-9 w-9 rounded-full border border-[#dee2e6] bg-[#f1f3f5]" />
+              <div className="h-14 w-14 rounded-l-[2rem] border-4 border-white/20 bg-white/20" />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#f8f9fa] p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-[#eeeeee] px-4 py-8 md:px-8 lg:px-10">
           {children}
         </main>
       </div>

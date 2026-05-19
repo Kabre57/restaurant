@@ -70,21 +70,21 @@ export default function AdminRestaurantsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-[96rem] space-y-8">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#f08c00]">Franchiseur</p>
-        <h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-[#212529] sm:text-3xl">Restaurants</h1>
-        <p className="mt-1 text-sm font-bold uppercase tracking-widest text-[#adb5bd]">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--parabellum-primary)]">Franchiseur</p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-black sm:text-4xl">Restaurants</h1>
+        <p className="mt-2 text-base font-medium text-[#72788f]">
           Créez et supervisez plusieurs restaurants depuis la plateforme.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+      <form onSubmit={handleSubmit} className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f1f3f5]">
-            <Plus className="h-5 w-5 text-[#212529]" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef1ff] text-[var(--parabellum-primary)]">
+            <Plus className="h-5 w-5" />
           </div>
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Nouveau restaurant</h2>
+          <h2 className="text-lg font-black text-black">Nouveau restaurant</h2>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -102,7 +102,7 @@ export default function AdminRestaurantsPage() {
           <p className="text-xs font-bold text-[#868e96]">{message}</p>
           <button
             disabled={isSaving}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#212529] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--parabellum-primary)] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
             Créer le restaurant
@@ -110,10 +110,10 @@ export default function AdminRestaurantsPage() {
         </div>
       </form>
 
-      <section className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+      <section className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
         <div className="mb-6 flex items-center gap-3">
-          <Building2 className="h-5 w-5 text-[#212529]" />
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Restaurants existants</h2>
+          <Building2 className="h-5 w-5 text-[var(--parabellum-primary)]" />
+          <h2 className="text-lg font-black text-black">Restaurants existants</h2>
         </div>
 
         {isLoading ? (
@@ -121,13 +121,13 @@ export default function AdminRestaurantsPage() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {stores.map((store) => (
-              <article key={store.id} className="rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-5">
+              <article key={store.id} className="rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] p-5 transition-all hover:bg-white hover:shadow-lg">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-tight text-[#212529]">{store.name}</h3>
-                    <p className="mt-1 text-xs font-semibold text-[#868e96]">{store.address || 'Adresse non renseignée'}</p>
+                    <h3 className="text-sm font-black text-black">{store.name}</h3>
+                    <p className="mt-1 text-xs font-semibold text-[#72788f]">{store.address || 'Adresse non renseignée'}</p>
                   </div>
-                  <span className="rounded-lg bg-[#fff9db] px-3 py-1 text-[9px] font-black uppercase tracking-widest text-[#f08c00]">
+                  <span className="rounded-lg bg-[#eef1ff] px-3 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--parabellum-primary)]">
                     {store.commission}% commission
                   </span>
                 </div>
@@ -136,8 +136,8 @@ export default function AdminRestaurantsPage() {
                   <Metric label="Tables" value={store._count.tables} />
                   <Metric label="Commandes" value={store._count.orders} />
                 </div>
-                <div className="mt-4 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-[#495057]">
-                  <UserRound className="h-4 w-4 text-[#adb5bd]" />
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-[#50576f]">
+                  <UserRound className="h-4 w-4 text-[var(--parabellum-primary)]" />
                   {store.users[0]?.email || 'Aucun manager'}
                 </div>
               </article>
@@ -158,13 +158,13 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
 }) {
   return (
     <label className="space-y-2">
-      <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</span>
+      <span className="ml-1 block text-[10px] font-black uppercase tracking-widest text-[#8a92a6]">{label}</span>
       <input
         required={required}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-[#dee2e6] bg-[#f8f9fa] px-4 py-3 text-xs font-bold outline-none transition-all focus:ring-2 focus:ring-[#212529]"
+        className="w-full rounded-xl border border-[#e8eaf4] bg-[#f8f9ff] px-4 py-3 text-xs font-bold outline-none transition-all focus:bg-white focus:ring-2 focus:ring-[var(--parabellum-primary)]"
       />
     </label>
   )
@@ -173,8 +173,8 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl bg-white p-3">
-      <p className="text-lg font-black text-[#212529]">{value}</p>
-      <p className="text-[9px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</p>
+      <p className="text-lg font-black text-black">{value}</p>
+      <p className="text-[9px] font-black uppercase tracking-widest text-[#8a92a6]">{label}</p>
     </div>
   )
 }

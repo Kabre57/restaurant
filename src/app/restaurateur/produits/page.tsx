@@ -1,21 +1,27 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Package, X, Loader2, AlertCircle } from 'lucide-react'
+import Image from 'next/image'
+import { Plus, Trash2, Edit3, Package, X, Loader2, AlertCircle, Search } from 'lucide-react'
 import { getProductsByStore, createProduct, updateProduct, deleteProduct, getCategories } from '@/app/actions/products'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
 
+type ProductRow = Awaited<ReturnType<typeof getProductsByStore>>[number]
+type CategoryRow = Awaited<ReturnType<typeof getCategories>>[number]
+
 export default function RestaurateurProducts() {
   const { data: session } = useSession()
-  const [products, setProducts] = useState<any[]>([])
-  const [categories, setCategories] = useState<any[]>([])
+  const [products, setProducts] = useState<ProductRow[]>([])
+  const [categories, setCategories] = useState<CategoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [errorModal, setErrorModal] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [activeCategory, setActiveCategory] = useState('all')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,16 +36,38 @@ export default function RestaurateurProducts() {
   })
 
   useEffect(() => {
-    if (session?.user?.storeId) {
-      loadData()
+    const storeId = session?.user?.storeId
+    if (!storeId) return
+
+    let isCancelled = false
+    const activeStoreId = storeId
+
+    async function fetchData() {
+      setLoading(true)
+      const [pData, cData] = await Promise.all([
+        getProductsByStore(activeStoreId),
+        getCategories(activeStoreId)
+      ])
+      if (isCancelled) return
+      setProducts(pData)
+      setCategories(cData)
+      setLoading(false)
     }
-  }, [session])
+
+    void fetchData()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [session?.user?.storeId])
 
   async function loadData() {
+    if (!session?.user?.storeId) return
+
     setLoading(true)
     const [pData, cData] = await Promise.all([
-      getProductsByStore(session?.user?.storeId as string),
-      getCategories(session?.user?.storeId as string)
+      getProductsByStore(session.user.storeId),
+      getCategories(session.user.storeId)
     ])
     setProducts(pData)
     setCategories(cData)
@@ -101,12 +129,12 @@ export default function RestaurateurProducts() {
     setDeleteTarget(id)
   }
 
-  async function toggleAvailability(product: any) {
+  async function toggleAvailability(product: ProductRow) {
     const res = await updateProduct(product.id, { isAvailable: !product.isAvailable })
     if (res.success) loadData()
   }
 
-  function handleEdit(product: any) {
+  function handleEdit(product: ProductRow) {
     setEditingProduct(product)
     setFormData({
       name: product.name,
@@ -136,6 +164,13 @@ export default function RestaurateurProducts() {
       setErrorModal(error instanceof Error ? error.message : "Impossible de traiter cette image.")
     }
   }
+
+  const visibleProducts = products.filter((product) => {
+    const query = search.toLowerCase()
+    const matchesSearch = product.name.toLowerCase().includes(query) || product.category?.name?.toLowerCase().includes(query)
+    const matchesCategory = activeCategory === 'all' ? true : product.categoryId === activeCategory
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
@@ -167,11 +202,45 @@ export default function RestaurateurProducts() {
         </button>
       </div>
 
+      <div className="rounded-xl border border-[#e5e7ef] bg-white p-4 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.06)]">
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`flex min-w-[7rem] flex-col items-center justify-center gap-2 rounded-lg px-4 py-4 text-[10px] font-black uppercase tracking-tight transition ${activeCategory === 'all' ? 'bg-[#ff6b4a] text-white shadow-lg' : 'bg-[#f8f9fa] text-[#495057] hover:bg-[#eef1ff]'}`}
+          >
+            <span className="text-2xl">🍽️</span>
+            Tous
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setActiveCategory(category.id)}
+              className={`flex min-w-[7rem] flex-col items-center justify-center gap-2 rounded-lg px-4 py-4 text-[10px] font-black uppercase tracking-tight transition ${activeCategory === category.id ? 'bg-[#ff6b4a] text-white shadow-lg' : 'bg-[#f8f9fa] text-[#495057] hover:bg-[#eef1ff]'}`}
+            >
+              <span className="text-2xl">🍴</span>
+              {category.name}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher un plat, une boisson ou une formule..."
+            className="h-12 flex-1 rounded-full border border-[#e5e7ef] bg-white px-6 text-sm font-medium text-[#495057] outline-none transition focus:border-[var(--parabellum-primary)]"
+          />
+          <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--parabellum-primary)] px-8 text-sm font-black text-white transition hover:bg-[#253ec7]">
+            Recherche
+            <Search className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             (() => {
               const isDrink = isDrinkCategory(product.category?.name)
               return (
@@ -179,7 +248,7 @@ export default function RestaurateurProducts() {
               <div className="h-40 bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-4">
                 {product.image ? (
                   <div className="w-full h-full rounded-[1.5rem] bg-white/85 shadow-[0_18px_40px_rgba(33,37,41,0.08)] border border-white/70 flex items-center justify-center overflow-hidden backdrop-blur-sm">
-                    <img src={product.image} alt={product.name} className={`w-full h-full object-contain transition-transform duration-700 ${isDrink ? 'p-1 scale-[1.08] group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`} />
+                    <Image src={product.image} alt={product.name} width={360} height={220} unoptimized className={`h-full w-full object-contain transition-transform duration-700 ${isDrink ? 'scale-[1.08] p-1 group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`} />
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>
@@ -225,6 +294,11 @@ export default function RestaurateurProducts() {
               )
             })()
           ))}
+          {visibleProducts.length === 0 && (
+            <div className="col-span-full rounded-xl border border-dashed border-[#e5e7ef] bg-white py-16 text-center text-xs font-black uppercase tracking-widest text-[#adb5bd]">
+              Aucun produit ne correspond aux filtres
+            </div>
+          )}
         </div>
       )}
 
@@ -270,9 +344,9 @@ export default function RestaurateurProducts() {
                 >
                   {formData.image ? (
                     <div className="relative w-full h-full p-2 flex items-center justify-center">
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-contain rounded-xl" />
+                      <Image src={formData.image} alt="Preview" fill unoptimized className="rounded-xl object-contain" />
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
-                      <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l'image</span>
+                      <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l&apos;image</span>
                       </div>
                     </div>
                   ) : (
@@ -325,7 +399,7 @@ export default function RestaurateurProducts() {
                       <input type="number" value={formData.stockQuantity} onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})} className="w-full bg-white border border-[#dee2e6] rounded-xl px-4 py-2 text-xs font-bold" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Seuil d'alerte</label>
+                      <label className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Seuil d&apos;alerte</label>
                       <input type="number" value={formData.minStockLevel} onChange={(e) => setFormData({...formData, minStockLevel: e.target.value})} className="w-full bg-white border border-[#dee2e6] rounded-xl px-4 py-2 text-xs font-bold" />
                     </div>
                   </div>

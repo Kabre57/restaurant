@@ -60,7 +60,7 @@ export default function SpacesPage() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#f08c00]">POS Restaurant</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#f08c00]">ParabellumPOS</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Espaces acteurs</h1>
             <p className="mt-2 max-w-2xl text-sm font-semibold text-[#868e96]">
               Chaque acteur du diagramme a maintenant une entrée visible dans l’application.

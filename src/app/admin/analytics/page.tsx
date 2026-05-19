@@ -28,14 +28,14 @@ export default function AdminAnalytics() {
   const maxStoreRevenue = useMemo(() => Math.max(...(data?.stores.map((store) => store.revenue) || [0]), 1), [data])
 
   if (loading) {
-    return <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 animate-spin text-[#adb5bd]" /></div>
+    return <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 animate-spin text-[var(--parabellum-primary)]" /></div>
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-[96rem] space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-[#212529] tracking-tight uppercase">Analytics</h1>
-        <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Performance réelle des 30 derniers jours</p>
+        <h1 className="text-3xl font-black tracking-tight text-black sm:text-4xl">Analytics</h1>
+        <p className="mt-2 text-base font-medium text-[#72788f]">Performance réelle des 30 derniers jours</p>
       </div>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -46,8 +46,8 @@ export default function AdminAnalytics() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Revenus par restaurant</h2>
+        <div className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)] lg:col-span-2">
+          <h2 className="text-2xl font-black text-black">Revenus par restaurant</h2>
           <div className="mt-6 space-y-5">
             {data?.stores.map((store) => (
               <div key={store.id}>
@@ -55,8 +55,8 @@ export default function AdminAnalytics() {
                   <span>{store.name}</span>
                   <span>{store.revenue.toLocaleString()} F</span>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-[#f1f3f5]">
-                  <div className="h-full rounded-full bg-[#339af0]" style={{ width: `${Math.round((store.revenue / maxStoreRevenue) * 100)}%` }} />
+                <div className="h-3 overflow-hidden rounded-full bg-[#eef1ff]">
+                  <div className="h-full rounded-full bg-[var(--parabellum-primary)]" style={{ width: `${Math.round((store.revenue / maxStoreRevenue) * 100)}%` }} />
                 </div>
                 <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-[#adb5bd]">{store.orders} commandes</p>
               </div>
@@ -65,11 +65,11 @@ export default function AdminAnalytics() {
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Paiements</h2>
+        <div className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
+          <h2 className="text-2xl font-black text-black">Paiements</h2>
           <div className="mt-6 space-y-3">
             {data?.paymentByMethod.map((payment) => (
-              <div key={payment.method} className="flex items-center justify-between rounded-xl bg-[#f8f9fa] px-4 py-3">
+              <div key={payment.method} className="flex items-center justify-between rounded-xl bg-[#f8f9ff] px-4 py-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#495057]">{payment.method}</span>
                 <span className="text-xs font-black text-[#212529]">{payment.amount.toLocaleString()} F</span>
               </div>
@@ -106,13 +106,13 @@ export default function AdminAnalytics() {
 
 function Metric({ label, value, icon }: { label: string; value: number | string; icon: React.ReactNode }) {
   return (
-    <article className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+    <article className="rounded-xl bg-white p-6 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">{label}</p>
-          <p className="mt-2 text-2xl font-black text-[#212529]">{value}</p>
+          <p className="text-sm font-bold uppercase text-[#72788f]">{label}</p>
+          <p className="mt-2 text-2xl font-black text-black">{value}</p>
         </div>
-        <div className="rounded-2xl bg-[#f1f3f5] p-3 text-[#212529]">
+        <div className="rounded-full bg-[#eef1ff] p-4 text-[var(--parabellum-primary)]">
           {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5' })}
         </div>
       </div>
@@ -122,10 +122,10 @@ function Metric({ label, value, icon }: { label: string; value: number | string;
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+    <section className="rounded-xl bg-white p-7 shadow-[0_0.75rem_1.875rem_rgba(47,76,221,0.08)]">
       <div className="mb-5 flex items-center gap-2">
-        <BarChart3 className="h-4 w-4 text-[#adb5bd]" />
-        <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">{title}</h2>
+        <BarChart3 className="h-5 w-5 text-[var(--parabellum-primary)]" />
+        <h2 className="text-2xl font-black text-black">{title}</h2>
       </div>
       <div className="space-y-3">{children}</div>
     </section>

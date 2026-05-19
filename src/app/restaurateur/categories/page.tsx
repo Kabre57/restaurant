@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Plus, Trash2, Edit3, Layers, X, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import { Trash2, X, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/app/actions/products'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
+import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudStatus, CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 type CategoryItem = {
   id: string
@@ -22,6 +23,7 @@ export default function CategoriesManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [errorModal, setErrorModal] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -116,6 +118,10 @@ export default function CategoriesManagement() {
     }
   }
 
+  const visibleCategories = categories.filter((category) => (
+    category.name.toLowerCase().includes(search.toLowerCase())
+  ))
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -123,52 +129,50 @@ export default function CategoriesManagement() {
           <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Catégories</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Organisez votre menu par catégories</p>
         </div>
-        <button 
+        <CrudPrimaryButton
           onClick={() => { setEditingCategory(null); setFormData({ name: '', imageUrl: '' }); setShowModal(true); }}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-black sm:w-auto sm:px-8"
         >
-          <Plus className="w-5 h-5" />
           Ajouter Catégorie
-        </button>
+        </CrudPrimaryButton>
       </div>
+
+      <CrudFilterBar
+        searchValue={search}
+        searchPlaceholder="Nom de catégorie"
+        onSearchChange={setSearch}
+        onReset={() => setSearch('')}
+      />
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {categories.map((category) => (
-            <div key={category.id} className="bg-white rounded-[2rem] border border-[#dee2e6] overflow-hidden group hover:shadow-2xl transition-all">
-              <div className="relative h-32 overflow-hidden bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] p-4">
-                {category.imageUrl ? (
-                  <div className="w-full h-full rounded-[1.25rem] bg-white/85 shadow-[0_14px_30px_rgba(33,37,41,0.08)] border border-white/70 flex items-center justify-center overflow-hidden backdrop-blur-sm">
-                    <Image src={category.imageUrl} alt={category.name} width={240} height={160} unoptimized className="h-full w-full object-contain p-3 transition-transform duration-700 group-hover:scale-105" />
-                  </div>
-                ) : (
-                  <div className="w-full h-full rounded-[1.25rem] bg-white/80 border border-white/70 flex items-center justify-center">
-                    <Layers className="w-10 h-10 text-[#dee2e6]" />
-                  </div>
-                )}
-                <div className="absolute top-4 right-4 flex gap-2 transition-all sm:opacity-0 sm:group-hover:opacity-100">
-                  <button onClick={() => handleEdit(category)} className="p-2 bg-white/50 backdrop-blur-md text-[#212529] rounded-xl hover:bg-white transition-all shadow-sm">
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDeleteClick(category.id)} className="p-2 bg-white/50 backdrop-blur-md text-[#e03131] rounded-xl hover:bg-white transition-all shadow-sm">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+        <CrudTable
+          title="Liste des catégories"
+          rows={visibleCategories}
+          emptyLabel="Aucune catégorie trouvée"
+          columns={[
+            { key: 'serial', label: 'N° de série' },
+            { key: 'title', label: 'Titre' },
+            { key: 'image', label: 'Image' },
+            { key: 'status', label: 'Statut' },
+            { key: 'actions', label: 'Actes', className: 'text-right' },
+          ]}
+          footerLabel={`Page 1 sur 1, affichant ${visibleCategories.length} catégorie${visibleCategories.length > 1 ? 's' : ''} sur ${categories.length} au total.`}
+          renderRow={(category, index) => (
+            <tr key={category.id} className="transition hover:bg-[#fafbfc]">
+              <td className="px-6 py-4 text-sm font-bold text-[#72788f]">{index + 1}</td>
+              <td className="px-6 py-4 text-sm font-bold text-[#495057]">{category.name}</td>
+              <td className="px-6 py-4 text-sm font-medium text-[#72788f]">{category.imageUrl ? 'Image définie' : 'Aucune image'}</td>
+              <td className="px-6 py-4"><CrudStatus tone={category.imageUrl ? 'success' : 'muted'}>{category.imageUrl ? 'Complète' : 'À compléter'}</CrudStatus></td>
+              <td className="px-6 py-4">
+                <div className="flex justify-end gap-2">
+                  <CrudActionButton label="Modifier la catégorie" tone="edit" onClick={() => handleEdit(category)} />
+                  <CrudActionButton label="Supprimer la catégorie" tone="delete" onClick={() => handleDeleteClick(category.id)} />
                 </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-lg font-black text-[#212529] uppercase tracking-tight text-center">{category.name}</h3>
-              </div>
-            </div>
-          ))}
-          {categories.length === 0 && (
-            <div className="col-span-full py-20 flex flex-col items-center justify-center text-[#adb5bd] gap-4">
-              <Layers className="w-16 h-16 opacity-20" />
-              <p className="font-bold text-sm uppercase tracking-widest">Aucune catégorie trouvée</p>
-            </div>
+              </td>
+            </tr>
           )}
-        </div>
+        />
       )}
 
       {/* Modal CRUD */}
