@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { getStores } from '@/app/actions/stores'
 import {
   LayoutDashboard,
   Wallet,
@@ -19,24 +20,46 @@ import {
   Search,
   Compass,
   UserCog,
+  ChevronDown,
+  MessageSquare,
 } from 'lucide-react'
 
-const menuItems = [
+type StoreSummary = {
+  id: string
+  name: string
+}
+
+const generalItems = [
   { name: 'Tableau de bord', icon: <LayoutDashboard />, href: '/admin/dashboard' },
-  { name: 'Franchiseurs', icon: <UserCog />, href: '/admin/franchiseurs' },
+  { name: 'Superviseur', icon: <UserCog />, href: '/admin/superviseur' },
   { name: 'Restaurants', icon: <Building2 />, href: '/admin/restaurants' },
+  { name: 'Analytique', icon: <BarChart3 />, href: '/admin/analytics' },
   { name: 'Finances', icon: <Wallet />, href: '/admin/finances' },
-  { name: 'Analytics', icon: <BarChart3 />, href: '/admin/analytics' },
-  { name: 'Promotions', icon: <Package />, href: '/admin/promotions' },
+]
+
+const gestionItems = [
+  { name: 'Produits', icon: <Package />, href: '/admin/produits' },
+  { name: 'Promotions', icon: <Compass />, href: '/admin/promotions' },
   { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
   { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },
-  { name: 'Espaces', icon: <Compass />, href: '/admin/espaces' },
+  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [stores, setStores] = useState<StoreSummary[]>([])
+  const [selectedStore, setSelectedStore] = useState<string>('')
+
+  useEffect(() => {
+    getStores().then((data) => {
+      if (data && data.length > 0) {
+        setStores(data as StoreSummary[])
+        setSelectedStore(data[0].id)
+      }
+    })
+  }, [])
 
   const handleLogout = async () => {
     setIsSidebarOpen(false)
@@ -45,8 +68,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.refresh()
   }
 
+  const activeStoreName = stores.find(s => s.id === selectedStore)?.name || 'Chargement...'
+
   return (
-    <div className="flex min-h-screen bg-[#eeeeee] font-sans text-[var(--parabellum-text)]">
+    <div className="flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden">
+      {/* Mobile Sidebar overlay */}
       {isSidebarOpen && (
         <button
           type="button"
@@ -56,95 +82,161 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18rem] max-w-[88vw] flex-col border-r border-[#f0f1f6] bg-white text-[var(--parabellum-text)] shadow-2xl transition-transform duration-300 lg:static lg:w-[18.5rem] lg:max-w-none lg:translate-x-0 lg:shadow-none ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[#E5E7EB] bg-white text-[#495057] shadow-lg transition-transform duration-300 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
-        <div className="flex h-[6.25rem] items-center justify-between px-6">
+        {/* Brand */}
+        <div className="flex h-20 items-center justify-between px-6 border-b border-[#F0F1F6]">
           <div className="flex items-center gap-3">
-            <div className="parabellum-gradient flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg">
-              <Package className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6D00] text-white">
+              <Package className="h-5.5 w-5.5" />
             </div>
-            <span className="text-2xl font-black tracking-tight text-[#343957]">ParabellumPOS</span>
+            <span className="text-xl font-black tracking-tight text-[#171717]">Administrateur</span>
           </div>
           <button
             type="button"
             onClick={() => setIsSidebarOpen(false)}
-            className="rounded-xl p-2 text-[var(--parabellum-muted)] transition-all hover:bg-[#eef1ff] hover:text-[var(--parabellum-primary)] lg:hidden"
+            className="rounded-xl p-2 text-[#868e96] transition-all hover:bg-[#FF6D00]/10 hover:text-[#FF6D00] lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-0 py-4">
-          {menuItems.map((item) => {
-            const active = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`relative mx-0 flex items-center gap-4 border-l-[0.35rem] px-7 py-3.5 text-[0.94rem] font-semibold transition-all ${
-                  active
-                    ? 'border-[var(--parabellum-primary)] bg-[#eef1ff] text-[var(--parabellum-primary)]'
-                    : 'border-transparent text-[#8a92a6] hover:bg-[#f7f8ff] hover:text-[var(--parabellum-primary)]'
-                }`}
-              >
-                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5' })}
-                <span>{item.name}</span>
-              </Link>
-            )
-          })}
-        </nav>
+        {/* Restaurant selector dropdown */}
+        <div className="px-5 py-4 border-b border-[#F0F1F6] bg-[#F8F9FA]/50">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#868e96] mb-2">RESTAURANT ACTIF</p>
+          <div className="relative">
+            <select
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+              className="w-full appearance-none rounded-xl border border-[#E5E7EB] bg-white py-3 pl-4 pr-10 text-xs font-bold text-[#171717] outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
+            >
+              {stores.length === 0 ? (
+                <option>Le Burger Doré - Paris 1er</option>
+              ) : (
+                stores.map(store => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
+                ))
+              )}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-[#868e96]" />
+          </div>
+        </div>
 
-        <div className="mt-auto p-5">
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 custom-scrollbar">
+          {/* VUE GENERALE */}
+          <div>
+            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] mb-2">VUE GÉNÉRALE</p>
+            <nav className="space-y-1">
+              {generalItems.map((item) => {
+                const active = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
+                      ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
+                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717]'
+                      }`}
+                  >
+                    {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+
+          {/* GESTION */}
+          <div>
+            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] mb-2">GESTION</p>
+            <nav className="space-y-1">
+              {gestionItems.map((item) => {
+                const active = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
+                      ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
+                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717]'
+                      }`}
+                  >
+                    {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        </div>
+
+        {/* Logout at bottom */}
+        <div className="p-4 border-t border-[#F0F1F6]">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#8a92a6] transition-all hover:bg-[#fff0f3] hover:text-[var(--parabellum-danger)]"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#e03131] transition-all hover:bg-[#fff5f5]"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-5 w-5 shrink-0" />
             Déconnexion
           </button>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex min-h-[6.25rem] items-center justify-between gap-4 bg-white px-4 py-3 shadow-sm md:px-8 lg:px-10">
+      {/* Main Panel */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Topbar */}
+        <header className="flex h-20 items-center justify-between gap-4 bg-white px-8 shadow-sm border-b border-[#E5E7EB] shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Ouvrir le menu"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--parabellum-border)] bg-white text-[var(--parabellum-primary)] transition-all hover:bg-[#eef1ff] lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#171717] transition-all hover:bg-[#FF6D00]/10 lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden min-w-0 items-center gap-3 rounded-2xl bg-[#f3f3f3] px-5 py-3 md:flex md:w-[20rem] lg:w-[25rem]">
-              <span className="flex h-7 w-7 items-center justify-center text-[var(--parabellum-muted)]">
-                <Search className="h-5 w-5" />
-              </span>
-              <span className="text-sm font-medium text-[#8a92a6]">Rechercher ici...</span>
+            <div className="hidden min-w-0 items-center gap-3 rounded-xl bg-[#F8F9FA] border border-[#E5E7EB] px-4 py-2.5 md:flex md:w-[20rem] lg:w-[24rem]">
+              <Search className="h-4.5 w-4.5 text-[#adb5bd]" />
+              <input
+                type="text"
+                placeholder="Recherche..."
+                className="w-full bg-transparent text-xs font-semibold text-[#171717] outline-none placeholder-[#adb5bd]"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-6">
-            <button className="relative rounded-xl p-2 text-[var(--parabellum-muted)] transition-all hover:bg-[#eef1ff] hover:text-[var(--parabellum-primary)]">
-              <Bell className="h-5 w-5" />
-              <div className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-[var(--parabellum-danger)]" />
+          <div className="flex items-center gap-5">
+            <button className="relative rounded-xl p-2 text-[#868e96] hover:bg-[#F8F9FA] transition-all">
+              <MessageSquare className="h-5 w-5" />
             </button>
 
-            <div className="hidden items-center overflow-hidden rounded-l-[2rem] bg-[var(--parabellum-primary)] pl-6 text-white shadow-lg sm:flex">
-              <div className="flex flex-col items-end py-3 pr-4">
-                <span className="text-sm font-black">Bonjour Admin</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-white/70">Franchiseur</span>
+            <button className="relative rounded-xl p-2 text-[#868e96] hover:bg-[#F8F9FA] transition-all">
+              <Bell className="h-5 w-5" />
+              <div className="absolute right-2 top-2 h-2 w-2 rounded-full border border-white bg-[#e03131]" />
+            </button>
+
+            <div className="h-8 w-[1px] bg-[#E5E7EB]" />
+
+            <div className="flex items-center gap-3">
+              <div className="hidden flex-col items-end sm:flex">
+                <span className="text-xs font-black text-[#171717]">Utilisateur administrateur</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#868e96]">Superadministrateur</span>
               </div>
-              <div className="h-14 w-14 rounded-l-[2rem] border-4 border-white/20 bg-white/20" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FF6D00] text-xs font-black text-white shadow-md shadow-orange-500/10">
+                AU
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#eeeeee] px-4 py-8 md:px-8 lg:px-10">
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto bg-[#F5F6F8] p-8 custom-scrollbar">
           {children}
         </main>
       </div>

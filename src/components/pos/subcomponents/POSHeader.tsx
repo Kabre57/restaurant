@@ -80,7 +80,7 @@ export function POSHeader({
           >
             <ShoppingBag className="h-5 w-5" />
             {cartCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#212529] px-1 text-[9px] font-black text-white">
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF6D00] px-1 text-[9px] font-black text-white">
                 {cartCount}
               </span>
             )}
@@ -94,8 +94,8 @@ export function POSHeader({
                 onClick={() => onFlowModeChange('DIRECT')}
                 className={`whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
                   orderFlowMode === 'DIRECT'
-                    ? 'bg-[#212529] text-white shadow-lg'
-                    : 'text-[#adb5bd] hover:text-[#212529]'
+                    ? 'bg-[#FF6D00] text-white shadow-lg shadow-orange-500/20'
+                    : 'text-[#adb5bd] hover:text-[#FF6D00]'
                 }`}
               >
                 Caisse directe
@@ -104,8 +104,8 @@ export function POSHeader({
                 onClick={() => onFlowModeChange('TABLE_SERVICE')}
                 className={`whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
                   orderFlowMode === 'TABLE_SERVICE'
-                    ? 'bg-[#212529] text-white shadow-lg'
-                    : 'text-[#adb5bd] hover:text-[#212529]'
+                    ? 'bg-[#FF6D00] text-white shadow-lg shadow-orange-500/20'
+                    : 'text-[#adb5bd] hover:text-[#FF6D00]'
                 }`}
               >
                 Service a table
@@ -128,7 +128,7 @@ export function POSHeader({
             <input
               type="text"
               placeholder="RECHERCHER UN PRODUIT..."
-              className="w-full rounded-2xl border border-[#e9ecef] bg-[#f8f9fa] py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#212529]"
+              className="w-full rounded-2xl border border-[#e9ecef] bg-[#f8f9fa] py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6D00]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

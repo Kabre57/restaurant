@@ -3,42 +3,42 @@
 @theme {
   --color-brand-50: #fff7ed;
   --color-brand-100: #ffedd5;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-parabellum-primary: #2f4cdd;
-  --color-parabellum-primary-2: #d45bff;
-  --color-parabellum-sidebar: #1f2433;
+  --color-brand-500: #ff6d00;
+  --color-brand-600: #e66200;
+  --color-parabellum-primary: #ff6d00;
+  --color-parabellum-primary-2: #ff9100;
+  --color-parabellum-sidebar: #171b29;
   --color-parabellum-sidebar-soft: #2b3144;
-  --color-parabellum-body: #f4f6fb;
+  --color-parabellum-body: #f8f9fa;
   --color-parabellum-card: #ffffff;
-  --color-parabellum-border: #e7eaf3;
-  --color-parabellum-text: #232946;
-  --color-parabellum-muted: #8b93a7;
-  --color-pos-bg: #f8fafc;
+  --color-parabellum-border: #e5e7eb;
+  --color-parabellum-text: #171717;
+  --color-parabellum-muted: #868e96;
+  --color-pos-bg: #f8f9fa;
   --color-pos-surface: #ffffff;
-  --color-pos-border: #e2e8f0;
-  --color-pos-text: #0f172a;
-  --color-pos-text-muted: #64748b;
+  --color-pos-border: #e5e7eb;
+  --color-pos-text: #171717;
+  --color-pos-text-muted: #868e96;
   
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
-  --shadow-parabellum: 0 0.75rem 1.875rem rgba(47, 76, 221, 0.08);
+  --shadow-parabellum: 0 0.75rem 1.875rem rgba(255, 109, 0, 0.08);
 }
 
 :root {
   --background: var(--color-pos-bg);
   --foreground: var(--color-pos-text);
-  --parabellum-primary: #2f4cdd;
-  --parabellum-primary-2: #d45bff;
-  --parabellum-sidebar: #1f2433;
+  --parabellum-primary: #ff6d00;
+  --parabellum-primary-2: #ff9100;
+  --parabellum-sidebar: #171b29;
   --parabellum-sidebar-soft: #2b3144;
-  --parabellum-body: #f4f6fb;
+  --parabellum-body: #f8f9fa;
   --parabellum-card: #ffffff;
-  --parabellum-border: #e7eaf3;
-  --parabellum-text: #232946;
-  --parabellum-muted: #8b93a7;
+  --parabellum-border: #e5e7eb;
+  --parabellum-text: #171717;
+  --parabellum-muted: #868e96;
   --parabellum-success: #2bc155;
   --parabellum-warning: #ffb800;
   --parabellum-danger: #f72b50;
@@ -72,7 +72,7 @@ body {
 
 .parabellum-shell {
   background:
-    radial-gradient(circle at top right, rgba(47, 76, 221, 0.08), transparent 34rem),
+    radial-gradient(circle at top right, rgba(255, 109, 0, 0.08), transparent 34rem),
     var(--parabellum-body);
   color: var(--parabellum-text);
 }

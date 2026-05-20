@@ -149,7 +149,7 @@ export function POSOrderSidebar({
             <button
               onClick={onCheckout}
               disabled={items.length === 0 || isProcessing}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#212529] py-5 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all active:scale-95 hover:bg-black disabled:bg-[#adb5bd]"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#FF6D00] py-5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-[#E66200] disabled:bg-[#adb5bd] disabled:shadow-none"
             >
               {isProcessing ? 'Traitement...' : primaryActionLabel}
               <ChevronRight className="h-5 w-5" />

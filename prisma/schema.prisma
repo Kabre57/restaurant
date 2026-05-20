@@ -1,0 +1,401 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id           String        @id @default(cuid())
+  name         String
+  address      String?
+  phone        String?
+  email        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  commission   Float         @default(15.0)
+  logo         String?
+  categories   Category[]
+  inventories  Inventory[]
+  orders       Order[]
+  products     Product[]
+  promotions   Promotion[]
+  reservations Reservation[]
+  tables       Table[]
+  platformConnections StorePlatformConnection[]
+  productMappings ProductPlatformMapping[]
+  users        User[]
+}
+
+model User {
+  id        String          @id @default(cuid())
+  storeId   String
+  name      String
+  email     String          @unique
+  password  String
+  role      Role            @default(CASHIER)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  orders    Order[]         @relation("CashierOrders")
+  tickets   SupportTicket[]
+  store     Store           @relation(fields: [storeId], references: [id])
+}
+
+model PlatformConfig {
+  id            String   @id @default("global")
+  siteName      String   @default("Ma Plateforme")
+  currency      String   @default("FCFA")
+  supportEmail  String?
+  supportPhone  String?
+  minWithdrawal Float    @default(5000)
+  enforce2FA    Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model SupportTicket {
+  id          String       @id @default(cuid())
+  subject     String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    Priority     @default(MEDIUM)
+  userId      String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User?        @relation(fields: [userId], references: [id])
+}
+
+model DeliveryPerson {
+  id          String         @id @default(cuid())
+  name        String
+  phone       String
+  status      DeliveryStatus @default(OFFLINE)
+  vehicleType String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  orders      Order[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  storeId   String
+  name      String
+  icon      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  imageUrl  String?
+  store     Store     @relation(fields: [storeId], references: [id])
+  products  Product[]
+}
+
+model Product {
+  id            String              @id @default(cuid())
+  storeId       String
+  categoryId    String
+  name          String
+  description   String?
+  price         Float
+  image         String?
+  isAvailable   Boolean             @default(true)
+  averagePrepTimeMins Int           @default(15)
+  createdAt     DateTime            @default(now())
+  prepTimeSamples Int               @default(0)
+  updatedAt     DateTime            @updatedAt
+  minStockLevel Int                 @default(5)
+  stockQuantity Int                 @default(0)
+  trackStock    Boolean             @default(false)
+  orderItems    OrderItem[]
+  category      Category            @relation(fields: [categoryId], references: [id])
+  externalMappings ProductPlatformMapping[]
+  store         Store               @relation(fields: [storeId], references: [id])
+  ingredients   ProductIngredient[]
+}
+
+model Order {
+  id               String          @id @default(cuid())
+  storeId          String
+  cashierId        String?
+  customerId       String?
+  tableId          String?
+  estimatedPrepMinutes Int?
+  estimatedReadyAt DateTime?
+  status           OrderStatus     @default(EN_ATTENTE)
+  type             OrderType       @default(DINE_IN)
+  total            Float
+  actualPrepMinutes Int?
+  createdAt        DateTime        @default(now())
+  preparationStartedAt DateTime?
+  readyAt          DateTime?
+  servedAt         DateTime?
+  updatedAt        DateTime        @updatedAt
+  deliveryPersonId String?
+  clientRequestId  String?         @unique
+  sourcePlatform   DeliveryPlatform?
+  externalOrderId  String?
+  externalStoreId  String?
+  customerName     String?
+  customerPhone    String?
+  deliveryAddress  String?
+  customerNotes    String?
+  externalPayload  Json?
+  discount         Float           @default(0)
+  promotionId      String?
+  cashier          User?           @relation("CashierOrders", fields: [cashierId], references: [id])
+  customer         Customer?       @relation(fields: [customerId], references: [id])
+  deliveryPerson   DeliveryPerson? @relation(fields: [deliveryPersonId], references: [id])
+  promotion        Promotion?      @relation(fields: [promotionId], references: [id])
+  store            Store           @relation(fields: [storeId], references: [id])
+  table            Table?          @relation(fields: [tableId], references: [id])
+  items            OrderItem[]
+  payments         Payment[]
+
+  @@unique([sourcePlatform, externalOrderId])
+}
+
+model StorePlatformConnection {
+  id              String           @id @default(cuid())
+  storeId         String
+  platform        DeliveryPlatform
+  externalStoreId String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  store           Store            @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, platform])
+  @@unique([platform, externalStoreId])
+}
+
+model ProductPlatformMapping {
+  id                String           @id @default(cuid())
+  storeId           String
+  productId         String
+  platform          DeliveryPlatform
+  externalProductId String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  store             Store            @relation(fields: [storeId], references: [id])
+  product           Product          @relation(fields: [productId], references: [id])
+
+  @@unique([productId, platform])
+  @@unique([storeId, platform, externalProductId])
+}
+
+model Promotion {
+  id           String       @id @default(cuid())
+  storeId      String
+  code         String       @unique
+  description  String?
+  discountType DiscountType @default(PERCENTAGE)
+  value        Float
+  isActive     Boolean      @default(true)
+  startDate    DateTime?
+  endDate      DateTime?
+  usageLimit   Int?
+  usedCount    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  orders       Order[]
+  store        Store        @relation(fields: [storeId], references: [id])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  options   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String
+  method      PaymentMethod
+  status      PaymentStatus @default(REUSSIE)
+  amount      Float
+  externalRef String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  phone     String?  @unique
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  loyalty   Loyalty?
+  orders    Order[]
+}
+
+model Loyalty {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  points     Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Table {
+  id           String        @id @default(cuid())
+  storeId      String
+  number       Int
+  capacity     Int
+  status       TableStatus   @default(AVAILABLE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  height       Int           @default(100)
+  shape        TableShape    @default(RECTANGLE)
+  width        Int           @default(100)
+  x            Int           @default(0)
+  y            Int           @default(0)
+  orders       Order[]
+  reservations Reservation[]
+  store        Store         @relation(fields: [storeId], references: [id])
+}
+
+model Reservation {
+  id           String            @id @default(cuid())
+  storeId      String
+  tableId      String
+  customerName String
+  phone        String
+  date         DateTime
+  guests       Int
+  status       ReservationStatus @default(EN_ATTENTE)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  store        Store             @relation(fields: [storeId], references: [id])
+  table        Table             @relation(fields: [tableId], references: [id])
+}
+
+model Ingredient {
+  id        String              @id @default(cuid())
+  name      String
+  unit      String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  inventory Inventory[]
+  products  ProductIngredient[]
+}
+
+model ProductIngredient {
+  id           String     @id @default(cuid())
+  productId    String
+  ingredientId String
+  quantity     Float
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id])
+
+  @@unique([productId, ingredientId])
+}
+
+model Inventory {
+  id           String     @id @default(cuid())
+  storeId      String
+  ingredientId String
+  quantity     Float
+  minStock     Float
+  lastUpdated  DateTime   @default(now())
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  store        Store      @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, ingredientId])
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum Role {
+  ADMIN
+  RESTAURATEUR
+  CASHIER
+  SERVER
+   KITCHEN
+  DELIVERY
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DeliveryStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+}
+
+enum DeliveryPlatform {
+  GLOVO
+  UBER_EATS
+  DELIVEROO
+  GENERIC
+}
+
+enum OrderStatus {
+  EN_ATTENTE
+  PREPARATION @map("PRÉPARATION")
+  PRET        @map("PRÊT")
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentMethod {
+  ESPECES
+  CB
+  MOBILE_MONEY
+}
+
+enum PaymentStatus {
+  EN_ATTENTE
+  REUSSIE
+  ECHOUEE
+  REMBOURSEE
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum ReservationStatus {
+  EN_ATTENTE
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum TableShape {
+  RECTANGLE
+  CIRCLE
+}

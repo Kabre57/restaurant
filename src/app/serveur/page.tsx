@@ -1,11 +1,9 @@
-import { getCategories, getProductsByStore } from '@/app/actions/products'
-import { getReservationsByStore } from '@/app/actions/reservations'
-import { getTablesByStore } from '@/app/actions/tables'
 import { getActiveOrders } from '@/app/actions/orders'
-import POSClient from '@/components/pos/POSClient'
+import { getStoreDetails } from '@/app/actions/stores'
 import { authOptions } from '@/lib/auth'
 import { getServerSession } from 'next-auth/next'
 import { redirect } from 'next/navigation'
+import ServerTicketsClient from '@/components/serveur/ServerTicketsClient'
 
 export default async function ServeurPage() {
   const session = await getServerSession(authOptions)
@@ -18,27 +16,17 @@ export default async function ServeurPage() {
     redirect('/')
   }
 
-  const [categories, products, tables, reservations, activeOrders] = await Promise.all([
-    getCategories(session.user.storeId),
-    getProductsByStore(session.user.storeId),
-    getTablesByStore(session.user.storeId),
-    getReservationsByStore(session.user.storeId),
-    getActiveOrders(session.user.storeId)
+  const [activeOrders, store] = await Promise.all([
+    getActiveOrders(session.user.storeId),
+    getStoreDetails(session.user.storeId)
   ])
 
   return (
-    <POSClient
-      categories={categories}
-      products={products}
-      tables={tables}
-      reservations={reservations as any}
-      activeOrders={activeOrders as any}
+    <ServerTicketsClient
+      initialOrders={activeOrders as any}
       storeId={session.user.storeId}
-      cashierId={session.user.id}
-      operatorRole="SERVER"
-      flowModeLocked
-      initialFlowMode="TABLE_SERVICE"
-      initialViewMode="FLOOR_PLAN"
+      storeName={store?.name || "Restaurant"}
+      operatorName={session.user.name || "Serveur"}
     />
   )
 }

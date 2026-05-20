@@ -56,7 +56,7 @@ export function Sidebar({
       >
         <div className="flex w-full flex-col gap-6 lg:items-center">
           <div className="flex items-center justify-between lg:flex-col lg:gap-2">
-            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${isRestaurateur ? 'bg-white/10' : 'bg-[#212529]'}`}>
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${isRestaurateur ? 'bg-white/10' : 'bg-[#FF6D00] shadow-orange-500/20'}`}>
               <Utensils className="h-6 w-6 text-white" />
             </div>
             <button
@@ -114,7 +114,7 @@ function SidebarLink({
           active
             ? dark
               ? 'bg-white text-[#1a1d24] shadow-[0_8px_20px_rgba(255,255,255,0.2)]'
-              : 'bg-[#212529] text-white shadow-[0_8px_20px_rgba(0,0,0,0.15)] scale-105'
+              : 'bg-[#FF6D00] text-white shadow-[0_8px_20px_rgba(255,109,0,0.2)] scale-105'
             : dark
               ? 'text-white/40 group-hover:bg-white/5 group-hover:text-white'
               : 'text-[#adb5bd] hover:bg-[#f8f9fa] hover:text-[#212529]'
@@ -124,7 +124,7 @@ function SidebarLink({
       </div>
       <span
         className={`text-[10px] font-black uppercase tracking-[0.14em] transition-colors lg:text-[8px] ${
-          active ? (dark ? 'text-white' : 'text-[#212529]') : dark ? 'text-white/50' : 'text-[#adb5bd]'
+          active ? (dark ? 'text-white' : 'text-[#FF6D00]') : dark ? 'text-white/50' : 'text-[#adb5bd]'
         }`}
       >
         {label}
