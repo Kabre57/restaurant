@@ -33,6 +33,7 @@ export async function getStores() {
         address: true,
         phone: true,
         email: true,
+        logo: true,
         commission: true,
         createdAt: true,
         users: {
@@ -57,6 +58,7 @@ export async function createStore(data: {
   address?: string
   phone?: string
   email?: string
+  logo?: string | null
   commission?: number
   managerName: string
   managerEmail: string
@@ -83,6 +85,7 @@ export async function createStore(data: {
         address: data.address?.trim() || null,
         phone: data.phone?.trim() || null,
         email: data.email?.trim() || null,
+        logo: data.logo || null,
         commission: data.commission ?? 15,
         users: {
           create: {

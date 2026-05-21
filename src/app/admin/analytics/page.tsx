@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { 
-  ShoppingBag, 
-  Users, 
-  Clock, 
-  Star, 
-  Loader2, 
-  BarChart3, 
-  TrendingUp 
+import {
+  ShoppingBag,
+  Users,
+  Clock,
+  Star,
+  Loader2,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react'
 import { getAdminAnalytics } from '@/app/actions/analytics'
 
@@ -42,26 +42,25 @@ export default function AdminAnalytics() {
     )
   }
 
-  // Fallbacks using mockup values if real DB data is empty, ensuring gorgeous high-fidelity display
-  const totalOrders = data?.totalOrders || 142
-  const uniqueClients = 98
-  const peakHour = '18h–19h'
-  const rating = '4,7 ★'
+  const totalOrders = data?.totalOrders || 0
+  const uniqueClients = 0 // Pas géré en DB pour le moment
+  const peakHour = '19h-20h'
+  const rating = '5.0 ★'
 
   // Hourly traffic SVG chart points
-  const trafficPoints = [
-    { hour: '11h', val: 10 },
-    { hour: '12h', val: 35 },
-    { hour: '13h', val: 55 },
-    { hour: '14h', val: 40 },
-    { hour: '15h', val: 20 },
-    { hour: '16h', val: 30 },
-    { hour: '17h', val: 65 },
-    { hour: '18h', val: 90 },
-    { hour: '19h', val: 85 },
-    { hour: '20h', val: 70 },
-    { hour: '21h', val: 45 },
-    { hour: '22h', val: 15 },
+  const trafficPoints: { hour: string, val: number }[] = [
+    { hour: '11h', val: 0 },
+    { hour: '12h', val: 0 },
+    { hour: '13h', val: 0 },
+    { hour: '14h', val: 0 },
+    { hour: '15h', val: 0 },
+    { hour: '16h', val: 0 },
+    { hour: '17h', val: 0 },
+    { hour: '18h', val: 0 },
+    { hour: '19h', val: 0 },
+    { hour: '20h', val: 0 },
+    { hour: '21h', val: 0 },
+    { hour: '22h', val: 0 },
   ]
   const maxTraffic = Math.max(...trafficPoints.map(t => t.val), 1)
 
@@ -69,8 +68,8 @@ export default function AdminAnalytics() {
   const chartHeight = 180
   const chartWidth = 700
   const segmentWidth = chartWidth / (trafficPoints.length - 1)
-  
-  const linePath = trafficPoints.reduce((path, p, i) => {
+
+  const linePath = trafficPoints.reduce((path: string, p, i: number) => {
     const x = i * segmentWidth
     const y = chartHeight - (p.val / maxTraffic) * (chartHeight - 40)
     return path + `${i === 0 ? 'M' : 'L'} ${x} ${y}`
@@ -78,44 +77,29 @@ export default function AdminAnalytics() {
 
   const fillPath = linePath + ` L ${chartWidth} ${chartHeight} L 0 ${chartHeight} Z`
 
-  // Store performance cards data (fallback to mockup if DB stores is empty)
+  // Store performance cards data
   const dbStores = data?.stores || []
-  const storePerformances = dbStores.length > 0 
-    ? dbStores.map((store, i) => {
-        const percentage = i === 0 ? 93 : i === 1 ? 75 : 61
-        return {
-          name: store.name,
-          percentage,
-          orders: store.orders,
-        }
-      })
-    : [
-        { name: 'Le Burger Doré - Paris 1er', percentage: 93, orders: 312 },
-        { name: 'Le Burger Doré - Lyon', percentage: 75, orders: 205 },
-        { name: 'Le Burger Doré - Marseille', percentage: 61, orders: 158 },
-      ]
+  const storePerformances = dbStores.map((store) => {
+    return {
+      name: store.name,
+      percentage: store.orders > 0 ? 100 : 0, // Placeholder calculation
+      orders: store.orders,
+    }
+  })
 
-  // Top products list (fallback to mockup if DB is empty)
+  // Top products list
   const dbProducts = data?.topProducts || []
-  const topProductsList = dbProducts.length > 0
-    ? dbProducts.slice(0, 5).map((prod, i) => {
-        const orderCount = prod.quantity
-        const revenue = orderCount * 6
-        const popularity = i === 0 ? 100 : i === 1 ? 80 : i === 2 ? 78 : i === 3 ? 52 : 45
-        return {
-          name: prod.name,
-          orders: orderCount,
-          revenue: `${revenue.toLocaleString()} $`,
-          popularity,
-        }
-      })
-    : [
-        { name: 'Burger au poulet épicé', orders: 342, revenue: '2 040 $', popularity: 95 },
-        { name: 'Double fromage', orders: 280, revenue: '1 820 $', popularity: 78 },
-        { name: 'Frites Maison', orders: 510, revenue: '1 524 $', popularity: 100 },
-        { name: 'Grand Coca-Cola', orders: 410, revenue: '819 $', popularity: 80 },
-        { name: 'Poulet enveloppé', orders: 190, revenue: '948 $', popularity: 52 },
-      ]
+  const topProductsList = dbProducts.slice(0, 5).map((prod, i) => {
+    const orderCount = prod.quantity
+    const revenue = orderCount * 6
+    const popularity = i === 0 ? 100 : i === 1 ? 80 : i === 2 ? 78 : i === 3 ? 52 : 45
+    return {
+      name: prod.name,
+      orders: orderCount,
+      revenue: `${revenue.toLocaleString()} F CFA `,
+      popularity,
+    }
+  })
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -278,8 +262,8 @@ export default function AdminAnalytics() {
                   <span className="text-[#FF6D00]">{perf.percentage}%</span>
                 </div>
                 <div className="h-2.5 bg-[#F1F3F5] rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-[#FF6D00] rounded-full transition-all duration-500" 
+                  <div
+                    className="h-full bg-[#FF6D00] rounded-full transition-all duration-500"
                     style={{ width: `${perf.percentage}%` }}
                   />
                 </div>
@@ -330,8 +314,8 @@ export default function AdminAnalytics() {
                   <td className="px-8 py-4.5 w-64">
                     <div className="flex items-center gap-3">
                       <div className="h-2 w-32 bg-[#F1F3F5] rounded-full overflow-hidden shrink-0">
-                        <div 
-                          className="h-full bg-[#FF6D00] rounded-full" 
+                        <div
+                          className="h-full bg-[#FF6D00] rounded-full"
                           style={{ width: `${prod.popularity}%` }}
                         />
                       </div>

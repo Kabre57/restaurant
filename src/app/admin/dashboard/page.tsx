@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { 
-  ShoppingBag, 
-  Store, 
-  TrendingUp, 
-  AlertTriangle, 
+import {
+  ShoppingBag,
+  Store,
+  TrendingUp,
+  AlertTriangle,
   Clock,
   MoreVertical,
   DollarSign,
@@ -29,7 +29,7 @@ type PendingStats = {
 }
 
 export default function AdminDashboard() {
-  const [salesData, setSalesData] = useState<{name: string, value: number}[]>([])
+  const [salesData, setSalesData] = useState<{ name: string, value: number }[]>([])
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null)
   const [pendingStats, setPendingStats] = useState<PendingStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,21 +49,20 @@ export default function AdminDashboard() {
     loadData()
   }, [])
 
-  // Mock some visual ratios if data is small for the beautiful charts
-  const totalOrders = globalStats?.orderCount || 142
-  const activeStores = globalStats?.storeCount || 3
-  const totalRevenue = globalStats?.totalRevenue || 4231.89
-  const pendingAlerts = pendingStats?.totalPending || 2
+  const totalOrders = globalStats?.orderCount || 0
+  const activeStores = globalStats?.storeCount || 0
+  const totalRevenue = globalStats?.totalRevenue || 0
+  const pendingAlerts = pendingStats?.totalPending || 0
 
   // For the smooth weekly curve SVG chart
-  const points = [
-    { day: 'Lun', val: 1200 },
-    { day: 'Mar', val: 1500 },
-    { day: 'Mer', val: 1100 },
-    { day: 'Jeu', val: 2200 },
-    { day: 'Ven', val: 1800 },
-    { day: 'Sam', val: 3500 },
-    { day: 'Dim', val: 2800 },
+  const points = salesData.length > 0 ? salesData.map(s => ({ day: s.name.substring(0, 3), val: s.value })) : [
+    { day: 'Lun', val: 0 },
+    { day: 'Mar', val: 0 },
+    { day: 'Mer', val: 0 },
+    { day: 'Jeu', val: 0 },
+    { day: 'Ven', val: 0 },
+    { day: 'Sam', val: 0 },
+    { day: 'Dim', val: 0 },
   ]
   const maxVal = Math.max(...points.map(p => p.val), 1)
 
@@ -71,7 +70,7 @@ export default function AdminDashboard() {
   const chartHeight = 220
   const chartWidth = 600
   const segmentWidth = chartWidth / (points.length - 1)
-  
+
   const linePath = points.reduce((path, p, i) => {
     const x = i * segmentWidth
     const y = chartHeight - (p.val / maxVal) * (chartHeight - 40)
@@ -158,7 +157,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#868e96] block mb-1">Revenu total</span>
-            <span className="text-3xl font-black text-[#171717]">{totalRevenue.toLocaleString()} $</span>
+            <span className="text-3xl font-black text-[#171717]">{totalRevenue.toLocaleString()} F CFA </span>
           </div>
         </div>
       </div>
@@ -256,7 +255,7 @@ export default function AdminDashboard() {
                 stroke="#E5E7EB"
                 strokeWidth="24"
               />
-              {/* Repas sur place: 55% -> length = 2 * PI * r = 439.8. 55% = 241.9 */}
+              {/* Repas sur place: 33.3% */}
               <circle
                 cx="100"
                 cy="100"
@@ -265,9 +264,9 @@ export default function AdminDashboard() {
                 stroke="#FF6D00"
                 strokeWidth="24"
                 strokeDasharray="439.8"
-                strokeDashoffset="197.9" /* 439.8 * 0.45 */
+                strokeDashoffset={439.8 - (439.8 * 0.333)}
               />
-              {/* À emporter: 30% -> offset = 439.8 * 0.15 */}
+              {/* À emporter: 33.3% */}
               <circle
                 cx="100"
                 cy="100"
@@ -275,12 +274,12 @@ export default function AdminDashboard() {
                 fill="transparent"
                 stroke="#171717"
                 strokeWidth="24"
-                strokeDasharray="131.9 439.8" /* 439.8 * 0.3 */
-                strokeDashoffset="439.8" /* 439.8 - 439.8 * 0.55 = 197.9 */
+                strokeDasharray={`${439.8 * 0.333} 439.8`}
+                strokeDashoffset="439.8"
                 className="origin-center"
-                style={{ transform: 'rotate(198deg)' }}
+                style={{ transform: 'rotate(120deg)' }}
               />
-              {/* Livraison: 15% */}
+              {/* Livraison: 33.3% */}
               <circle
                 cx="100"
                 cy="100"
@@ -288,17 +287,17 @@ export default function AdminDashboard() {
                 fill="transparent"
                 stroke="#868e96"
                 strokeWidth="24"
-                strokeDasharray="66 439.8" /* 439.8 * 0.15 */
+                strokeDasharray={`${439.8 * 0.334} 439.8`}
                 strokeDashoffset="439.8"
                 className="origin-center"
-                style={{ transform: 'rotate(306deg)' }}
+                style={{ transform: 'rotate(240deg)' }}
               />
             </svg>
 
             {/* Total Indicator in Center */}
             <div className="absolute flex flex-col items-center justify-center">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#868e96]">Total</span>
-              <span className="text-2xl font-black text-[#171717]">2 350</span>
+              <span className="text-2xl font-black text-[#171717]">{totalOrders}</span>
             </div>
           </div>
 
@@ -309,21 +308,21 @@ export default function AdminDashboard() {
                 <div className="w-3 h-3 rounded-full bg-[#FF6D00]" />
                 <span className="text-[#868e96]">Repas sur place</span>
               </div>
-              <span className="font-black text-[#171717]">55%</span>
+              <span className="font-black text-[#171717]">33%</span>
             </div>
             <div className="flex items-center justify-between text-xs font-semibold">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[#171717]" />
                 <span className="text-[#868e96]">À emporter</span>
               </div>
-              <span className="font-black text-[#171717]">30%</span>
+              <span className="font-black text-[#171717]">33%</span>
             </div>
             <div className="flex items-center justify-between text-xs font-semibold">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[#868e96]" />
                 <span className="text-[#868e96]">Livraison</span>
               </div>
-              <span className="font-black text-[#171717]">15%</span>
+              <span className="font-black text-[#171717]">34%</span>
             </div>
           </div>
         </div>

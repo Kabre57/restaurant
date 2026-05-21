@@ -28,12 +28,15 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString()
     };
 
-    // Publier pour la salle (POS)
-    await redis.publish(`store:${storeId}:pos-alerts`, JSON.stringify(event));
-    
-    // Publier pour la cuisine (KDS) - optionnel selon les process, 
-    // mais le client a demandé de l'afficher sur le KDS aussi
-    await redis.publish(`store:${storeId}:kds-alerts`, JSON.stringify(event));
+    try {
+      // Publier pour la salle (POS)
+      await redis.publish(`store:${storeId}:pos-alerts`, JSON.stringify(event));
+
+      // Publier pour la cuisine (KDS)
+      await redis.publish(`store:${storeId}:kds-alerts`, JSON.stringify(event));
+    } catch (redisError) {
+      console.warn("L'alerte n'a pas pu être envoyée via Redis. (Ignoré pour ne pas bloquer le client)", redisError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

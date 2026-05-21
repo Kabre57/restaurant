@@ -24,9 +24,9 @@ export default async function RestaurateurTablesPage() {
         </div>
       </div>
 
-      <FloorPlanDesigner 
-        initialTables={tables} 
-        storeId={session.user.storeId} 
+      <FloorPlanDesigner
+        initialTables={tables}
+        storeId={session.user.storeId}
       />
 
       <section className="rounded-2xl border border-[#dee2e6] bg-white p-5 shadow-sm">
@@ -43,12 +43,12 @@ export default async function RestaurateurTablesPage() {
           {tables.map((table) => (
             <a
               key={table.id}
-              href={`/menu/${session.user.storeId}/${table.id}`}
+              href={`/menu/${session.user.storeId}/${table.number}`}
               target="_blank"
               className="rounded-xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
             >
               <p className="text-xs font-black uppercase tracking-widest text-[#212529]">Table {table.number}</p>
-              <p className="mt-2 break-all text-[10px] font-bold text-[#868e96]">/menu/{session.user.storeId}/{table.id}</p>
+              <p className="mt-2 break-all text-[10px] font-bold text-[#868e96]">/menu/{session.user.storeId}/{table.number}</p>
               <p className="mt-3 rounded-lg bg-[#fff7ed] px-3 py-2 text-[9px] font-black uppercase tracking-widest text-[#f97316]">
                 Ouvrir la carte de cette table
               </p>
