@@ -3,6 +3,9 @@
 import React, { useState } from 'react'
 import { Archive, Plus, AlertTriangle, BarChart2, Search } from 'lucide-react'
 import { AddIngredientModal } from './subcomponents/AddIngredientModal'
+import { UpdateInventoryModal } from './subcomponents/UpdateInventoryModal'
+import { deleteInventory } from '@/app/actions/inventory'
+import { Trash2, Edit2 } from 'lucide-react'
 
 type InventoryData = {
   id: string
@@ -23,7 +26,9 @@ interface Props {
 
 export function AdminInventoryClient({ totalIngredients, lowStockCount, inventories, stores, refreshDataAction }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editingInventory, setEditingInventory] = useState<InventoryData | null>(null)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   const filteredInventories = inventories.filter(item =>
     item.ingredient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -31,8 +36,21 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
   )
 
   const handleSuccess = () => {
-    setIsModalOpen(false)
+    setIsAddModalOpen(false)
+    setEditingInventory(null)
     refreshDataAction()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Voulez-vous vraiment supprimer cet ingrédient de l\'inventaire ?')) return
+    setIsDeleting(id)
+    const res = await deleteInventory(id)
+    setIsDeleting(null)
+    if (res.success) {
+      refreshDataAction()
+    } else {
+      alert(res.error || 'Erreur lors de la suppression')
+    }
   }
 
   return (
@@ -49,7 +67,7 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => setIsAddModalOpen(true)}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF6D00] px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-md shadow-orange-500/10 hover:bg-[#E66200] transition-all"
         >
           <Plus className="h-4 w-4" />
@@ -136,6 +154,7 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
                   <th className="pb-4">Unité</th>
                   <th className="pb-4">Statut</th>
                   <th className="pb-4">Dernière mise à jour</th>
+                  <th className="pb-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F1F6]">
@@ -156,6 +175,25 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
                         </span>
                       </td>
                       <td className="py-4 text-[#868e96]">{new Date(item.lastUpdated).toLocaleDateString()}</td>
+                      <td className="py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setEditingInventory(item)}
+                            className="flex h-8 px-3 items-center justify-center gap-1.5 rounded-xl text-xs font-bold text-[#171717] bg-[#F8F9FA] border border-[#E5E7EB] hover:border-[#171717] transition-all"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            Ajuster
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            disabled={isDeleting === item.id}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl text-[#adb5bd] hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-50"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
@@ -165,10 +203,18 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
         )}
       </div>
 
-      {isModalOpen && (
+      {isAddModalOpen && (
         <AddIngredientModal
           stores={stores}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      {editingInventory && (
+        <UpdateInventoryModal
+          inventory={editingInventory}
+          onClose={() => setEditingInventory(null)}
           onSuccess={handleSuccess}
         />
       )}

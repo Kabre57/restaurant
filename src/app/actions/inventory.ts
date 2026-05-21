@@ -59,3 +59,36 @@ export async function createIngredient(data: {
     return { success: false, error: "Impossible de créer l'ingrédient." }
   }
 }
+
+export async function updateInventory(id: string, quantity: number, minStock: number) {
+  try {
+    const updated = await prisma.inventory.update({
+      where: { id },
+      data: {
+        quantity,
+        minStock,
+        lastUpdated: new Date()
+      }
+    })
+    
+    revalidatePath('/admin/inventaire')
+    return { success: true, inventory: updated }
+  } catch (error) {
+    console.error("Failed to update inventory:", error)
+    return { success: false, error: "Impossible de mettre à jour le stock." }
+  }
+}
+
+export async function deleteInventory(id: string) {
+  try {
+    await prisma.inventory.delete({
+      where: { id }
+    })
+    
+    revalidatePath('/admin/inventaire')
+    return { success: true }
+  } catch (error) {
+    console.error("Failed to delete inventory:", error)
+    return { success: false, error: "Impossible de supprimer l'élément de l'inventaire." }
+  }
+}

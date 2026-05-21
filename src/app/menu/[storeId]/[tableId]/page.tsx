@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import type { Category, Product } from '@prisma/client'
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient'
 import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products'
+import { getProductOptions } from '@/app/actions/productOptions'
 
 interface PageProps {
   params: Promise<{
@@ -73,9 +74,10 @@ export default async function TableMenuPage({ params }: PageProps) {
     return <MenuAccessHelp storeId={storeId} tableId={tableId} />
   }
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, productOptions] = await Promise.all([
     getProductsByStore(storeId),
     getCategoriesByStore(storeId),
+    getProductOptions(storeId),
   ])
 
   return (
@@ -86,6 +88,7 @@ export default async function TableMenuPage({ params }: PageProps) {
       tableNumber={table.number}
       storeId={storeId}
       tableId={tableId}
+      productOptions={productOptions}
     />
   )
 }

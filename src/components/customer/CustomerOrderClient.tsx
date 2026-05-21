@@ -15,6 +15,13 @@ interface CustomerOrderClientProps {
   tableNumber: number
   storeId: string
   tableId: string
+  productOptions: {
+    id: string
+    name: string
+    price: number
+    type: 'SUPPLEMENT' | 'REMOVAL'
+    categoryId: string | null
+  }[]
 }
 
 type CustomerPaymentData = {
@@ -45,59 +52,7 @@ function getProductEmoji(name: string, categoryName: string): string {
   return '🍽️'
 }
 
-// Customizations dynamic generation
-const getCustomizationOptions = (productName: string, categoryName: string) => {
-  const normName = productName.toLowerCase()
-  const normCat = categoryName.toLowerCase()
-
-  if (normName.includes('burger') || normCat.includes('burger') || normName.includes('wrap')) {
-    return {
-      supplements: [
-        { id: 'cheddar', name: 'Cheddar supplémentaire', price: 1.00 },
-        { id: 'bacon', name: 'Bacon croustillant', price: 1.50 },
-        { id: 'sauce_piquante', name: 'Sauce piquante à part', price: 0.50 }
-      ],
-      removals: [
-        { id: 'no_onion', name: 'Sans Oignon' },
-        { id: 'no_tomato', name: 'Sans tomate' },
-        { id: 'no_sauce', name: 'Sans sauce' }
-      ]
-    }
-  }
-
-  if (normName.includes('frite') || normCat.includes('accompagnement')) {
-    return {
-      supplements: [
-        { id: 'cheddar_cheesy', name: 'Cheddar fondu', price: 1.00 },
-        { id: 'bacon_bits', name: 'Bacon croustillant', price: 1.50 },
-        { id: 'onions_frits', name: 'Oignons frits', price: 0.50 }
-      ],
-      removals: [
-        { id: 'no_salt', name: 'Sans sel' }
-      ]
-    }
-  }
-
-  if (normName.includes('dessert') || normCat.includes('dessert') || normName.includes('glace') || normName.includes('gateau')) {
-    return {
-      supplements: [
-        { id: 'coulis_choc', name: 'Coulis de chocolat', price: 0.50 },
-        { id: 'chantilly', name: 'Chantilly', price: 0.50 },
-        { id: 'oreo_crumble', name: 'Brisures d\'Oreo', price: 0.80 }
-      ],
-      removals: []
-    }
-  }
-
-  return {
-    supplements: [
-      { id: 'portion_double', name: 'Portion double', price: 2.00 }
-    ],
-    removals: [
-      { id: 'no_condiments', name: 'Sans condiments' }
-    ]
-  }
-}
+// Customizations dynamic generation is now handled inside the component with useMemo
 
 export default function CustomerOrderClient({
   products,
@@ -105,7 +60,8 @@ export default function CustomerOrderClient({
   storeName,
   tableNumber,
   storeId,
-  tableId
+  tableId,
+  productOptions
 }: CustomerOrderClientProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -130,6 +86,16 @@ export default function CustomerOrderClient({
     })
   }, [products, selectedCategory, searchQuery])
 
+  const getCustomizationOptions = (product: Product & { category: Category }) => {
+    const relevantOptions = productOptions.filter(
+      opt => opt.categoryId === null || opt.categoryId === product.categoryId
+    )
+    return {
+      supplements: relevantOptions.filter(o => o.type === 'SUPPLEMENT'),
+      removals: relevantOptions.filter(o => o.type === 'REMOVAL')
+    }
+  }
+
   const openCustomizer = (product: Product & { category: Category }) => {
     setCustomizingProduct(product)
     setSelectedSupplements([])
@@ -140,7 +106,7 @@ export default function CustomerOrderClient({
   const handleConfirmCustomization = () => {
     if (!customizingProduct) return
 
-    const options = getCustomizationOptions(customizingProduct.name, customizingProduct.category.name)
+    const options = getCustomizationOptions(customizingProduct)
     const priceAdjustment = selectedSupplements.reduce((sum, name) => {
       const matched = options.supplements.find(opt => opt.name === name)
       return sum + (matched?.price || 0)
@@ -330,7 +296,7 @@ export default function CustomerOrderClient({
   }
 
   const activeCustomizationOptions = customizingProduct
-    ? getCustomizationOptions(customizingProduct.name, customizingProduct.category.name)
+    ? getCustomizationOptions(customizingProduct)
     : { supplements: [], removals: [] }
 
   const customizingPriceTotal = useMemo(() => {

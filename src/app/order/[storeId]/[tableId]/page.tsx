@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient';
 import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products';
+import { getProductOptions } from '@/app/actions/productOptions';
 
 interface PageProps {
   params: Promise<{
@@ -32,6 +33,7 @@ export default async function CustomerOrderPage({ params }: PageProps) {
   // Fetch products and categories
   const products = await getProductsByStore(storeId);
   const categories = await getCategoriesByStore(storeId);
+  const productOptions = await getProductOptions(storeId);
 
   return (
     <CustomerOrderClient
@@ -41,6 +43,7 @@ export default async function CustomerOrderPage({ params }: PageProps) {
       tableNumber={table.number}
       storeId={storeId}
       tableId={tableId}
+      productOptions={productOptions}
     />
   );
 }
