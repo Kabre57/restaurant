@@ -27,6 +27,7 @@ model Store {
   platformConnections StorePlatformConnection[]
   productMappings ProductPlatformMapping[]
   users        User[]
+  productOptions ProductOption[]
 }
 
 model User {
@@ -87,6 +88,7 @@ model Category {
   imageUrl  String?
   store     Store     @relation(fields: [storeId], references: [id])
   products  Product[]
+  options   ProductOption[]
 }
 
 model Product {
@@ -315,9 +317,27 @@ model Inventory {
   @@unique([storeId, ingredientId])
 }
 
+model ProductOption {
+  id         String     @id @default(cuid())
+  storeId    String
+  name       String
+  price      Float      @default(0)
+  type       OptionType
+  categoryId String?
+  store      Store      @relation(fields: [storeId], references: [id])
+  category   Category?  @relation(fields: [categoryId], references: [id])
+
+  @@unique([storeId, name, categoryId, type])
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+enum OptionType {
+  SUPPLEMENT
+  REMOVAL
 }
 
 enum Role {
