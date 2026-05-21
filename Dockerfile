@@ -1,18 +1,20 @@
 # Phase 1: Installation des dépendances
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl ca-certificates
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # Phase 2: Build de l'application
 FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl ca-certificates
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Variables d'environnement pour le build
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING 1
 # On génère le client Prisma pendant le build
 RUN npx prisma generate
 RUN npm run build

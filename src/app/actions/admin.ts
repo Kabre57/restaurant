@@ -70,7 +70,8 @@ export async function addProduct(data: {
   storeId: string,
   trackStock?: boolean,
   stockQuantity?: number,
-  minStockLevel?: number
+  minStockLevel?: number,
+  averagePrepTimeMins?: number
 }) {
   try {
     const product = await prisma.product.create({
@@ -83,7 +84,8 @@ export async function addProduct(data: {
         isAvailable: true,
         trackStock: data.trackStock || false,
         stockQuantity: data.stockQuantity || 0,
-        minStockLevel: data.minStockLevel || 5
+        minStockLevel: data.minStockLevel || 5,
+        averagePrepTimeMins: data.averagePrepTimeMins || undefined
       },
       include: { category: true }
     })

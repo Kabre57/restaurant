@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Layers, Loader2, Upload, X } from 'lucide-react'
 import { createAdminCategory, deleteAdminCategory, getAdminCategories } from '@/app/actions/adminCategories'
 import { getStores } from '@/app/actions/stores'
@@ -21,6 +21,21 @@ export default function AdminCategories() {
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setForm(prev => ({ ...prev, imageUrl: reader.result as string }))
+      setIsUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
 
   async function refreshData() {
     const [categoryRows, storeRows] = await Promise.all([getAdminCategories(), getStores()])
@@ -155,10 +170,34 @@ export default function AdminCategories() {
                 </select>
               </label>
               <div className="space-y-2">
-                <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Image URL</span>
-                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#e8eaf4] bg-[#f8f9ff] p-6">
-                  <Upload className="h-6 w-6 text-[var(--parabellum-primary)]" />
-                  <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://..." className="w-full rounded-xl border border-[#e8eaf4] bg-white px-4 py-3 text-xs font-bold outline-none" />
+                <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Image de la Catégorie</span>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-6 cursor-pointer transition-all ${form.imageUrl ? 'border-[#2f9e44] bg-[#ebfbee]' : 'border-[#e8eaf4] hover:border-[var(--parabellum-primary)] bg-[#f8f9ff]'}`}
+                >
+                  {form.imageUrl ? (
+                    <div className="relative w-full h-32 rounded-xl bg-white shadow-sm overflow-hidden flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.imageUrl} alt="Aperçu" className="max-h-full max-w-full object-contain p-2" />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-white text-[10px] font-black uppercase tracking-widest">Changer l'image</span>
+                      </div>
+                    </div>
+                  ) : isUploading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-[var(--parabellum-primary)]" />
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-[var(--parabellum-primary)] opacity-50" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Cliquez pour uploader</span>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept="image/*"
+                  />
                 </div>
               </div>
               <button disabled={isSaving} className="w-full rounded-xl bg-[var(--parabellum-primary)] py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-[#253ec7] disabled:opacity-50">

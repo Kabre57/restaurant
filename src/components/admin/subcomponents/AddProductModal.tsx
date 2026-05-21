@@ -14,6 +14,7 @@ type NewProduct = {
   image: string | null
   category: Category
   categoryId: string
+  averagePrepTimeMins: number | null
 }
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
 export function AddProductModal({ categories, onClose, onSuccess, storeId }: Props) {
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
+  const [prepTime, setPrepTime] = useState('')
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '')
   const [image, setImage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -55,11 +57,12 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
       price: parseFloat(price),
       categoryId,
       image,
-      storeId
+      storeId,
+      averagePrepTimeMins: prepTime ? parseInt(prepTime) : undefined
     })
 
     if (res.success && res.product) {
-      onSuccess(res.product)
+      onSuccess(res.product as unknown as NewProduct)
       onClose()
     } else {
       alert(res.error)
@@ -105,18 +108,29 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Catégorie</label>
-              <select 
-                value={categoryId}
-                onChange={e => setCategoryId(e.target.value)}
-                className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all appearance-none"
-              >
+              <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Temps prépa. (min)</label>
+              <input 
+                type="number"
+                value={prepTime}
+                onChange={e => setPrepTime(e.target.value)}
+                className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
+                placeholder="Ex: 15"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Catégorie</label>
+            <select 
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value)}
+              className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all appearance-none"
+            >
                 {categories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
-          </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Image du Produit</label>
