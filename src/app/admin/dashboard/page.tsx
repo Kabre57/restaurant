@@ -36,8 +36,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadData() {
+      // ✅ Dashboard admin = vue globale plateforme, pas un store spécifique
       const [sales, stats, pending] = await Promise.all([
-        getSalesReport('store_01', 'daily'),
+        getSalesReport(null, 'daily'), // null = agrégation tous stores
         getGlobalStats() as unknown as GlobalStats,
         getPendingValidations()
       ])

@@ -111,10 +111,14 @@ export async function updateProductStock(productId: string, quantity: number) {
   }
 }
 
-export async function getSalesReport(storeId: string, period: 'daily' | 'monthly' = 'daily') {
+export async function getSalesReport(storeId: string | null, period: 'daily' | 'monthly' = 'daily') {
   try {
+    // storeId = null → agrégation globale (dashboard admin plateforme)
     const orders = await prisma.order.findMany({
-      where: { storeId, status: 'COMPLETED' },
+      where: {
+        ...(storeId ? { storeId } : {}),
+        status: 'COMPLETED'
+      },
       select: { total: true, createdAt: true }
     })
 
@@ -134,6 +138,7 @@ export async function getSalesReport(storeId: string, period: 'daily' | 'monthly
     return []
   }
 }
+
 
 export async function getGlobalStats() {
   try {

@@ -43,8 +43,11 @@ export default function DeliveryManagementPage() {
   })
 
   function playNotificationSound() {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
-    audio.play().catch(e => console.log("Audio play blocked by browser:", e))
+    // ✅ Son bundlé localement — fonctionne offline, sans risque CORS
+    const audio = new Audio('/sounds/notification.mp3')
+    audio.play().catch(() => {
+      // Bloqué par la politique d'autoplay du navigateur — pas d'action requise
+    })
   }
 
   // Notification sonore lors de l'arrivée d'une nouvelle commande

@@ -24,14 +24,16 @@ type OrderInput = {
   clientRequestId?: string
   storeId: string
   cashierId?: string
-  total: number
+  /** @deprecated Ne plus passer total depuis le client — recalculé côté serveur */
+  total?: number
   type: OrderType
   paymentMode?: PaymentMethod | string
   paymentStatus?: PaymentStatus | string
   items: {
     productId: string
     quantity: number
-    price: number
+    /** @deprecated Ignoré — le prix est lu depuis la base de données */
+    price?: number
     options?: string
   }[]
   tableId?: string
@@ -128,6 +130,7 @@ export async function createOrder(data: OrderInput) {
       select: {
         id: true,
         name: true,
+        price: true, // utilisé pour le recalcul côté serveur
         averagePrepTimeMins: true,
         trackStock: true,
         stockQuantity: true,
@@ -138,6 +141,15 @@ export async function createOrder(data: OrderInput) {
     if (availableProducts.length !== productIds.length) {
       return { success: false, error: "Un ou plusieurs produits ne sont plus disponibles" }
     }
+
+    // Recalcul sécurisé du total côté serveur — ne jamais faire confiance au client
+    const productPriceMap = new Map(availableProducts.map(p => [p.id, p.price]))
+    const computedSubtotal = data.items.reduce((acc, item) => {
+      const serverPrice = productPriceMap.get(item.productId) ?? 0
+      return acc + serverPrice * item.quantity
+    }, 0)
+    const computedDiscount = data.discount ?? 0
+    const computedTotal = Math.max(0, computedSubtotal - computedDiscount)
 
     const paymentMethod = normalizePaymentMethod(data.paymentMode)
     const paymentStatus = normalizePaymentStatus(data.paymentStatus)
@@ -152,7 +164,7 @@ export async function createOrder(data: OrderInput) {
         storeId: data.storeId,
         cashierId: data.cashierId || null,
         tableId: data.tableId || null,
-        total: data.total,
+        total: computedTotal, // ✅ Prix calculé depuis la BDD, jamais depuis le client
         type: data.type,
         status: OrderStatus.EN_ATTENTE,
         estimatedPrepMinutes,
@@ -162,7 +174,7 @@ export async function createOrder(data: OrderInput) {
           create: data.items.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.price,
+            price: productPriceMap.get(item.productId) ?? 0, // ✅ Prix depuis la BDD
             options: item.options
           }))
         },
@@ -170,7 +182,7 @@ export async function createOrder(data: OrderInput) {
           create: {
             method: paymentMethod,
             status: paymentStatus,
-            amount: data.total
+            amount: computedTotal // ✅ Montant du paiement = total calculé serveur
           }
         }
       }
@@ -215,10 +227,22 @@ export async function createOrder(data: OrderInput) {
           data: { stockQuantity: newQuantity }
         })
 
+        // ✅ Audit trail : enregistrement du mouvement de stock
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            storeId: data.storeId,
+            quantity: -item.quantity, // négatif = sortie
+            reason: 'SALE',
+            referenceId: newOrder.id,
+          }
+        })
+
         if (newQuantity < product.minStockLevel) {
           await publishStockAlert(data.storeId, { name: product.name, stockQuantity: newQuantity })
         }
       }
+
 
       // Increment promotion usage
       if (data.promotionId) {
@@ -242,7 +266,8 @@ export async function createOrder(data: OrderInput) {
   }
 }
 
-export async function addItemsToOrder(orderId: string, items: OrderInput['items'], addedTotal: number) {
+export async function addItemsToOrder(orderId: string, items: OrderInput['items'], _ignoredTotal?: number) {
+  // _ignoredTotal est conservé pour compatibilité API mais ignoré — recalculé depuis la BDD
   try {
     if (!items.length) {
       return { success: false, error: "Aucun article à ajouter" }
@@ -261,11 +286,20 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
       ? OrderStatus.EN_ATTENTE
       : order.status
 
+    // Recalcul sécurisé du delta depuis la BDD
+    const itemProductIds = items.map(i => i.productId)
+    const itemProducts = await prisma.product.findMany({
+      where: { id: { in: itemProductIds } },
+      select: { id: true, price: true }
+    })
+    const itemPriceMap = new Map(itemProducts.map(p => [p.id, p.price]))
+    const addedTotal = items.reduce((acc, i) => acc + (itemPriceMap.get(i.productId) ?? 0) * i.quantity, 0)
+
     const updatedOrder = await prisma.$transaction(async (tx) => {
       const orderUpdate = await tx.order.update({
         where: { id: orderId },
         data: {
-          total: { increment: addedTotal },
+          total: { increment: addedTotal }, // addedTotal recalculé côté serveur
           status: newStatus,
           actualPrepMinutes: null,
           preparationStartedAt: newStatus === OrderStatus.EN_ATTENTE ? null : order.preparationStartedAt,
@@ -275,7 +309,7 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
             create: items.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
-              price: item.price,
+              price: itemPriceMap.get(item.productId) ?? 0, // ✅ Prix BDD
               options: item.options
             }))
           }

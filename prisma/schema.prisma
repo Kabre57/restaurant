@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model Store {
@@ -28,6 +29,7 @@ model Store {
   productMappings ProductPlatformMapping[]
   users        User[]
   productOptions ProductOption[]
+  payouts      Payout[]
 }
 
 model User {
@@ -112,6 +114,9 @@ model Product {
   externalMappings ProductPlatformMapping[]
   store         Store               @relation(fields: [storeId], references: [id])
   ingredients   ProductIngredient[]
+  stockMovements StockMovement[]
+
+  @@index([storeId, categoryId, isAvailable])
 }
 
 model Order {
@@ -153,6 +158,8 @@ model Order {
   payments         Payment[]
 
   @@unique([sourcePlatform, externalOrderId])
+  @@index([storeId, status])
+  @@index([storeId, createdAt])
 }
 
 model StorePlatformConnection {
@@ -330,6 +337,29 @@ model ProductOption {
   @@unique([storeId, name, categoryId, type])
 }
 
+// Historique complet des mouvements de stock — indispensable pour l'auditabilité
+model StockMovement {
+  id          String    @id @default(cuid())
+  productId   String
+  storeId     String
+  quantity    Int       // positif = entrée, négatif = sortie
+  reason      MvtReason
+  referenceId String?   // orderId si reason = SALE
+  note        String?   // note optionnelle pour les ajustements manuels
+  createdAt   DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([storeId, createdAt])
+}
+
+enum MvtReason {
+  SALE       // Déduit lors de la création d'une commande
+  ADJUSTMENT // Ajustement manuel par un admin
+  WASTE      // Perte / casse
+  DELIVERY   // Entrée de stock fournisseur
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
@@ -345,7 +375,7 @@ enum Role {
   RESTAURATEUR
   CASHIER
   SERVER
-   KITCHEN
+  KITCHEN
   DELIVERY
 }
 
@@ -419,3 +449,15 @@ enum TableShape {
   RECTANGLE
   CIRCLE
 }
+
+model Payout {
+  id        String   @id @default(cuid())
+  storeId   String
+  amount    Float
+  status    String   @default("COMPLETED")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id])
+}
+
