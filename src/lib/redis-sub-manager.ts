@@ -1,6 +1,5 @@
 import { redis } from '@/lib/redis'
-import type { RedisLike } from '@/lib/redis'
-import { logger } from '@/lib/logger'
+import type Redis from 'ioredis'
 
 type MessageCallback = (channel: string, message: string) => void
 
@@ -17,7 +16,7 @@ type MessageCallback = (channel: string, message: string) => void
  */
 class RedisSubscriptionManager {
   private static instance: RedisSubscriptionManager
-  private sub: RedisLike
+  private sub: Redis
   private listeners = new Map<string, Set<MessageCallback>>()
   private subscribedChannels = new Set<string>()
 
@@ -25,23 +24,20 @@ class RedisSubscriptionManager {
     // Connexion dédiée au mode Subscribe — ne jamais utiliser `redis` global pour ça
     this.sub = redis.duplicate()
 
-    this.sub.on('message', (...args: unknown[]) => {
-      const channel = args[0] as string
-      const message = args[1] as string
+    this.sub.on('message', (channel: string, message: string) => {
       const callbacks = this.listeners.get(channel)
       if (!callbacks) return
       for (const cb of callbacks) {
         try {
           cb(channel, message)
         } catch (err) {
-          logger.error(`[RedisSub] Erreur dans un callback sur ${channel}:`, err)
+          console.error(`[RedisSub] Erreur dans un callback sur ${channel}:`, err)
         }
       }
     })
 
-    this.sub.on('error', (...args: unknown[]) => {
-      const err = args[0] as Error
-      logger.error('[RedisSub] Erreur de connexion Redis:', err.message)
+    this.sub.on('error', (err: Error) => {
+      console.error('[RedisSub] Erreur de connexion Redis:', err.message)
     })
   }
 
@@ -73,9 +69,8 @@ class RedisSubscriptionManager {
 
     if (newChannels.length > 0) {
       // Abonnement Redis seulement pour les nouveaux channels
-      // Cast nécessaire car spread avec type union — subscribe prend (channel: string)
-      ;(this.sub.subscribe as (...channels: string[]) => Promise<unknown>)(...newChannels).catch((err: Error) => {
-        logger.error('[RedisSub] Impossible de souscrire aux channels:', err.message)
+      this.sub.subscribe(...newChannels).catch((err: Error) => {
+        console.error('[RedisSub] Impossible de souscrire aux channels:', err.message)
       })
     }
 

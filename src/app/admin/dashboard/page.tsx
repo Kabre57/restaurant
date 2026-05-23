@@ -36,12 +36,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadData() {
-      const match = typeof document !== 'undefined' ? document.cookie.match(/(^| )admin_active_store_id=([^;]*)/) : null
-      const activeStoreId = match ? match[2] : null
-
+      // ✅ Dashboard admin = vue globale plateforme, pas un store spécifique
       const [sales, stats, pending] = await Promise.all([
-        getSalesReport(activeStoreId, 'daily'),
-        getGlobalStats(activeStoreId || undefined) as unknown as GlobalStats,
+        getSalesReport(null, 'daily'), // null = agrégation tous stores
+        getGlobalStats() as unknown as GlobalStats,
         getPendingValidations()
       ])
       setSalesData(sales)

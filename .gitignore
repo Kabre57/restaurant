@@ -28,3 +28,8 @@ public/workbox-*.js
 
 
 read_docx.pyTemplate/
+
+# Environment files
+.env
+.env.*
+!.env.example

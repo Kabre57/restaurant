@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { creditLoyaltyPoints, redeemLoyaltyPoints, validatePromotion } from '@/app/actions/loyalty'
-import { prisma } from '@/lib/db'
+import prisma from '@/lib/prisma'
 
 // Mock de Prisma
-vi.mock('@/lib/db', () => {
+vi.mock('@/lib/prisma', () => {
   return {
-    prisma: {
+    default: {
       loyalty: {
         upsert: vi.fn(),
         findUnique: vi.fn(),
@@ -14,39 +14,13 @@ vi.mock('@/lib/db', () => {
       promotion: {
         findFirst: vi.fn(),
       },
-      customer: {
-        findUnique: vi.fn(),
-      },
     },
-  }
-})
-
-// Mock de requireAuth pour éviter les erreurs hors requête Next.js
-vi.mock('@/lib/auth-guard', () => {
-  return {
-    requireAuth: vi.fn().mockResolvedValue({
-      storeId: 'store-1',
-      role: 'RESTAURATEUR',
-      userId: 'user-1'
-    }),
-    assertSameStore: vi.fn()
   }
 })
 
 describe('Loyalty Points Calculation & Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(prisma.customer.findUnique).mockResolvedValue({
-      id: 'cust-1',
-      name: 'Client Test',
-      phone: '0707070707',
-      email: 'test@example.com',
-      loyaltyPoints: 100,
-      totalSpent: 10000,
-      storeId: 'store-1',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    })
   })
 
   describe('creditLoyaltyPoints', () => {
@@ -137,7 +111,7 @@ describe('Loyalty Points Calculation & Operations', () => {
       vi.mocked(prisma.promotion.findFirst).mockResolvedValue({
         id: 'promo-123',
         code: 'WELCOME500',
-        discountType: 'FIXED_AMOUNT',
+        discountType: 'FIXED',
         value: 500,
         isActive: true,
         startDate: null,
@@ -145,7 +119,6 @@ describe('Loyalty Points Calculation & Operations', () => {
         usageLimit: null,
         usedCount: 0,
         storeId: 'store-1',
-        description: null,
         createdAt: now,
         updatedAt: now,
       })
@@ -168,7 +141,6 @@ describe('Loyalty Points Calculation & Operations', () => {
         usageLimit: null,
         usedCount: 0,
         storeId: 'store-1',
-        description: null,
         createdAt: now,
         updatedAt: now,
       })
@@ -184,7 +156,7 @@ describe('Loyalty Points Calculation & Operations', () => {
       vi.mocked(prisma.promotion.findFirst).mockResolvedValue({
         id: 'promo-123',
         code: 'FUTURE',
-        discountType: 'FIXED_AMOUNT',
+        discountType: 'FIXED',
         value: 100,
         isActive: true,
         startDate: futureDate,
@@ -192,7 +164,6 @@ describe('Loyalty Points Calculation & Operations', () => {
         usageLimit: null,
         usedCount: 0,
         storeId: 'store-1',
-        description: null,
         createdAt: now,
         updatedAt: now,
       })
@@ -208,7 +179,7 @@ describe('Loyalty Points Calculation & Operations', () => {
       vi.mocked(prisma.promotion.findFirst).mockResolvedValue({
         id: 'promo-123',
         code: 'EXPIRED',
-        discountType: 'FIXED_AMOUNT',
+        discountType: 'FIXED',
         value: 100,
         isActive: true,
         startDate: null,
@@ -216,7 +187,6 @@ describe('Loyalty Points Calculation & Operations', () => {
         usageLimit: null,
         usedCount: 0,
         storeId: 'store-1',
-        description: null,
         createdAt: now,
         updatedAt: now,
       })

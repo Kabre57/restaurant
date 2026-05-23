@@ -1,28 +1,19 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { prisma } from '@/lib/db'
-import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+import prisma from '@/lib/prisma'
 
 /**
  * Bascule la disponibilité d'un produit (disponible / en rupture).
  * Revalide le chemin du back-office et du POS pour que les changements soient immédiats.
  */
 export async function toggleProductAvailability(productId: string, isAvailable: boolean) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-
   try {
-    const existing = await prisma.product.findUnique({ where: { id: productId } })
-    if (!existing) return { success: false, error: "Produit introuvable." }
-    if (role !== "ADMIN") {
-      assertSameStore(existing.storeId, authStoreId)
-    }
-
     const product = await prisma.product.update({
       where: { id: productId },
       data: { isAvailable },
     })
-    revalidatePath('/restaurateur/produits')
+    revalidatePath('/admin/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -35,21 +26,13 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
  * Met à jour le prix d'un produit (en FCFA).
  */
 export async function updateProductPrice(productId: string, price: number) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-
   try {
     if (price <= 0) return { success: false, error: "Le prix doit être supérieur à 0." }
-    const existing = await prisma.product.findUnique({ where: { id: productId } })
-    if (!existing) return { success: false, error: "Produit introuvable." }
-    if (role !== "ADMIN") {
-      assertSameStore(existing.storeId, authStoreId)
-    }
-
     const product = await prisma.product.update({
       where: { id: productId },
       data: { price },
     })
-    revalidatePath('/restaurateur/produits')
+    revalidatePath('/admin/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -58,14 +41,9 @@ export async function updateProductPrice(productId: string, price: number) {
   }
 }
 
-export async function getProductsForAdmin(storeId?: string) {
-  const { storeId: authStoreId, role } = await requireAuth()
-  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
-
+export async function getProductsForAdmin() {
   try {
-    const where = targetStoreId ? { storeId: targetStoreId } : {}
     const products = await prisma.product.findMany({
-      where,
       orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
       include: { category: true },
     })
@@ -76,16 +54,9 @@ export async function getProductsForAdmin(storeId?: string) {
   }
 }
 
-export async function getCategories(storeId?: string) {
-  const { storeId: authStoreId, role } = await requireAuth()
-  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
-
+export async function getCategories() {
   try {
-    const where = targetStoreId ? { storeId: targetStoreId } : {}
-    return await prisma.category.findMany({ 
-      where,
-      orderBy: { name: 'asc' } 
-    })
+    return await prisma.category.findMany({ orderBy: { name: 'asc' } })
   } catch (error) {
     return []
   }
@@ -102,21 +73,14 @@ export async function addProduct(data: {
   minStockLevel?: number,
   averagePrepTimeMins?: number
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
-
   try {
-    const category = await prisma.category.findUnique({ where: { id: data.categoryId } })
-    if (!category) return { success: false, error: "Catégorie introuvable." }
-    assertSameStore(category.storeId, finalStoreId)
-
     const product = await prisma.product.create({
       data: {
         name: data.name,
         price: data.price,
         categoryId: data.categoryId,
         image: data.image,
-        storeId: finalStoreId,
+        storeId: data.storeId,
         isAvailable: true,
         trackStock: data.trackStock || false,
         stockQuantity: data.stockQuantity || 0,
@@ -125,7 +89,7 @@ export async function addProduct(data: {
       },
       include: { category: true }
     })
-    revalidatePath('/restaurateur/produits')
+    revalidatePath('/admin/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -135,20 +99,12 @@ export async function addProduct(data: {
 }
 
 export async function updateProductStock(productId: string, quantity: number) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-
   try {
-    const existing = await prisma.product.findUnique({ where: { id: productId } })
-    if (!existing) return { success: false, error: "Produit introuvable." }
-    if (role !== "ADMIN") {
-      assertSameStore(existing.storeId, authStoreId)
-    }
-
     const product = await prisma.product.update({
       where: { id: productId },
       data: { stockQuantity: quantity }
     })
-    revalidatePath('/restaurateur/produits')
+    revalidatePath('/admin/produits')
     return { success: true, product }
   } catch (error) {
     return { success: false, error: "Erreur lors de la mise à jour du stock." }
@@ -156,20 +112,11 @@ export async function updateProductStock(productId: string, quantity: number) {
 }
 
 export async function getSalesReport(storeId: string | null, period: 'daily' | 'monthly' = 'daily') {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-  if (!storeId) {
-    if (role !== "ADMIN") throw new Error("Accès non autorisé")
-  } else {
-    if (role !== "ADMIN") {
-      assertSameStore(storeId, authStoreId)
-    }
-  }
-  const finalStoreId = role === "ADMIN" ? (storeId || undefined) : authStoreId
-
   try {
+    // storeId = null → agrégation globale (dashboard admin plateforme)
     const orders = await prisma.order.findMany({
       where: {
-        ...(finalStoreId ? { storeId: finalStoreId } : {}),
+        ...(storeId ? { storeId } : {}),
         status: 'COMPLETED'
       },
       select: { total: true, createdAt: true }
@@ -193,33 +140,18 @@ export async function getSalesReport(storeId: string | null, period: 'daily' | '
 }
 
 
-export async function getGlobalStats(storeId?: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-  if (!storeId) {
-    if (role !== "ADMIN") throw new Error("Accès non autorisé")
-  } else {
-    if (role !== "ADMIN") {
-      assertSameStore(storeId, authStoreId)
-    }
-  }
-  const finalStoreId = role === "ADMIN" ? storeId : authStoreId
-
+export async function getGlobalStats() {
   try {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const orderWhere = finalStoreId 
-      ? { createdAt: { gte: today }, storeId: finalStoreId } 
-      : { createdAt: { gte: today } }
-
     const orderCount = await prisma.order.count({
-      where: orderWhere
+      where: { createdAt: { gte: today } }
     })
     
-    const storeCount = finalStoreId ? 1 : await prisma.store.count()
+    const storeCount = await prisma.store.count()
 
     const stores = await prisma.store.findMany({
-      where: finalStoreId ? { id: finalStoreId } : undefined,
       include: {
         orders: {
           where: { status: 'COMPLETED' },
@@ -244,7 +176,6 @@ export async function getGlobalStats(storeId?: string) {
     }).sort((a, b) => b.revenue - a.revenue).slice(0, 3)
 
     const recentOrders = await prisma.order.findMany({
-      where: finalStoreId ? { storeId: finalStoreId } : undefined,
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { store: true }
@@ -265,8 +196,6 @@ export async function getGlobalStats(storeId?: string) {
 }
 
 export async function getPendingValidations() {
-  await requireAuth(["ADMIN"])
-
   try {
     const restaurateurRows = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count

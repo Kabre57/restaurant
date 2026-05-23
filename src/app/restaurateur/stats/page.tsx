@@ -119,41 +119,28 @@ function TopProducts({ orders }: { orders: StatsOrder[] }) {
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function RestaurateurStats() {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const [orders, setOrders] = useState<StatsOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
 
   useEffect(() => {
-    if (status === 'loading') return
-
     const storeId = session?.user?.storeId
-    if (!storeId) {
-      setLoading(false)
-      return
-    }
-    
-    const activeStoreId = storeId as string
+    if (!storeId) return
+    const activeStoreId = storeId
     let isCancelled = false
 
     async function fetchStats() {
-      try {
-        setLoading(true)
-        const data = await getStoreOrders(activeStoreId)
-        if (isCancelled) return
-        setOrders(data as StatsOrder[])
-      } catch (err) {
-        console.error("Failed to load store statistics:", err)
-      } finally {
-        if (!isCancelled) {
-          setLoading(false)
-        }
-      }
+      setLoading(true)
+      const data = await getStoreOrders(activeStoreId)
+      if (isCancelled) return
+      setOrders(data as StatsOrder[])
+      setLoading(false)
     }
 
     void fetchStats()
     return () => { isCancelled = true }
-  }, [session?.user?.storeId, status])
+  }, [session?.user?.storeId])
 
   const completedOrders = orders.filter((o) => o.status !== 'CANCELLED')
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.total, 0)

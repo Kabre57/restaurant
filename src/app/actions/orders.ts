@@ -1,17 +1,10 @@
 'use server'
 
-import { OrderStatus, OrderType, PaymentStatus, Prisma, PaymentType } from '@prisma/client'
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { prisma } from '@/lib/db'
+import { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client'
+import prisma from '@/lib/prisma'
 import { computeEstimatedPrepMinutes } from '@/lib/prep-estimates'
-import { orderCreateSchema } from '@/lib/validation/schemas'
-import { checkRateLimit } from '@/lib/rate-limit'
-import { headers } from 'next/headers'
 import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
-import { decrementIngredientInventory } from './inventory'
-import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
 
 const orderInclude = {
   items: {
@@ -34,7 +27,7 @@ type OrderInput = {
   /** @deprecated Ne plus passer total depuis le client — recalculé côté serveur */
   total?: number
   type: OrderType
-  paymentMode?: string
+  paymentMode?: PaymentMethod | string
   paymentStatus?: PaymentStatus | string
   items: {
     productId: string
@@ -50,32 +43,10 @@ type OrderInput = {
   externalPayload?: Prisma.InputJsonValue
 }
 
-async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: string): Promise<string> {
-  if (methodCodeOrId && methodCodeOrId.length > 20) {
-    return methodCodeOrId;
-  }
-  
-  let type: PaymentType = 'CASH';
-  if (methodCodeOrId === 'CB' || methodCodeOrId === 'CARTE') type = 'CARD';
-  if (methodCodeOrId === 'MOBILE_MONEY' || methodCodeOrId === 'MOBILE') type = 'MOBILE_MONEY';
-
-  let pm = await prisma.paymentMethod.findFirst({
-    where: { storeId, type }
-  });
-  
-  if (!pm) {
-    pm = await prisma.paymentMethod.findFirst({
-      where: { storeId: null, type }
-    });
-  }
-
-  if (!pm) {
-    pm = await prisma.paymentMethod.create({
-      data: { name: type === 'CASH' ? 'Espèces' : type, type, storeId, isDefault: true }
-    });
-  }
-
-  return pm.id;
+function normalizePaymentMethod(method?: PaymentMethod | string): PaymentMethod {
+  if (method === PaymentMethod.CB || method === 'CARTE') return PaymentMethod.CB
+  if (method === PaymentMethod.MOBILE_MONEY || method === 'MOBILE') return PaymentMethod.MOBILE_MONEY
+  return PaymentMethod.ESPECES
 }
 
 function normalizePaymentStatus(status?: PaymentStatus | string): PaymentStatus {
@@ -130,32 +101,6 @@ async function updateProductPrepAveragesFromOrder(tx: Prisma.TransactionClient, 
 
 export async function createOrder(data: OrderInput) {
   try {
-    // FIXED: Ajouter getServerSession() au début
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return { success: false, error: "Authentification requise" }
-    }
-    const user = session.user as any
-
-    // FIXED: Ajouter rate limiting (5 req/minute)
-    const headerList = await headers()
-    const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "unknown"
-    const rateLimitResult = await checkRateLimit(`action-create-order:${ip}`, 5, 60)
-    if (!rateLimitResult.allowed) {
-      return { success: false, error: "Trop de requêtes. Réessayez plus tard." }
-    }
-
-    // FIXED: Ajouter validation Zod (orderCreateSchema)
-    const parsed = orderCreateSchema.safeParse(data)
-    if (!parsed.success) {
-      return { success: false, error: "Données de commande invalides" }
-    }
-
-    // FIXED: Vérifier storeId isolation
-    if (user.role !== "ADMIN" && user.storeId !== data.storeId) {
-      return { success: false, error: "Accès refusé : ce store ne vous appartient pas" }
-    }
-
     if (!data.items.length) {
       return { success: false, error: "La commande ne contient aucun article" }
     }
@@ -206,7 +151,7 @@ export async function createOrder(data: OrderInput) {
     const computedDiscount = data.discount ?? 0
     const computedTotal = Math.max(0, computedSubtotal - computedDiscount)
 
-    const paymentMethodId = await resolvePaymentMethodId(data.storeId, data.paymentMode as string)
+    const paymentMethod = normalizePaymentMethod(data.paymentMode)
     const paymentStatus = normalizePaymentStatus(data.paymentStatus)
     const estimatedPrepMinutes = computeEstimatedPrepMinutes(data.items, availableProducts)
     const estimatedReadyAt = buildEstimatedReadyAt(estimatedPrepMinutes)
@@ -235,7 +180,7 @@ export async function createOrder(data: OrderInput) {
         },
         payments: {
           create: {
-            paymentMethodId: paymentMethodId,
+            method: paymentMethod,
             status: paymentStatus,
             amount: computedTotal // ✅ Montant du paiement = total calculé serveur
           }
@@ -271,9 +216,6 @@ export async function createOrder(data: OrderInput) {
 
       for (const item of data.items) {
         const product = productMap.get(item.productId)
-
-        // Déduction en cascade de la recette (ingrédients & emballages)
-        await decrementIngredientInventory(tx, data.storeId, item.productId, item.quantity)
 
         if (!product || !product.trackStock) {
           continue
@@ -315,9 +257,6 @@ export async function createOrder(data: OrderInput) {
 
     await publishOrderEvent('new-order', order)
     await publishPOSOrderAlert('ORDER_CREATED', order)
-    
-    // Invalider le cache des commandes pour le dashboard
-    await redis.del(REDIS_KEYS.stats(data.storeId))
 
     return { success: true, order };
   } catch (error) {
@@ -415,9 +354,6 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
           }
         })
 
-        // Déduction en cascade de la recette (ingrédients & emballages)
-        await decrementIngredientInventory(tx, order.storeId, item.productId, item.quantity)
-
         if (product?.trackStock) {
           const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
           await tx.product.update({
@@ -457,7 +393,7 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
         await prisma.payment.create({
           data: {
             orderId,
-            paymentMethodId: await resolvePaymentMethodId(order.storeId, 'ESPECES'),
+            method: PaymentMethod.ESPECES,
             status: PaymentStatus.EN_ATTENTE,
             amount: addedTotal,
           }
@@ -466,7 +402,6 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
     }
 
     await publishOrderEvent('order-updated', updatedOrder)
-    await redis.del(REDIS_KEYS.stats(order.storeId))
 
     return { success: true, order: updatedOrder }
   } catch (error) {
@@ -475,7 +410,7 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
   }
 }
 
-export async function settleOrderPayment(orderId: string, paymentMode: string, storeId?: string) { return settleOrderPaymentAction(orderId, paymentMode, storeId) }
+export async function settleOrderPayment(orderId: string, paymentMode: PaymentMethod | string, storeId?: string) { return settleOrderPaymentAction(orderId, paymentMode, storeId) }
 export async function markOrderServed(orderId: string, storeId?: string) { return markOrderServedAction(orderId, storeId) }
 export async function syncOrdersBatch(orders: OrderInput[]) {
   const batch = orders.slice(0, 10)
@@ -510,13 +445,11 @@ export async function getActiveOrders(storeId: string) {
 
 export async function getStoreOrders(storeId: string) {
   try {
-    return await getCached(REDIS_KEYS.stats(storeId), 300, async () => {
-      return await prisma.order.findMany({
-        where: { storeId },
-        include: orderInclude,
-        orderBy: { createdAt: 'desc' },
-        take: 100
-      })
+    return await prisma.order.findMany({
+      where: { storeId },
+      include: orderInclude,
+      orderBy: { createdAt: 'desc' },
+      take: 100
     })
   } catch (error) {
     console.error("Failed to fetch store orders:", error)
@@ -592,8 +525,6 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus | s
     if (order.status === OrderStatus.PRET) {
       await publishPOSOrderAlert('ORDER_READY', order)
     }
-    
-    await redis.del(REDIS_KEYS.stats(order.storeId))
 
     return { success: true, order };
   } catch (error) {

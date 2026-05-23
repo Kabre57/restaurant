@@ -7,7 +7,6 @@ export type CartItem = {
   price: number
   quantity: number
   options?: string
-  image?: string | null
 }
 
 interface CartStore {

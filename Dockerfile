@@ -3,9 +3,10 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl ca-certificates
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY node_modules ./node_modules
-COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci --no-audit --no-fund --prefer-offline
 
 # Phase 2: Build de l'application
 FROM node:20-alpine AS builder
@@ -17,6 +18,8 @@ COPY . .
 # Variables d'environnement pour le build
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING 1
+# On génère le client Prisma pendant le build
+RUN npx prisma generate
 RUN npm run build
 
 # Phase 3: Exécution en production

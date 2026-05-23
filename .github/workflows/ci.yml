@@ -1,0 +1,78 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  build-and-test:
+    name: Build, Lint & Type-Check
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: pos_restaurant_test
+          POSTGRES_PASSWORD: postgres_password
+          POSTGRES_USER: postgres_user
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres_user:postgres_password@localhost:5432/pos_restaurant_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      NEXTAUTH_SECRET: supersecretnextauthsecretfordevelopmentpurpose
+      NEXTAUTH_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: restaurant/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: restaurant
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: restaurant
+        run: npx prisma generate
+
+      - name: Database Schema Sync
+        working-directory: restaurant
+        run: npx prisma db push --skip-generate
+
+      - name: Run ESLint
+        working-directory: restaurant
+        run: npm run lint
+
+      - name: Type Check TypeScript
+        working-directory: restaurant
+        run: npx tsc --noEmit
+
+      - name: Next.js Production Build
+        working-directory: restaurant
+        run: npm run build
