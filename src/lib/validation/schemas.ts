@@ -1,4 +1,4 @@
-import { DeliveryPlatform, Priority, TicketStatus } from '@prisma/client'
+import { DeliveryPlatform, OrderType, PaymentMethod, Priority, TicketStatus } from '@prisma/client'
 import { z } from 'zod'
 
 export const callServerSchema = z.object({
@@ -58,6 +58,39 @@ export const glovoWebhookSchema = z.object({
   delivery_address: z.string().optional().nullable(),
 })
 
+/**
+ * Schéma de création de commande POS (appel depuis le caissier web).
+ * clientRequestId doit être un UUID v4 valide pour garantir l'idempotence
+ * et éviter les collisions intentionnelles par manipulation de string.
+ */
+export const orderCreateSchema = z.object({
+  clientRequestId: z.string().uuid('clientRequestId doit être un UUID v4').optional(),
+  storeId: z.string().min(1, 'storeId requis'),
+  type: z.nativeEnum(OrderType),
+  paymentMode: z.nativeEnum(PaymentMethod).optional(),
+  tableId: z.string().optional(),
+  promotionId: z.string().optional(),
+  discount: z.number().min(0).optional(),
+  customerId: z.string().optional(),
+  items: z.array(z.object({
+    productId: z.string().min(1),
+    quantity: z.number().int().positive('Quantité doit être ≥ 1'),
+    options: z.string().optional(),
+  })).min(1, 'La commande doit contenir au moins un article'),
+})
+
+/** Schéma pour l'impression de ticket via l'agent hardware local */
+export const hardwarePrintSchema = z.object({
+  orderId: z.string().min(1),
+  copies: z.number().int().min(1).max(5).default(1),
+})
+
+/** Schéma pour l'ouverture du tiroir-caisse */
+export const hardwareDrawerSchema = z.object({
+  reason: z.enum(['SALE', 'MANUAL_OPEN', 'FLOAT_CHECK']).default('SALE'),
+})
+
 export function formatZodError(error: z.ZodError) {
   return error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`).join('; ')
 }
+

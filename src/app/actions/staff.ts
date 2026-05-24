@@ -13,6 +13,11 @@ export async function getStoreStaff(storeId: string) {
         name: true,
         email: true,
         role: true,
+        salary: true,
+        contractType: true,
+        hireDate: true,
+        phone: true,
+        status: true,
         createdAt: true
       },
       orderBy: { createdAt: 'desc' }
@@ -23,7 +28,18 @@ export async function getStoreStaff(storeId: string) {
   }
 }
 
-export async function createStaffMember(data: { name: string, email: string, password: string, role: Role, storeId: string }) {
+export async function createStaffMember(data: {
+  name: string
+  email: string
+  password: string
+  role: Role
+  storeId: string
+  salary?: number
+  contractType?: string
+  hireDate?: Date
+  phone?: string
+  status?: string
+}) {
   try {
     const hashedPassword = await bcrypt.hash(data.password, 10)
     
@@ -33,7 +49,12 @@ export async function createStaffMember(data: { name: string, email: string, pas
         email: data.email,
         password: hashedPassword,
         role: data.role,
-        storeId: data.storeId
+        storeId: data.storeId,
+        salary: data.salary,
+        contractType: data.contractType,
+        hireDate: data.hireDate,
+        phone: data.phone,
+        status: data.status || "ACTIVE"
       }
     })
     
@@ -60,7 +81,17 @@ export async function deleteStaffMember(userId: string) {
   }
 }
 
-export async function updateStaffMember(userId: string, data: { name?: string, email?: string, role?: Role, password?: string }) {
+export async function updateStaffMember(userId: string, data: {
+  name?: string
+  email?: string
+  role?: Role
+  password?: string
+  salary?: number
+  contractType?: string
+  hireDate?: Date
+  phone?: string
+  status?: string
+}) {
   try {
     const updateData: any = { ...data }
     

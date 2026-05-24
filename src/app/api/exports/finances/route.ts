@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { getFinancialSummary } from '@/app/actions/finances'
 import { createCsv, createExcelHtml, createSimplePdf } from '@/lib/exports'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return new Response('Forbidden', { status: 403 })
