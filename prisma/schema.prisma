@@ -8,29 +8,35 @@ datasource db {
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
+// ---- STRUCTURE COMMERCIALE EXISTANTE ----
+
 model Store {
-  id           String        @id @default(cuid())
-  name         String
-  address      String?
-  phone        String?
-  email        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  commission   Float         @default(15.0)
-  logo         String?
-  categories   Category[]
-  inventories  Inventory[]
-  orders       Order[]
-  products     Product[]
-  promotions   Promotion[]
-  reservations Reservation[]
-  tables       Table[]
+  id                  String                    @id @default(cuid())
+  name                String
+  address             String?
+  phone               String?
+  email               String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  commission          Float                     @default(15.0)
+  logo                String?
+  categories          Category[]
+  inventories         Inventory[]
+  orders              Order[]
+  products            Product[]
+  promotions          Promotion[]
+  reservations        Reservation[]
+  tables              Table[]
   platformConnections StorePlatformConnection[]
-  productMappings ProductPlatformMapping[]
-  users        User[]
-  productOptions ProductOption[]
-  payouts      Payout[]
+  productMappings     ProductPlatformMapping[]
+  users               User[]
+  productOptions      ProductOption[]
+  payouts             Payout[]
+  // Ajout pour RH
+  hrConfigurations    HrConfiguration[]
 }
+
+// ---- MODÈLE USER (CENTRE DES RH) ----
 
 model User {
   id           String          @id @default(cuid())
@@ -39,17 +45,181 @@ model User {
   email        String          @unique
   password     String
   role         Role            @default(CASHIER)
-  salary       Float?          // Salaire de base mensuel (FCFA)
-  contractType String?         // Type de contrat (CDI, CDD, STAGE, FREELANCE)
-  hireDate     DateTime?       // Date d'embauche
+  
+  // --- Champs RH enrichis ---
+  matricule    String?         @unique
+  civilite     String?         // M., Mme, Mlle
+  sexe         String?         // M / F
+  dateBirth    DateTime?       // Date de naissance
+  nationality  String?
+  address      String?
   phone        String?         // Téléphone professionnel
+  personalPhone String?        // Téléphone personnel
+  
+  salary       Float?          // Salaire de base mensuel (FCFA)
+  contractType String?         // CDI, CDD, STAGE, FREELANCE
+  
+  // --- Composition Familiale (Pour le calcul IGR) ---
+  maritalStatus String?        // SINGLE, MARRIED, DIVORCED, WIDOWED
+  numberOfChildren Int         @default(0)
+
+  hireDate     DateTime?       // Date d'embauche
   status       String          @default("ACTIVE") // ACTIVE, INACTIVE, LEAVE, SUSPENDED
+  
+  cnpsNumber   String?         // Numéro CNPS
+  bankName     String?         // Nom de la banque
+  rib          String?         // RIB / IBAN
+  
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+
+  // --- Relations existantes ---
   orders       Order[]         @relation("CashierOrders")
   tickets      SupportTicket[]
   store        Store           @relation(fields: [storeId], references: [id])
+
+  // --- Nouvelles Relations RH ---
+  contracts           Contract[]
+  payrolls            Payroll[]
+  leaveRequests       LeaveRequest[]
+  loans               Loan[]
+  evaluationsReceived Evaluation[]    @relation("UserEvaluations")
+  evaluationsGiven    Evaluation[]    @relation("EvaluatorEvaluations")
+  history             UserHistory[]
 }
+
+// ---- MODULE : CONTRATS & CARRIÈRE ----
+
+model Contract {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String    // CDI, CDD, Stage
+  startDate        DateTime
+  endDate          DateTime?
+  position         String?   // Poste occupé
+  department       String?   // Service/Département
+  baseSalary       Float
+  status           String    @default("ACTIVE") // ACTIVE, TERMINATED, EXPIRED
+  createdAt        DateTime  @default(now())
+  
+  user             User      @relation(fields: [userId], references: [id])
+  terminations     ContractTermination[]
+}
+
+model ContractTermination {
+  id               String    @id @default(cuid())
+  contractId       String
+  date             DateTime
+  reason           String?
+  indemnityAmount  Float     @default(0)
+  contract         Contract  @relation(fields: [contractId], references: [id])
+}
+
+model UserHistory {
+  id               String    @id @default(cuid())
+  userId           String
+  date             DateTime  @default(now())
+  type             String    // PROMOTION, SALARY_CHANGE, TRANSFER
+  description      String?
+  oldValue         String?
+  newValue         String?
+  user             User      @relation(fields: [userId], references: [id])
+}
+
+// ---- MODULE : PAIE & SALAIRES ----
+
+model Payroll {
+  id               String    @id @default(cuid())
+  userId           String
+  period           String    // Format: YYYY-MM
+  baseSalary       Float
+  bonuses          Float     @default(0)    // Primes
+  overtimeAmount   Float     @default(0)    // Heures supp
+  deductions       Float     @default(0)    // Retenues (prêts, absences)
+  taxAmount        Float     @default(0)    // Impôts (IGR, etc.)
+  socialSecurity   Float     @default(0)    // Part salariale CNPS
+  netSalary        Float
+  employerCost     Float     // Coût total pour l'employeur
+  paymentStatus    String    @default("PENDING") // PENDING, VALIDATED, PAID
+  paymentDate      DateTime?
+  reference        String?   // Réf virement
+  createdAt        DateTime  @default(now())
+
+  user             User      @relation(fields: [userId], references: [id])
+}
+
+// ---- MODULE : CONGÉS & ABSENCES ----
+
+model LeaveRequest {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String    // PAID, SICK, MATERNITY, UNPAID
+  startDate        DateTime
+  endDate          DateTime
+  daysCount        Int
+  reason           String?
+  status           String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  approvedById     String?
+  decisionDate     DateTime?
+  comment          String?
+  createdAt        DateTime  @default(now())
+
+  user             User      @relation(fields: [userId], references: [id])
+}
+
+// ---- MODULE : AVANCES & PRÊTS ----
+
+model Loan {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String    // ADVANCE (Avance), LOAN (Prêt)
+  amount           Float
+  remainingAmount  Float
+  monthlyDeduction Float     // Retenue mensuelle sur salaire
+  startDate        DateTime
+  status           String    @default("ONGOING") // ONGOING, REPAID, CANCELLED
+  reason           String?
+  createdAt        DateTime  @default(now())
+
+  user             User      @relation(fields: [userId], references: [id])
+}
+
+// ---- MODULE : ÉVALUATIONS ----
+
+model Evaluation {
+  id               String    @id @default(cuid())
+  userId           String    // L'employé évalué
+  evaluatorId      String    // Le manager évaluateur
+  period           String    // ex: "Année 2024"
+  date             DateTime
+  score            Float     // Note globale
+  skills           Json?     // Détail des compétences (JSON)
+  objectives       Json?     // Objectifs fixés (JSON)
+  comments         String?
+  status           String    @default("DRAFT") // DRAFT, COMPLETED, VALIDATED
+  createdAt        DateTime  @default(now())
+
+  user             User      @relation("UserEvaluations", fields: [userId], references: [id])
+  evaluator        User      @relation("EvaluatorEvaluations", fields: [evaluatorId], references: [id])
+}
+
+// ---- CONFIGURATION RH (Taux, Plafonds) ----
+
+model HrConfiguration {
+  id               String    @id @default(cuid())
+  storeId          String    @unique
+  cnpsEmployeeRate Float     @default(6.3)  // Taux salarial (%)
+  cnpsEmployerRate Float     @default(16.45) // Taux patronal (%)
+  itsRate          Float     @default(1.2)  // Taux ITS (%)
+  baseImposableRate Float    @default(80.0) // % du salaire brut imposable
+  cnpsCeiling      Float     @default(1647315) // Plafond CNPS
+  igrBaseRate      Float     @default(85.0) // % Abattement IGR (85% par défaut)
+  taxRates         Json?     // Barèmes d'imposition additionnels
+  updatedAt        DateTime  @updatedAt
+  store            Store     @relation(fields: [storeId], references: [id])
+}
+
+// ---- RESTE DES MODÈLES EXISTANTS (Inchangés) ----
 
 model PlatformConfig {
   id            String   @id @default("global")
@@ -342,15 +512,14 @@ model ProductOption {
   @@unique([storeId, name, categoryId, type])
 }
 
-// Historique complet des mouvements de stock — indispensable pour l'auditabilité
 model StockMovement {
   id          String    @id @default(cuid())
   productId   String
   storeId     String
-  quantity    Int       // positif = entrée, négatif = sortie
+  quantity    Int
   reason      MvtReason
-  referenceId String?   // orderId si reason = SALE
-  note        String?   // note optionnelle pour les ajustements manuels
+  referenceId String?
+  note        String?
   createdAt   DateTime  @default(now())
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -358,11 +527,24 @@ model StockMovement {
   @@index([storeId, createdAt])
 }
 
+model Payout {
+  id        String   @id @default(cuid())
+  storeId   String
+  amount    Float
+  status    String   @default("COMPLETED")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id])
+}
+
+// ---- ENUMS EXISTANTS ----
+
 enum MvtReason {
-  SALE       // Déduit lors de la création d'une commande
-  ADJUSTMENT // Ajustement manuel par un admin
-  WASTE      // Perte / casse
-  DELIVERY   // Entrée de stock fournisseur
+  SALE
+  ADJUSTMENT
+  WASTE
+  DELIVERY
 }
 
 enum DiscountType {
@@ -412,8 +594,8 @@ enum DeliveryPlatform {
 
 enum OrderStatus {
   EN_ATTENTE
-  PREPARATION @map("PRÉPARATION")
-  PRET        @map("PRÊT")
+  PREPARATION
+  PRET
   COMPLETED
   CANCELLED
 }
@@ -454,15 +636,3 @@ enum TableShape {
   RECTANGLE
   CIRCLE
 }
-
-model Payout {
-  id        String   @id @default(cuid())
-  storeId   String
-  amount    Float
-  status    String   @default("COMPLETED")
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  store     Store    @relation(fields: [storeId], references: [id])
-}
-

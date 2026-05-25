@@ -79,4 +79,68 @@ Pour planifier une sauvegarde automatique toutes les nuits à minuit, ajoutez ce
 
 ---
 
+## ☸️ 6. Déploiement Kubernetes sur VPS
+Ce projet peut être déployé dans un cluster Kubernetes en utilisant les manifests fournis dans le dossier `k8s/`.
+
+### Pré-requis
+- `kubectl` configuré sur votre cluster
+- Image Docker accessible depuis le cluster (`your-registry/pos-app:latest`)
+- Accès aux secrets Kubernetes pour stocker les variables sensibles
+
+### Étapes de base
+1. Construisez l'image Docker :
+```bash
+docker build -t your-registry/pos-app:latest .
+```
+2. Poussez l'image vers votre registre :
+```bash
+docker push your-registry/pos-app:latest
+```
+3. Appliquez les manifests Kubernetes :
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secret.yaml
+kubectl apply -f k8s/postgres-statefulset.yaml
+kubectl apply -f k8s/redis-deployment.yaml
+kubectl apply -f k8s/app-deployment.yaml
+kubectl apply -f k8s/app-service.yaml
+```
+
+### Mise à jour du déploiement
+Lorsque vous publiez une nouvelle image :
+```bash
+docker build -t your-registry/pos-app:latest .
+docker push your-registry/pos-app:latest
+kubectl set image deployment/pos-app pos-app=your-registry/pos-app:latest -n pos-app
+kubectl rollout status deployment/pos-app -n pos-app
+```
+
+### Déploiement depuis le script
+Le script `update-db.sh` supporte les variables d'environnement :
+- `K8S_IMAGE_NAME` : nom de l'image Docker à construire et déployer
+- `K8S_PUSH_IMAGE` : `true` pour pousser l'image dans le registre après build
+
+Exemple :
+```bash
+K8S_IMAGE_NAME=your-registry/pos-app:latest K8S_PUSH_IMAGE=true ./update-db.sh
+```
+
+### Déploiement de la base de données
+Le manifest `k8s/postgres-statefulset.yaml` crée une instance PostgreSQL avec un volume persistant.
+Si vous préférez une base managée, remplacez ce manifest par votre service externe et mettez à jour `k8s/secret.yaml`.
+
+### Déploiement Redis
+Le manifest `k8s/redis-deployment.yaml` expose Redis dans le cluster.
+En production, il est recommandé d’utiliser un service Redis managé ou un opérateur Redis pour plus de résilience.
+
+### Guide rapide pour le script `update-db.sh`
+Le script `update-db.sh` utilise désormais Kubernetes uniquement :
+- il construit l’image Docker
+- il applique les manifests
+- il surveille le rollout de `pos-app`
+
+> Ce script ne contient plus de fallback PM2.
+
+---
+
 *Développé avec excellence pour une fiabilité maximale en production.*

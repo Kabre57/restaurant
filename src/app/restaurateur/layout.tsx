@@ -23,6 +23,14 @@ import {
   X,
   Compass,
   LifeBuoy,
+  ChevronDown,
+  ChevronRight,
+  Briefcase,
+  FileText,
+  DollarSign,
+  Calendar,
+  CreditCard,
+  Star,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -31,17 +39,32 @@ type StoreSummary = {
 }
 
 const menuItems = [
-  { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
-  { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
-  { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks' },
-  { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
-  { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
-  { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
-  { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
-  { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
-  { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support' },
-  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
-  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
+  { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks', roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'] },
+  { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes', roles: ['RESTAURATEUR', 'MANAGER', 'WAITER', 'CASHIER'] },
+  { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons', roles: ['RESTAURATEUR', 'MANAGER'] },
+  {
+    name: 'Ressources Humaines',
+    icon: <Users />,
+    href: '/restaurateur/rh',
+    roles: ['ALL'], // Accessible to everyone, but sub-items filtered
+    subItems: [
+      { name: 'Dashboard RH', href: '/restaurateur/rh/dashboard', icon: <LayoutGrid />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Effectifs', href: '/restaurateur/rh/effectifs', icon: <Briefcase />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Mes Contrats', href: '/restaurateur/rh/contrats', icon: <FileText />, roles: ['ALL'] },
+      { name: 'Mes Bulletins', href: '/restaurateur/rh/paie', icon: <DollarSign />, roles: ['ALL'] },
+      { name: 'Mes Congés', href: '/restaurateur/rh/conges', icon: <Calendar />, roles: ['ALL'] },
+      { name: 'Avances & Prêts', href: '/restaurateur/rh/avances-prets', icon: <CreditCard />, roles: ['ALL'] },
+      { name: 'Évaluations', href: '/restaurateur/rh/evaluations', icon: <Star />, roles: ['ALL'] },
+      { name: 'Configuration', href: '/restaurateur/rh/configuration', icon: <Settings />, roles: ['RESTAURATEUR', 'MANAGER'] },
+    ],
+  },
+  { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support', roles: ['ALL'] },
+  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config', roles: ['RESTAURATEUR'] },
+  { name: 'Espaces', icon: <Compass />, href: '/espaces', roles: ['ALL'] },
 ]
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +73,9 @@ export default function RestaurateurLayout({ children }: { children: React.React
   const { data: session } = useSession()
   const [store, setStore] = useState<StoreSummary | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    '/restaurateur/rh': pathname.startsWith('/restaurateur/rh')
+  })
 
   useEffect(() => {
     if (!session?.user?.storeId) return
@@ -105,23 +131,81 @@ export default function RestaurateurLayout({ children }: { children: React.React
           </button>
         </div>
 
-        <nav className="flex-1 space-y-3 px-4 py-6 lg:items-center lg:px-3 xl:px-4">
+        <nav className="flex-1 overflow-y-auto space-y-1.5 px-4 py-6 lg:px-3 xl:px-4">
           {menuItems.map((item) => {
-            const active = pathname.startsWith(item.href)
+            const userRole = session?.user?.role || 'WAITER'
+            const canAccessItem = item.roles.includes('ALL') || item.roles.includes(userRole)
+            if (!canAccessItem) return null
+
+            let filteredSubItems = item.subItems
+            if (filteredSubItems) {
+              filteredSubItems = filteredSubItems.filter(sub => sub.roles.includes('ALL') || sub.roles.includes(userRole))
+              // Rename labels if the user is a manager vs employee (optional)
+              if (userRole === 'RESTAURATEUR' || userRole === 'MANAGER') {
+                filteredSubItems = filteredSubItems.map(sub => {
+                  if (sub.name === 'Mes Contrats') return { ...sub, name: 'Contrats' }
+                  if (sub.name === 'Mes Bulletins') return { ...sub, name: 'Paie & Salaires' }
+                  if (sub.name === 'Mes Congés') return { ...sub, name: 'Gestion des Congés' }
+                  return sub
+                })
+              }
+              if (filteredSubItems.length === 0) return null
+            }
+
+            const isActive = pathname.startsWith(item.href) && (!filteredSubItems || pathname === item.href)
+            const isExpanded = expandedMenus[item.href] || false
+
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-4 rounded-2xl px-4 py-3 transition-all ${
-                  active
-                    ? 'bg-white text-[var(--parabellum-primary)] shadow-xl shadow-black/20'
-                    : 'text-white/55 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
-                <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">{item.name}</span>
-              </Link>
+              <div key={item.href}>
+                <div
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-white text-[var(--parabellum-primary)] shadow-md shadow-black/10 font-bold'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  }`}
+                  onClick={() => {
+                    if (filteredSubItems) {
+                      setExpandedMenus((prev) => ({ ...prev, [item.href]: !prev[item.href] }))
+                    } else {
+                      router.push(item.href)
+                      setIsSidebarOpen(false)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-4 w-4 shrink-0' })}
+                    <span className="text-[11px] font-bold uppercase tracking-wider lg:hidden xl:block">{item.name}</span>
+                  </div>
+                  {filteredSubItems && (
+                    <div className="lg:hidden xl:block">
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </div>
+                  )}
+                </div>
+
+                {filteredSubItems && isExpanded && (
+                  <div className="mt-1 ml-4 space-y-1 lg:hidden xl:block">
+                    {filteredSubItems.map((subItem) => {
+                      const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/')
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={() => setIsSidebarOpen(false)}
+                          className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                            isSubActive
+                              ? 'bg-white/15 text-white font-bold'
+                              : 'text-white/50 hover:bg-white/10 hover:text-white/90'
+                          }`}
+                        >
+                          {React.cloneElement(subItem.icon as React.ReactElement<{ className?: string }>, { className: 'h-3.5 w-3.5 shrink-0 opacity-70' })}
+                          <span className="text-[10px] font-semibold uppercase tracking-wider">{subItem.name}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
         </nav>

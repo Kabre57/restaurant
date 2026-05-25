@@ -33,9 +33,7 @@ export function Sidebar({
 
   const handleLogout = async () => {
     onClose?.()
-    await signOut({ redirect: false })
-    router.replace('/login')
-    router.refresh()
+    await signOut({ callbackUrl: '/login' })
   }
 
   return (

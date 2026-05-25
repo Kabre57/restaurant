@@ -112,12 +112,25 @@ body {
 }
 
 @media print {
-  @page {
-    size: 80mm auto;
-    margin: 4mm;
+  body:not(.printing-payslip) {
+    @page {
+      size: 80mm auto;
+      margin: 4mm;
+    }
   }
 
-  body * {
+  body.printing-payslip {
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+  }
+
+  body:not(.printing-payslip) * {
+    visibility: hidden;
+  }
+  
+  body.printing-payslip * {
     visibility: hidden;
   }
 
@@ -126,7 +139,7 @@ body {
     visibility: visible;
   }
 
-  .receipt-print-area {
+  body:not(.printing-payslip) .receipt-print-area {
     position: absolute;
     inset: 0 auto auto 0;
     width: 72mm !important;
@@ -137,7 +150,26 @@ body {
     color: #111 !important;
   }
 
-  .receipt-actions {
+  .payslip-print-area,
+  .payslip-print-area * {
+    visibility: visible;
+  }
+
+  body.printing-payslip .payslip-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.printing-payslip .payslip-print-area-wrapper {
+    display: block !important;
+  }
+
+  .receipt-actions, .payslip-actions {
     display: none !important;
   }
 }
+

@@ -9,6 +9,7 @@ services:
       - "${APP_PORT:-3003}:3000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-pos_restaurant}?schema=public
+      - DIRECT_DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-pos_restaurant}?schema=public
       - REDIS_URL=redis://redis:6379
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3003}
       # ✅ Les guillemets sont maintenant bien fermés à la fin de la ligne ci-dessous
