@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { DeliveryPlatform, OrderStatus, OrderType, Prisma } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+import { decrementIngredientInventory } from '@/app/actions/inventory'
 
 const orderInclude = {
   items: {
@@ -299,6 +300,9 @@ export async function createExternalDeliveryOrder(input: CreateExternalOrderInpu
       })
 
       for (const item of input.items) {
+        // Déduction en cascade de la recette (ingrédients & emballages) pour la commande externe
+        await decrementIngredientInventory(tx, input.storeId, item.productId, item.quantity)
+
         const product = await tx.product.findUnique({
           where: { id: item.productId },
           select: {
@@ -318,6 +322,18 @@ export async function createExternalDeliveryOrder(input: CreateExternalOrderInpu
         await tx.product.update({
           where: { id: item.productId },
           data: { stockQuantity: newQuantity }
+        })
+
+        // Audit Trail : Mouvement de stock négatif pour vente externe
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            storeId: input.storeId,
+            quantity: -item.quantity,
+            reason: 'SALE',
+            referenceId: createdOrder.id,
+            note: `Commande externe ${input.platform} #${input.externalOrderId}`
+          }
         })
 
         if (newQuantity < product.minStockLevel) {

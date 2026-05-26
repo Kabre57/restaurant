@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useSession } from 'next-auth/react'
 import type { Table } from '@prisma/client'
 import { Search, Map as MapIcon, Menu, ShoppingBag } from 'lucide-react'
 import { ConnectionStatus } from './ConnectionStatus'
@@ -45,6 +46,9 @@ export function POSHeader({
   onOpenCart,
   cartCount = 0,
 }: POSHeaderProps) {
+  const { data: session } = useSession()
+  const isCashier = session?.user?.role === 'CASHIER' || operatorRole === 'CASHIER'
+
   const title = operatorRole === 'SERVER' ? 'Service Salle' : 'Point de Vente'
   const contextLabel = selectedTable
     ? `Table ${selectedTable.number}`
@@ -141,10 +145,12 @@ export function POSHeader({
               queueCount={syncQueueCount}
               onSyncNow={syncPendingOrders}
             />
-            <div className="hidden flex-col items-end sm:flex">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#adb5bd]">Mon solde jour</span>
-              <span className="text-sm font-black text-[#212529]">{sessionTotal.toLocaleString()} FCFA</span>
-            </div>
+            {!isCashier && (
+              <div className="hidden flex-col items-end sm:flex">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#adb5bd]">Mon solde jour</span>
+                <span className="text-sm font-black text-[#212529]">{sessionTotal.toLocaleString()} FCFA</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

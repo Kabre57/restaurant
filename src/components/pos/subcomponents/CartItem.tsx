@@ -12,10 +12,22 @@ interface CartItemProps {
 }
 
 export function CartItem({ item, onAdd, onSub, onOptionsClick }: CartItemProps) {
+  const [failedImageSrc, setFailedImageSrc] = React.useState<string | null>(null)
+  const canDisplayImage = Boolean(item.image) && failedImageSrc !== item.image
+
   return (
     <div className="flex items-center gap-5 group py-4 border-b border-[#f1f3f5] last:border-0">
       <div className="w-14 h-14 rounded-2xl bg-[#f8f9fa] border border-[#e9ecef] flex items-center justify-center shrink-0 overflow-hidden relative">
-        <span className="text-2xl opacity-40">🍽️</span>
+        {canDisplayImage ? (
+          <img
+            src={item.image || ''}
+            alt={item.name}
+            onError={() => setFailedImageSrc(item.image || null)}
+            className="w-full h-full object-contain p-1"
+          />
+        ) : (
+          <span className="text-2xl opacity-40">🍽️</span>
+        )}
       </div>
       <div className="flex-1 flex flex-col gap-1">
         <h4 className="font-black text-xs text-[#212529] uppercase tracking-tight leading-tight">{item.name}</h4>

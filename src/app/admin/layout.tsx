@@ -26,6 +26,7 @@ import {
   Layers,
   Archive,
   PlusSquare,
+  ShieldCheck,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -35,6 +36,7 @@ type StoreSummary = {
 
 const generalItems = [
   { name: 'Tableau de bord', icon: <LayoutDashboard />, href: '/admin/dashboard' },
+  { name: 'Supervision Multi-sites', icon: <ShieldCheck />, href: '/admin/supervision' },
   { name: 'Superviseur', icon: <UserCog />, href: '/admin/superviseur' },
   { name: 'Restaurants', icon: <Building2 />, href: '/admin/restaurants' },
   { name: 'Clients', icon: <Users />, href: '/admin/clients' },
@@ -44,10 +46,6 @@ const generalItems = [
 ]
 
 const gestionItems = [
-  { name: 'Catégories', icon: <Layers />, href: '/admin/categories' },
-  { name: 'Produits', icon: <Package />, href: '/admin/produits' },
-  { name: 'Suppléments', icon: <PlusSquare />, href: '/admin/supplements' },
-  { name: 'Inventaire', icon: <Archive />, href: '/admin/inventaire' },
   { name: 'Promotions', icon: <Compass />, href: '/admin/promotions' },
   { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
   { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },

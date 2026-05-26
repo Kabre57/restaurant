@@ -13,7 +13,7 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
       where: { id: productId },
       data: { isAvailable },
     })
-    revalidatePath('/admin/produits')
+    revalidatePath('/restaurateur/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -32,7 +32,7 @@ export async function updateProductPrice(productId: string, price: number) {
       where: { id: productId },
       data: { price },
     })
-    revalidatePath('/admin/produits')
+    revalidatePath('/restaurateur/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -89,7 +89,7 @@ export async function addProduct(data: {
       },
       include: { category: true }
     })
-    revalidatePath('/admin/produits')
+    revalidatePath('/restaurateur/produits')
     revalidatePath('/')
     return { success: true, product }
   } catch (error) {
@@ -104,7 +104,7 @@ export async function updateProductStock(productId: string, quantity: number) {
       where: { id: productId },
       data: { stockQuantity: quantity }
     })
-    revalidatePath('/admin/produits')
+    revalidatePath('/restaurateur/produits')
     return { success: true, product }
   } catch (error) {
     return { success: false, error: "Erreur lors de la mise à jour du stock." }

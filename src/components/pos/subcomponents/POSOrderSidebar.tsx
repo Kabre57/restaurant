@@ -18,6 +18,7 @@ type POSOrderSidebarProps = {
     price: number
     quantity: number
     options?: string
+    image?: string | null
   }[]
   isProcessing: boolean
   subtotal: number

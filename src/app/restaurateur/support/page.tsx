@@ -52,7 +52,7 @@ export default function RestaurateurSupportPage() {
     if (result.success) {
       setForm(initialForm)
       await refreshTickets(session.user.id)
-      setMessage('Ticket envoyé au support Franchiseur.')
+      setMessage('Ticket envoyé au support Supervision.')
     } else {
       setMessage(result.error || 'Envoi impossible.')
     }
@@ -66,7 +66,7 @@ export default function RestaurateurSupportPage() {
         <p className="text-[10px] font-black uppercase tracking-widest text-[#f08c00]">Support</p>
         <h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-[#212529] sm:text-3xl">Assistance restaurant</h1>
         <p className="mt-1 text-sm font-bold uppercase tracking-widest text-[#adb5bd]">
-          Créez un ticket et suivez son traitement par le Franchiseur.
+          Créez un ticket et suivez son traitement par le Supervision.
         </p>
       </div>
 

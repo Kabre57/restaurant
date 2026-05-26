@@ -222,7 +222,7 @@ export default function ConfigurationRhPage() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="mb-6 flex items-center gap-2 text-sm font-bold text-gray-700">
                 <Calculator className="h-5 w-5 text-[var(--parabellum-primary)]" />
-                Taux Généraux de Côte d'Ivoire
+                Taux Généraux de Côte d&apos;Ivoire
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
@@ -326,7 +326,8 @@ export default function ConfigurationRhPage() {
               </div>
             </div>
           </div>
-          )}
+        </div>
+        )}
 
           {/* SECTION : TRANCHES CN */}
           {activeTab === 'cn' && (
@@ -403,7 +404,7 @@ export default function ConfigurationRhPage() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black uppercase text-gray-800">Tranches : Impôt Général sur le Revenu (IGR)</h3>
-                <p className="text-xs text-gray-500">Configurez les barèmes et abattements pour l'IGR sur le Q.</p>
+                <p className="text-xs text-gray-500">Configurez les barèmes et abattements pour l&apos;IGR sur le Q.</p>
               </div>
               <button
                 type="button"

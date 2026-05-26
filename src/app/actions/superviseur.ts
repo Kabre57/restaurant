@@ -66,3 +66,60 @@ export async function createSuperviseurAccount(data: { name: string; email: stri
     return { success: false, error: 'Impossible de créer le compte Superviseur.' }
   }
 }
+
+export async function getMultiSiteCriticalStocks() {
+  try {
+    return await prisma.product.findMany({
+      where: {
+        trackStock: true,
+        stockQuantity: {
+          lt: prisma.product.fields.minStockLevel
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        stockQuantity: true,
+        minStockLevel: true,
+        store: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        stockQuantity: 'asc'
+      },
+      take: 10
+    })
+  } catch (error) {
+    console.error('Failed to fetch multi-site critical stocks:', error)
+    return []
+  }
+}
+
+export async function getRecentMultiSiteMovements() {
+  try {
+    return await prisma.stockMovement.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        product: {
+          select: {
+            name: true,
+            store: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      take: 10
+    })
+  } catch (error) {
+    console.error('Failed to fetch multi-site movements:', error)
+    return []
+  }
+}

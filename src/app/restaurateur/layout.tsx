@@ -31,6 +31,7 @@ import {
   Calendar,
   CreditCard,
   Star,
+  PlusSquare,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -43,6 +44,7 @@ const menuItems = [
   { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks', roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'] },
   { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Suppléments', icon: <PlusSquare />, href: '/restaurateur/supplements', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes', roles: ['RESTAURATEUR', 'MANAGER', 'WAITER', 'CASHIER'] },
   { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons', roles: ['RESTAURATEUR', 'MANAGER'] },

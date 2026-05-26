@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma'
 import { computeEstimatedPrepMinutes } from '@/lib/prep-estimates'
 import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
+import { decrementIngredientInventory } from './inventory'
 
 const orderInclude = {
   items: {
@@ -217,6 +218,9 @@ export async function createOrder(data: OrderInput) {
       for (const item of data.items) {
         const product = productMap.get(item.productId)
 
+        // Déduction en cascade de la recette (ingrédients & emballages)
+        await decrementIngredientInventory(tx, data.storeId, item.productId, item.quantity)
+
         if (!product || !product.trackStock) {
           continue
         }
@@ -353,6 +357,9 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
             minStockLevel: true
           }
         })
+
+        // Déduction en cascade de la recette (ingrédients & emballages)
+        await decrementIngredientInventory(tx, order.storeId, item.productId, item.quantity)
 
         if (product?.trackStock) {
           const newQuantity = Math.max(0, product.stockQuantity - item.quantity)

@@ -3,16 +3,20 @@
 import React, { useState, useEffect } from 'react'
 import { getStoreOrders } from '@/app/actions/orders'
 import { useSession } from 'next-auth/react'
-import { Loader2, Receipt, Search, Filter, X, CreditCard, User, Clock } from 'lucide-react'
+import { Loader2, Receipt, Search, Filter, X, CreditCard, User, Clock, Trash2, Plus, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { cancelOrder, modifyOrder } from '@/app/actions/orderManagement'
+import { getProductsByStore } from '@/app/actions/products'
 
 type OrderItem = {
   id: string
+  productId?: string
   quantity: number
   price: number
   options?: string | null
   product?: {
+    id?: string
     name?: string | null
   } | null
 }
@@ -35,6 +39,12 @@ export default function RestaurateurCommandes() {
   const [search, setSearch] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null)
 
+  const [actionLoading, setActionLoading] = useState(false)
+  const [availableProducts, setAvailableProducts] = useState<any[]>([])
+  const [modifyingOrder, setModifyingOrder] = useState<OrderSummary | null>(null)
+  const [modifiedItems, setModifiedItems] = useState<any[]>([])
+  const [productSearch, setProductSearch] = useState('')
+
   useEffect(() => {
     const storeId = session?.user?.storeId
     if (!storeId) return
@@ -56,6 +66,96 @@ export default function RestaurateurCommandes() {
       isCancelled = true
     }
   }, [session?.user?.storeId])
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir annuler cette commande ? Les stocks des produits suivis seront automatiquement recrédités.")) return
+    setActionLoading(true)
+    const res = await cancelOrder(orderId)
+    if (res.success) {
+      setSelectedOrder(res.order as any)
+      const storeId = session?.user?.storeId
+      if (storeId) {
+        const data = await getStoreOrders(storeId)
+        setOrders(data as OrderSummary[])
+      }
+    } else {
+      alert(res.error || "Erreur lors de l'annulation")
+    }
+    setActionLoading(false)
+  }
+
+  const handleStartModification = async (order: OrderSummary) => {
+    setModifyingOrder(order)
+    const mapped = (order.items || []).map(item => ({
+      productId: item.productId || item.product?.id || '',
+      name: item.product?.name || "Produit",
+      price: item.price,
+      quantity: item.quantity,
+      options: item.options || ""
+    }))
+    setModifiedItems(mapped)
+
+    const storeId = session?.user?.storeId
+    if (storeId && availableProducts.length === 0) {
+      const prods = await getProductsByStore(storeId)
+      setAvailableProducts(prods || [])
+    }
+  }
+
+  const handleIncModQty = (index: number) => {
+    setModifiedItems(prev => prev.map((item, idx) => idx === index ? { ...item, quantity: item.quantity + 1 } : item))
+  }
+
+  const handleDecModQty = (index: number) => {
+    setModifiedItems(prev => prev.map((item, idx) => {
+      if (idx === index) {
+        const nq = item.quantity - 1
+        return nq > 0 ? { ...item, quantity: nq } : null
+      }
+      return item
+    }).filter(Boolean) as any)
+  }
+
+  const handleRemoveModItem = (index: number) => {
+    setModifiedItems(prev => prev.filter((_, idx) => idx !== index))
+  }
+
+  const handleAddProductToMod = (product: any) => {
+    const existingIndex = modifiedItems.findIndex(item => item.productId === product.id)
+    if (existingIndex > -1) {
+      handleIncModQty(existingIndex)
+    } else {
+      setModifiedItems(prev => [...prev, {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        options: ""
+      }])
+    }
+  }
+
+  const handleSubmitModification = async () => {
+    if (!modifyingOrder) return
+    if (!modifiedItems.length) {
+      alert("La commande doit contenir au moins un article.")
+      return
+    }
+    setActionLoading(true)
+    const res = await modifyOrder(modifyingOrder.id, modifiedItems)
+    if (res.success) {
+      setModifyingOrder(null)
+      setSelectedOrder(res.order as any)
+      const storeId = session?.user?.storeId
+      if (storeId) {
+        const data = await getStoreOrders(storeId)
+        setOrders(data as OrderSummary[])
+      }
+    } else {
+      alert(res.error || "Erreur lors de la modification")
+    }
+    setActionLoading(false)
+  }
 
   const filteredOrders = orders.filter(order => 
     order.id.toLowerCase().includes(search.toLowerCase()) || 
@@ -298,7 +398,163 @@ export default function RestaurateurCommandes() {
 
             <div className="mt-8 flex flex-col gap-2 border-t border-[#dee2e6] pt-6 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs font-black text-[#adb5bd] uppercase tracking-widest">Total Payé</span>
-              <span className="text-3xl font-black text-[#212529]">{selectedOrder.total.toLocaleString()} FCFA</span>
+              <span className="text-3xl font-black text-[#212529]">{(selectedOrder.total || 0).toLocaleString()} FCFA</span>
+            </div>
+
+            {selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'COMPLETED' && (
+              <div className="mt-6 flex gap-3 border-t border-[#dee2e6] pt-6">
+                <button
+                  onClick={() => handleCancelOrder(selectedOrder.id)}
+                  disabled={actionLoading}
+                  className="flex-1 rounded-2xl bg-[#fff5f5] text-[#e03131] hover:bg-[#ffe3e3] px-5 py-4 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 text-center"
+                >
+                  Annuler la commande
+                </button>
+                <button
+                  onClick={() => handleStartModification(selectedOrder)}
+                  disabled={actionLoading}
+                  className="flex-1 rounded-2xl bg-[#e7f5ff] text-[#339af0] hover:bg-[#d0ebff] px-5 py-4 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 text-center"
+                >
+                  Modifier la commande
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Modification interactive */}
+      {modifyingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#212529]/60 p-4 backdrop-blur-sm sm:p-6">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[2rem] bg-white flex flex-col shadow-2xl animate-in zoom-in-95 duration-300 sm:rounded-[2.5rem]">
+            {/* Header */}
+            <div className="p-6 border-b border-[#dee2e6] flex items-center justify-between shrink-0">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#FF6D00]">Édition de commande</span>
+                <h2 className="text-xl font-black text-[#212529] uppercase tracking-tight">Commande #{modifyingOrder.id.slice(-6).toUpperCase()}</h2>
+              </div>
+              <button 
+                onClick={() => setModifyingOrder(null)} 
+                className="rounded-full bg-[#f8f9fa] p-2 text-[#adb5bd] hover:text-[#212529]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body (Grid Layout) */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 custom-scrollbar">
+              {/* Left Column: Current cart items */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-[#adb5bd] uppercase tracking-widest border-b border-[#dee2e6] pb-2">Articles de la commande</h3>
+                
+                <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {modifiedItems.map((item, idx) => (
+                    <div key={item.productId + '-' + idx} className="flex items-center justify-between gap-4 p-4 border border-[#dee2e6] rounded-2xl bg-white shadow-sm hover:shadow-md transition-all">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black text-[#212529] uppercase truncate">{item.name}</p>
+                        <p className="text-[10px] font-bold text-[#adb5bd] uppercase mt-1">{item.price.toLocaleString()} FCFA</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 bg-[#f8f9fa] p-1 rounded-xl border border-[#dee2e6]">
+                          <button 
+                            type="button"
+                            onClick={() => handleDecModQty(idx)} 
+                            className="w-7 h-7 rounded-lg bg-white border border-[#dee2e6] flex items-center justify-center text-[#212529] hover:bg-[#e9ecef] transition-all"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-5 text-center font-black text-xs">{item.quantity}</span>
+                          <button 
+                            type="button"
+                            onClick={() => handleIncModQty(idx)} 
+                            className="w-7 h-7 rounded-lg bg-white border border-[#dee2e6] flex items-center justify-center text-[#212529] hover:bg-[#e9ecef] transition-all"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => handleRemoveModItem(idx)}
+                          className="p-2 text-[#adb5bd] hover:text-[#e03131] hover:bg-[#fff5f5] rounded-xl transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {modifiedItems.length === 0 && (
+                    <div className="py-12 border border-dashed border-[#dee2e6] rounded-2xl text-center text-[#adb5bd] flex flex-col items-center justify-center gap-2">
+                      <Receipt className="w-8 h-8 opacity-20" />
+                      <span className="text-xs font-black uppercase tracking-widest">Panier vide</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Products search & selection */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-[#adb5bd] uppercase tracking-widest border-b border-[#dee2e6] pb-2">Ajouter des articles</h3>
+                
+                {/* Search bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
+                  <input 
+                    type="text" 
+                    placeholder="RECHERCHER UN PRODUIT..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]"
+                  />
+                </div>
+
+                {/* Products Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[35vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {availableProducts
+                    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                    .map(product => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => handleAddProductToMod(product)}
+                        className="flex flex-col text-left p-3.5 border border-[#dee2e6] rounded-2xl bg-white shadow-sm hover:border-[#FF6D00] hover:shadow-md transition-all active:scale-95 group"
+                      >
+                        <span className="text-xs font-black text-[#212529] uppercase group-hover:text-[#FF6D00] transition-colors">{product.name}</span>
+                        <span className="text-[10px] font-bold text-[#adb5bd] uppercase mt-1">{product.price.toLocaleString()} FCFA</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer with summary and save action */}
+            <div className="p-6 border-t border-[#dee2e6] bg-[#f8f9fa] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Nouveau Total Recalculé</span>
+                <p className="text-2xl font-black text-[#212529]">
+                  {modifiedItems.reduce((acc, i) => acc + i.price * i.quantity, 0).toLocaleString()} FCFA
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModifyingOrder(null)}
+                  className="rounded-xl border border-[#dee2e6] bg-white px-5 py-3 text-xs font-black uppercase tracking-widest text-[#212529] hover:bg-[#e9ecef] transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitModification}
+                  disabled={actionLoading}
+                  className="rounded-xl bg-[#FF6D00] px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/20 hover:bg-[#e66200] transition-all disabled:opacity-50"
+                >
+                  {actionLoading ? 'Mise à jour...' : 'Valider les modifications'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

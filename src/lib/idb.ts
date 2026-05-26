@@ -9,6 +9,8 @@ export type CachedProduct = {
   image: string | null;
   averagePrepTimeMins?: number | null;
   isAvailable?: boolean;
+  stockQuantity?: number | null;
+  trackStock?: boolean | null;
 };
 export type QueuedOrder = {
   id?: number;

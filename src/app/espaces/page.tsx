@@ -39,8 +39,8 @@ const spaces = [
     badge: 'Protégé',
   },
   {
-    title: 'Franchiseur',
-    href: '/admin/dashboard',
+    title: 'Supervision',
+    href: '/admin/supervision',
     icon: ShieldCheck,
     description: 'Supervision multi-sites, commissions, validations et support.',
     badge: 'Protégé',

@@ -30,7 +30,7 @@ export async function createProductOption(data: {
 }) {
   try {
     const record = await (prisma as any).productOption?.create({ data })
-    revalidatePath('/admin/supplements')
+    revalidatePath('/restaurateur/supplements')
     return { success: true, record }
   } catch (error) {
     console.error('createProductOption error:', error)
@@ -41,7 +41,7 @@ export async function createProductOption(data: {
 export async function deleteProductOption(id: string) {
   try {
     await (prisma as any).productOption?.delete({ where: { id } })
-    revalidatePath('/admin/supplements')
+    revalidatePath('/restaurateur/supplements')
     return { success: true }
   } catch (error) {
     console.error('deleteProductOption error:', error)

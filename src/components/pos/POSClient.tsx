@@ -324,6 +324,7 @@ export default function POSClient({
                 name: product.name,
                 price: product.price,
                 quantity: 1,
+                image: product.image,
               })
             }}
             onChooseTable={() => setViewMode('FLOOR_PLAN')}
@@ -392,6 +393,7 @@ export default function POSClient({
             price: item.price,
             quantity: 1,
             options: item.options,
+            image: item.image,
           })
         }
         onSubItem={(item) => {

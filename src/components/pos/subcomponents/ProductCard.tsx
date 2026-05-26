@@ -10,6 +10,8 @@ export type ProductCardItem = {
   price: number
   image?: string | null
   averagePrepTimeMins?: number | null
+  stockQuantity?: number | null
+  trackStock?: boolean | null
 }
 
 interface ProductCardProps {
@@ -62,7 +64,7 @@ export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) 
           {categoryName}
         </div>
         <div className="absolute top-4 right-4 bg-brand-500 text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-brand/20">
-          ~ {prepMinutes} min
+          Stock: {product.stockQuantity ?? 0}
         </div>
       </div>
       <div className="p-6 pt-3 flex flex-col gap-4">
