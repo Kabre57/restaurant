@@ -14,31 +14,13 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // Role-based routing: redirect non-cashier roles to their space
+  // Role-based routing: redirect roles to their space
   const role = session.user.role;
   if (role === 'KITCHEN') redirect('/kds');
   if (role === 'SERVER') redirect('/serveur');
   if (role === 'RESTAURATEUR') redirect('/restaurateur/produits');
   if (role === 'ADMIN' || role === 'SUPER_ADMIN') redirect('/admin/dashboard');
 
-  // Only CASHIER and DELIVERY reach this point
-  const [categories, products, tables, reservations, activeOrders] = await Promise.all([
-    getCategories(session.user.storeId),
-    getProductsByStore(session.user.storeId),
-    getTablesByStore(session.user.storeId),
-    getReservationsByStore(session.user.storeId),
-    getActiveOrders(session.user.storeId)
-  ]);
-
-  return (
-    <POSClient 
-      categories={categories} 
-      products={products} 
-      tables={tables}
-      reservations={reservations as any}
-      activeOrders={activeOrders as any}
-      storeId={session.user.storeId} 
-      cashierId={session.user.id} 
-    />
-  );
+  // CASHIER and other operational roles redirect to cashier POS
+  redirect('/cashier');
 }

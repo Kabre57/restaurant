@@ -34,11 +34,9 @@ export async function createLoan(data: any) {
         userId: data.userId,
         type: data.type,
         amount: amount,
-        remainingAmount: amount,
         monthlyDeduction: parseFloat(data.monthlyDeduction || data.amount),
-        startDate: new Date(data.startDate),
         reason: data.reason,
-        status: 'ONGOING'
+        status: 'PENDING'
       }
     })
     revalidatePath('/restaurateur/rh/avances-prets')

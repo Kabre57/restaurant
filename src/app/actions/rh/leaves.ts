@@ -49,14 +49,17 @@ export async function createLeaveRequest(data: any) {
 
 export async function updateLeaveRequestStatus(id: string, status: string, comment?: string, approvedById?: string) {
   try {
+    const updateData: any = { status }
+    if (status === 'APPROVED') {
+      updateData.approvedBy = approvedById || 'Manager'
+      updateData.approvedAt = new Date()
+    } else if (status === 'REJECTED') {
+      updateData.rejectedNote = comment || ''
+    }
+
     const leave = await prisma.leaveRequest.update({
       where: { id },
-      data: {
-        status,
-        comment,
-        approvedById,
-        decisionDate: new Date()
-      }
+      data: updateData
     })
     revalidatePath('/restaurateur/rh/conges')
     return { success: true, leave }

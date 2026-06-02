@@ -26,27 +26,27 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
     const formData = new FormData(e.currentTarget)
     
     const data: EmployeeData = {
-      name: formData.get('name') as string,
+      name:  formData.get('name')  as string,
       email: formData.get('email') as string,
-      role: formData.get('role') as string,
-      
-      matricule: formData.get('matricule') as string,
-      civilite: formData.get('civilite') as string,
-      sexe: formData.get('sexe') as string,
-      dateBirth: formData.get('dateBirth') ? new Date(formData.get('dateBirth') as string) : null,
-      nationality: formData.get('nationality') as string,
-      address: formData.get('address') as string,
-      phone: formData.get('phone') as string,
-      personalPhone: formData.get('personalPhone') as string,
-      
-      salary: parseFloat(formData.get('salary') as string) || undefined,
+      role:  formData.get('role')  as string,
+
+      matricule:      formData.get('matricule') as string,
+      civilite:       formData.get('civilite')  as string,
+      sexe:           formData.get('sexe')       as string,
+      dateNaissance:  formData.get('dateNaissance') ? new Date(formData.get('dateNaissance') as string) : null,
+      nationalite:    formData.get('nationalite') as string,
+      address:        formData.get('address') as string,
+      phone:          formData.get('phone')   as string,
+      // personalPhone supprimé — n'existe pas dans Prisma
+
+      salary:       parseFloat(formData.get('salary') as string) || undefined,
       contractType: formData.get('contractType') as string,
-      hireDate: formData.get('hireDate') ? new Date(formData.get('hireDate') as string) : null,
-      status: formData.get('status') as string,
-      
-      cnpsNumber: formData.get('cnpsNumber') as string,
-      bankName: formData.get('bankName') as string,
-      rib: formData.get('rib') as string,
+      hireDate:     formData.get('hireDate') ? new Date(formData.get('hireDate') as string) : null,
+      status:       formData.get('status') as string,
+
+      cnpsNumber:  formData.get('cnpsNumber')  as string,
+      bankName:    formData.get('bankName')    as string,
+      bankAccount: formData.get('bankAccount') as string,  // était: rib
     }
 
     if (!isEditing) {
@@ -138,17 +138,12 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--parabellum-muted)]">Date de naissance</label>
-                <input type="date" name="dateBirth" defaultValue={employee?.dateBirth?.toISOString().split('T')[0]} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
+                <input type="date" name="dateNaissance" defaultValue={employee?.dateNaissance?.toISOString().split('T')[0]} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--parabellum-muted)]">Nationalité</label>
-                <input name="nationality" defaultValue={employee?.nationality} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--parabellum-muted)]">Tél Personnel</label>
-                <input name="personalPhone" defaultValue={employee?.personalPhone} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
+                <input name="nationalite" defaultValue={employee?.nationalite} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
@@ -236,7 +231,7 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--parabellum-muted)]">RIB / IBAN</label>
-                <input name="rib" defaultValue={employee?.rib} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
+                <input name="bankAccount" defaultValue={employee?.bankAccount} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white" />
               </div>
             </div>
           </div>

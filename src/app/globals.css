@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/ui/tokens.css";
 
 @theme {
   --color-brand-50: #fff7ed;
@@ -7,42 +8,45 @@
   --color-brand-600: #e66200;
   --color-parabellum-primary: #ff6d00;
   --color-parabellum-primary-2: #ff9100;
-  --color-parabellum-sidebar: #171b29;
-  --color-parabellum-sidebar-soft: #2b3144;
-  --color-parabellum-body: #f8f9fa;
+  --color-parabellum-sidebar: #0f172a;
+  --color-parabellum-sidebar-soft: #1e293b;
+  
+  /* Mode Clair Premium par défaut (Loyverse POS Style) */
+  --color-parabellum-body: #f8fafc;
   --color-parabellum-card: #ffffff;
-  --color-parabellum-border: #e5e7eb;
-  --color-parabellum-text: #171717;
-  --color-parabellum-muted: #868e96;
-  --color-pos-bg: #f8f9fa;
+  --color-parabellum-border: #e2e8f0;
+  --color-parabellum-text: #0f172a;
+  --color-parabellum-muted: #64748b;
+  
+  --color-pos-bg: #f8fafc;
   --color-pos-surface: #ffffff;
-  --color-pos-border: #e5e7eb;
-  --color-pos-text: #171717;
-  --color-pos-text-muted: #868e96;
+  --color-pos-border: #e2e8f0;
+  --color-pos-text: #0f172a;
+  --color-pos-text-muted: #64748b;
   
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   
-  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
-  --shadow-parabellum: 0 0.75rem 1.875rem rgba(255, 109, 0, 0.08);
+  --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  --shadow-parabellum: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
 
 :root {
-  --background: var(--color-pos-bg);
-  --foreground: var(--color-pos-text);
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --parabellum-primary: #ff6d00;
   --parabellum-primary-2: #ff9100;
-  --parabellum-sidebar: #171b29;
-  --parabellum-sidebar-soft: #2b3144;
-  --parabellum-body: #f8f9fa;
+  --parabellum-sidebar: #0f172a;
+  --parabellum-sidebar-soft: #1e293b;
+  --parabellum-body: #f8fafc;
   --parabellum-card: #ffffff;
-  --parabellum-border: #e5e7eb;
-  --parabellum-text: #171717;
-  --parabellum-muted: #868e96;
-  --parabellum-success: #2bc155;
-  --parabellum-warning: #ffb800;
-  --parabellum-danger: #f72b50;
-  --parabellum-info: #58bad7;
+  --parabellum-border: #e2e8f0;
+  --parabellum-text: #0f172a;
+  --parabellum-muted: #64748b;
+  --parabellum-success: #10b981;
+  --parabellum-warning: #f59e0b;
+  --parabellum-danger: #ef4444;
+  --parabellum-info: #06b6d4;
 }
 
 @theme inline {
@@ -50,18 +54,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --color-pos-bg: #0f172a;
-    --color-pos-surface: #1e293b;
-    --color-pos-border: #334155;
-    --color-pos-text: #f8fafc;
-    --color-pos-text-muted: #94a3b8;
-  }
 }
 
 body {
@@ -72,7 +64,7 @@ body {
 
 .parabellum-shell {
   background:
-    radial-gradient(circle at top right, rgba(255, 109, 0, 0.08), transparent 34rem),
+    radial-gradient(circle at top right, rgba(255, 109, 0, 0.05), transparent 34rem),
     var(--parabellum-body);
   color: var(--parabellum-text);
 }
@@ -90,7 +82,7 @@ body {
 
 .parabellum-card-muted {
   border: 1px solid var(--parabellum-border);
-  background: #f8f9ff;
+  background: #1e293b;
 }
 
 .parabellum-gradient {
@@ -99,7 +91,7 @@ body {
 
 .parabellum-topbar {
   border-bottom: 1px solid var(--parabellum-border);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(21, 27, 44, 0.94);
   backdrop-filter: blur(16px);
 }
 
@@ -172,4 +164,3 @@ body {
     display: none !important;
   }
 }
-

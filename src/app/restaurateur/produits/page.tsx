@@ -11,7 +11,7 @@ type ProductRow = Awaited<ReturnType<typeof getProductsByStore>>[number]
 type CategoryRow = Awaited<ReturnType<typeof getCategories>>[number]
 
 export default function RestaurateurProducts() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [products, setProducts] = useState<ProductRow[]>([])
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,22 +36,34 @@ export default function RestaurateurProducts() {
   })
 
   useEffect(() => {
-    const storeId = session?.user?.storeId
-    if (!storeId) return
+    if (status === 'loading') return
 
+    const storeId = session?.user?.storeId
+    if (!storeId) {
+      setLoading(false)
+      return
+    }
+
+    const activeStoreId = storeId as string
     let isCancelled = false
-    const activeStoreId = storeId
 
     async function fetchData() {
-      setLoading(true)
-      const [pData, cData] = await Promise.all([
-        getProductsByStore(activeStoreId),
-        getCategories(activeStoreId)
-      ])
-      if (isCancelled) return
-      setProducts(pData)
-      setCategories(cData)
-      setLoading(false)
+      try {
+        setLoading(true)
+        const [pData, cData] = await Promise.all([
+          getProductsByStore(activeStoreId),
+          getCategories(activeStoreId)
+        ])
+        if (isCancelled) return
+        setProducts(pData)
+        setCategories(cData)
+      } catch (err) {
+        console.error("Failed to load products/categories:", err)
+      } finally {
+        if (!isCancelled) {
+          setLoading(false)
+        }
+      }
     }
 
     void fetchData()
@@ -59,61 +71,79 @@ export default function RestaurateurProducts() {
     return () => {
       isCancelled = true
     }
-  }, [session?.user?.storeId])
+  }, [session?.user?.storeId, status])
 
   async function loadData() {
-    if (!session?.user?.storeId) return
+    const storeId = session?.user?.storeId
+    if (!storeId) return
 
-    setLoading(true)
-    const [pData, cData] = await Promise.all([
-      getProductsByStore(session.user.storeId),
-      getCategories(session.user.storeId)
-    ])
-    setProducts(pData)
-    setCategories(cData)
-    setLoading(false)
+    try {
+      setLoading(true)
+      const [pData, cData] = await Promise.all([
+        getProductsByStore(storeId),
+        getCategories(storeId)
+      ])
+      setProducts(pData)
+      setCategories(cData)
+    } catch (err) {
+      console.error("Failed to reload products data:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setIsSubmitting(true)
-    
-    const payload = {
-      ...formData,
-      price: parseFloat(formData.price),
-      averagePrepTimeMins: parseInt(formData.averagePrepTimeMins),
-      storeId: session?.user?.storeId as string,
-      trackStock: formData.trackStock,
-      stockQuantity: parseInt(formData.stockQuantity),
-      minStockLevel: parseInt(formData.minStockLevel)
+    const storeId = session?.user?.storeId
+    if (!storeId) {
+      setErrorModal("Identifiant du restaurant introuvable. Veuillez vous reconnecter.")
+      return
     }
 
-    let res
-    if (editingProduct) {
-      res = await updateProduct(editingProduct.id, payload)
-    } else {
-      res = await createProduct(payload)
-    }
+    try {
+      setIsSubmitting(true)
+      
+      const payload = {
+        ...formData,
+        price: parseFloat(formData.price),
+        averagePrepTimeMins: parseInt(formData.averagePrepTimeMins),
+        storeId,
+        trackStock: formData.trackStock,
+        stockQuantity: parseInt(formData.stockQuantity),
+        minStockLevel: parseInt(formData.minStockLevel)
+      }
 
-    if (res.success) {
-      setShowModal(false)
-      setEditingProduct(null)
-      setFormData({ 
-        name: '', 
-        price: '', 
-        categoryId: '', 
-        image: '', 
-        averagePrepTimeMins: '15',
-        isAvailable: true,
-        trackStock: false,
-        stockQuantity: '0',
-        minStockLevel: '5'
-      })
-      loadData()
-    } else {
-      setErrorModal(res.error || "Erreur lors de l'enregistrement")
+      let res
+      if (editingProduct) {
+        res = await updateProduct(editingProduct.id, payload)
+      } else {
+        res = await createProduct(payload)
+      }
+
+      if (res.success) {
+        setShowModal(false)
+        setEditingProduct(null)
+        setFormData({ 
+          name: '', 
+          price: '', 
+          categoryId: '', 
+          image: '', 
+          averagePrepTimeMins: '15',
+          isAvailable: true,
+          trackStock: false,
+          stockQuantity: '0',
+          minStockLevel: '5'
+        })
+        loadData()
+      } else {
+        setErrorModal(res.error || "Erreur lors de l'enregistrement")
+      }
+    } catch (err) {
+      console.error("Failed to submit product:", err)
+      setErrorModal("Une erreur inattendue est survenue.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   async function confirmDelete() {

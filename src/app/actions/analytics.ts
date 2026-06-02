@@ -27,7 +27,7 @@ export async function getAdminAnalytics() {
       }),
       prisma.payment.findMany({
         where: { createdAt: { gte: since }, status: PaymentStatus.REUSSIE },
-        select: { amount: true, method: true, createdAt: true, order: { select: { storeId: true } } },
+        select: { amount: true, paymentMethod: { select: { name: true } }, createdAt: true, order: { select: { storeId: true } } },
       }),
       prisma.orderItem.groupBy({
         by: ['productId'],
@@ -53,7 +53,8 @@ export async function getAdminAnalytics() {
 
     payments.forEach((payment) => {
       revenueByDay.set(dayKey(payment.createdAt), (revenueByDay.get(dayKey(payment.createdAt)) || 0) + payment.amount)
-      paymentByMethod.set(payment.method, (paymentByMethod.get(payment.method) || 0) + payment.amount)
+      const methodName = payment.paymentMethod?.name || 'Inconnu'
+      paymentByMethod.set(methodName, (paymentByMethod.get(methodName) || 0) + payment.amount)
       const store = storeStats.get(payment.order.storeId)
       if (store) store.revenue += payment.amount
     })

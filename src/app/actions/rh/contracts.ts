@@ -28,8 +28,7 @@ export async function getContracts(storeId: string, userId?: string) {
       include: {
         user: {
           select: { id: true, name: true, matricule: true, email: true }
-        },
-        terminations: true
+        }
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -116,17 +115,14 @@ export async function terminateContract(contractId: string, date: Date, reason: 
     if (!contract) return { success: false, error: 'Contrat introuvable.' }
 
     await prisma.$transaction([
-      prisma.contractTermination.create({
-        data: {
-          contractId,
-          date,
-          reason,
-          indemnityAmount
-        }
-      }),
       prisma.contract.update({
         where: { id: contractId },
-        data: { status: 'TERMINATED', endDate: date }
+        data: {
+          status: 'TERMINATED',
+          endDate: date,
+          terminationDate: date,
+          terminationNote: `${reason}${indemnityAmount > 0 ? ` — Indemnité: ${indemnityAmount.toLocaleString('fr-FR')} FCFA` : ''}`
+        }
       })
     ])
 

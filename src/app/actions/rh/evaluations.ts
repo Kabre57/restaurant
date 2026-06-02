@@ -20,7 +20,7 @@ export async function getEvaluations(storeId: string, userId?: string) {
           select: { id: true, name: true }
         }
       },
-      orderBy: { date: 'desc' }
+      orderBy: { createdAt: 'desc' }
     })
     return { success: true, evaluations }
   } catch (error) {
@@ -36,12 +36,12 @@ export async function createEvaluation(data: any) {
         userId: data.userId,
         evaluatorId: data.evaluatorId,
         period: data.period,
-        date: new Date(data.date),
-        score: parseFloat(data.score),
-        skills: data.skills,
-        objectives: data.objectives,
-        comments: data.comments,
-        status: data.status || 'DRAFT'
+        overallScore: Math.round(parseFloat(data.score || data.overallScore || '5')),
+        criteria: data.skills || data.criteria || {},
+        strengths: data.strengths || '',
+        improvements: data.improvements || '',
+        goals: data.objectives || data.goals || '',
+        comment: data.comments || data.comment || ''
       }
     })
     revalidatePath('/restaurateur/rh/evaluations')
@@ -58,12 +58,12 @@ export async function updateEvaluation(id: string, data: any) {
       where: { id },
       data: {
         period: data.period,
-        date: new Date(data.date),
-        score: parseFloat(data.score),
-        skills: data.skills,
-        objectives: data.objectives,
-        comments: data.comments,
-        status: data.status
+        overallScore: Math.round(parseFloat(data.score || data.overallScore || '5')),
+        criteria: data.skills || data.criteria || {},
+        strengths: data.strengths,
+        improvements: data.improvements,
+        goals: data.objectives || data.goals,
+        comment: data.comments || data.comment
       }
     })
     revalidatePath('/restaurateur/rh/evaluations')

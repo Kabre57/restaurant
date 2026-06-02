@@ -11,6 +11,7 @@ export type PaymentCustomer = {
 }
 
 export type PaymentModalProps = {
+  paymentMethods: { id: string; name: string; type: string; icon: string | null; isDefault?: boolean }[]
   total: number
   title?: string
   showCustomerSection?: boolean
@@ -31,4 +32,11 @@ export type PaymentModalProps = {
   onCustomerSearch: (query: string) => void
   customerResults: PaymentCustomer[]
   onSelectCustomer: (customer: PaymentCustomer | null) => void
+  selectedBills?: { id: string; value: number }[]
+  onAddBill?: (value: number) => void
+  onRemoveBill?: (id: string) => void
+  onResetBills?: () => void
+  roundedTotal?: number | null
+  roundingDiff?: number
 }
+

@@ -1,4 +1,4 @@
-import { DeliveryPlatform, OrderType, PaymentMethod, Priority, TicketStatus } from '@prisma/client'
+import { DeliveryPlatform, OrderType, Priority, TicketStatus } from '@prisma/client'
 import { z } from 'zod'
 
 export const callServerSchema = z.object({
@@ -67,7 +67,7 @@ export const orderCreateSchema = z.object({
   clientRequestId: z.string().uuid('clientRequestId doit être un UUID v4').optional(),
   storeId: z.string().min(1, 'storeId requis'),
   type: z.nativeEnum(OrderType),
-  paymentMode: z.nativeEnum(PaymentMethod).optional(),
+  paymentMode: z.string().optional(),
   tableId: z.string().optional(),
   promotionId: z.string().optional(),
   discount: z.number().min(0).optional(),
@@ -93,4 +93,50 @@ export const hardwareDrawerSchema = z.object({
 export function formatZodError(error: z.ZodError) {
   return error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`).join('; ')
 }
+
+// ─── Produits (Server Actions) ───────────────────────────
+export const createProductSchema = z.object({
+  name: z.string().min(2, 'Le nom doit comporter au moins 2 caractères').max(100),
+  price: z.number().positive('Le prix doit être positif'),
+  categoryId: z.string().min(1, 'La catégorie est requise'),
+  storeId: z.string().min(1, 'Le store est requis'),
+  image: z.string().optional(),
+  averagePrepTimeMins: z.number().int().min(1).max(180).optional(),
+  trackStock: z.boolean().optional(),
+  stockQuantity: z.number().int().min(0).optional(),
+  minStockLevel: z.number().int().min(0).optional(),
+})
+
+export const updateProductSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  price: z.number().positive().optional(),
+  categoryId: z.string().min(1).optional(),
+  image: z.string().optional(),
+  averagePrepTimeMins: z.number().int().min(1).max(180).optional(),
+  isAvailable: z.boolean().optional(),
+  trackStock: z.boolean().optional(),
+  stockQuantity: z.number().int().min(0).optional(),
+  minStockLevel: z.number().int().min(0).optional(),
+  storeId: z.string().min(1).optional(),
+})
+
+// ─── Catégories (Server Actions) ─────────────────────────
+export const updateCategorySchema = z.object({
+  name: z.string().min(2).max(80).optional(),
+  imageUrl: z.string().optional(),
+})
+
+// ─── Inventaire / Ingrédients ────────────────────────────
+export const createIngredientSchema = z.object({
+  storeId: z.string().min(1, 'Le store est requis'),
+  name: z.string().min(2, 'Le nom doit comporter au moins 2 caractères').max(80),
+  unit: z.string().min(1, "L'unité est requise").max(20),
+  quantity: z.number().min(0, 'La quantité doit être positive ou nulle'),
+  minStock: z.number().min(0, 'Le stock minimum doit être positif ou nulle'),
+})
+
+export const updateInventorySchema = z.object({
+  quantity: z.number().min(0, 'La quantité doit être positive ou nulle'),
+  minStock: z.number().min(0, 'Le stock minimum doit être positif ou nulle'),
+})
 

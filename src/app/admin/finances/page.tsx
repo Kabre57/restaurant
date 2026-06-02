@@ -167,7 +167,7 @@ export default function FinancesAdminPage() {
                     </td>
                     <td className="px-8 py-5 text-xs font-bold text-[#212529]">{t.amount.toLocaleString()} F</td>
                     <td className="px-8 py-5">
-                      <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">{t.method}</span>
+                      <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">{t.paymentMethod?.name || 'Inconnu'}</span>
                     </td>
                     <td className="px-8 py-5">
                       <span className="px-3 py-1 bg-[#ebfbee] text-[#2f9e44] text-[9px] font-black rounded-full uppercase tracking-widest">

@@ -5,7 +5,7 @@ import { X, Upload, Check, Loader2 } from 'lucide-react'
 import { addProduct } from '@/app/actions/admin'
 import Image from 'next/image'
 
-type Category = { id: string, name: string, icon: string | null }
+type Category = { id: string, name: string, imageUrl?: string | null }
 type NewProduct = {
   id: string
   name: string

@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
 
       const sendEvent = (payload: string) => {
         if (closed) return;
-        controller.enqueue(encoder.encode(payload));
+        try {
+          controller.enqueue(encoder.encode(payload));
+        } catch {
+          closed = true;
+          clearInterval(heartbeat);
+        }
       };
 
       const heartbeat = setInterval(() => {

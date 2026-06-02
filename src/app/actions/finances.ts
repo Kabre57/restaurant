@@ -29,7 +29,8 @@ export async function getFinancialSummary() {
       include: {
         order: {
           include: { store: true }
-        }
+        },
+        paymentMethod: true
       }
     })
 

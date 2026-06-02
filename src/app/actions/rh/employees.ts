@@ -10,25 +10,25 @@ export type EmployeeData = {
   email: string
   password?: string
   role?: string
-  
-  // HR fields
-  matricule?: string
-  civilite?: string
-  sexe?: string
-  dateBirth?: Date | null
-  nationality?: string
-  address?: string
-  phone?: string
-  personalPhone?: string
-  
-  salary?: number
-  contractType?: string
-  hireDate?: Date | null
-  status?: string
-  
-  cnpsNumber?: string
-  bankName?: string
-  rib?: string
+
+  // Champs RH — noms alignés sur le schéma Prisma
+  matricule?:      string
+  civilite?:       string
+  sexe?:           string
+  dateNaissance?:  Date | null   // était: dateBirth (n'existe pas dans Prisma)
+  nationalite?:    string        // était: nationality
+  address?:        string
+  phone?:          string
+  // personalPhone supprimé (n'existe pas dans Prisma)
+
+  salary?:         number
+  contractType?:   string
+  hireDate?:       Date | null
+  status?:         string
+
+  cnpsNumber?:     string
+  bankName?:       string
+  bankAccount?:    string        // était: rib (n'existe pas dans Prisma)
 }
 
 export async function getEmployees(storeId: string) {
@@ -96,29 +96,29 @@ export async function createEmployee(storeId: string, data: EmployeeData) {
     const newEmployee = await prisma.user.create({
       data: {
         storeId,
-        name: data.name.trim(),
-        email: data.email.trim().toLowerCase(),
+        name:     data.name.trim(),
+        email:    data.email.trim().toLowerCase(),
         password: hashedPassword,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         role: (data.role as any) || 'CASHIER',
-        
-        matricule: data.matricule,
-        civilite: data.civilite,
-        sexe: data.sexe,
-        dateBirth: data.dateBirth,
-        nationality: data.nationality,
-        address: data.address,
-        phone: data.phone,
-        personalPhone: data.personalPhone,
-        
-        salary: data.salary,
+
+        matricule:     data.matricule,
+        civilite:      data.civilite,
+        sexe:          data.sexe,
+        dateNaissance: data.dateNaissance,   // champ Prisma correct
+        nationalite:   data.nationalite,     // champ Prisma correct
+        address:       data.address,
+        phone:         data.phone,
+        // personalPhone n'existe pas dans Prisma — supprimé
+
+        salary:       data.salary,
         contractType: data.contractType,
-        hireDate: data.hireDate,
-        status: data.status || 'ACTIVE',
-        
-        cnpsNumber: data.cnpsNumber,
-        bankName: data.bankName,
-        rib: data.rib,
+        hireDate:     data.hireDate,
+        status:       data.status || 'ACTIVE',
+
+        cnpsNumber:  data.cnpsNumber,
+        bankName:    data.bankName,
+        bankAccount: data.bankAccount,       // champ Prisma correct
       }
     })
 

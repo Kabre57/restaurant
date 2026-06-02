@@ -59,14 +59,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [selectedStore, setSelectedStore] = useState<string>('')
 
+  // Helpers pour les cookies
+  const setStoreCookie = (storeId: string) => {
+    document.cookie = `admin_active_store_id=${storeId}; path=/; max-age=31536000; SameSite=Lax`
+  }
+
+  const getStoreCookie = () => {
+    const match = document.cookie.match(/(^| )admin_active_store_id=([^;]*)/)
+    return match ? match[2] : null
+  }
+
   useEffect(() => {
     getStores().then((data) => {
       if (data && data.length > 0) {
         setStores(data as StoreSummary[])
-        setSelectedStore(data[0].id)
+        const stored = getStoreCookie() || localStorage.getItem('admin_active_store_id')
+        const activeId = data.some(s => s.id === stored) ? (stored as string) : data[0].id
+        setSelectedStore(activeId)
+        if (activeId !== stored) {
+          setStoreCookie(activeId)
+          localStorage.setItem('admin_active_store_id', activeId)
+        }
       }
     })
   }, [])
+
+  const handleStoreChange = (storeId: string) => {
+    setSelectedStore(storeId)
+    setStoreCookie(storeId)
+    localStorage.setItem('admin_active_store_id', storeId)
+    window.location.reload()
+  }
 
   const handleLogout = async () => {
     setIsSidebarOpen(false)
@@ -117,7 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="relative">
             <select
               value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
+              onChange={(e) => handleStoreChange(e.target.value)}
               className="w-full appearance-none rounded-xl border border-[#E5E7EB] bg-white py-3 pl-4 pr-10 text-xs font-bold text-[#171717] outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
             >
               {stores.length === 0 ? (

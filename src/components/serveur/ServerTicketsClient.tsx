@@ -6,6 +6,7 @@ import { ServerColumn } from './ServerColumn'
 import { markOrderServed } from '@/app/actions/orderLifecycle'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { playNotificationSound } from '@/lib/sound'
 
 type OrderItem = {
   id: string
@@ -49,6 +50,7 @@ export default function ServerTicketsClient({
       eventSource.addEventListener('new-order', (event) => {
         const newOrder = JSON.parse(event.data)
         if (newOrder.storeId !== storeId) return
+        playNotificationSound('info')
         setOrders(prev => {
           const exists = prev.some(order => order.id === newOrder.id)
           return exists ? prev.map(order => order.id === newOrder.id ? newOrder : order) : [...prev, newOrder]
@@ -58,6 +60,10 @@ export default function ServerTicketsClient({
       eventSource.addEventListener('order-updated', (event) => {
         const updatedOrder = JSON.parse(event.data)
         if (updatedOrder.storeId !== storeId) return
+
+        if (updatedOrder.status === 'PRET') {
+          playNotificationSound('success')
+        }
 
         setOrders(prev => {
           const exists = prev.find(o => o.id === updatedOrder.id)

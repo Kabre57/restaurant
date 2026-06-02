@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import { AddProductModal } from './subcomponents/AddProductModal'
 
-type Category = { id: string; name: string; icon: string | null }
+type Category = { id: string; name: string; imageUrl?: string | null }
 
 type Product = {
   id: string

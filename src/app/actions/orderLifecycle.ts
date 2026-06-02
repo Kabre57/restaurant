@@ -1,6 +1,6 @@
 'use server'
 
-import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client'
+import { OrderStatus, PaymentStatus, PaymentType } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { publishOrderEvent } from './orderNotifications'
 
@@ -18,13 +18,35 @@ const orderInclude = {
   table: true,
 }
 
-function normalizePaymentMethod(method?: PaymentMethod | string): PaymentMethod {
-  if (method === PaymentMethod.CB || method === 'CARTE') return PaymentMethod.CB
-  if (method === PaymentMethod.MOBILE_MONEY || method === 'MOBILE') return PaymentMethod.MOBILE_MONEY
-  return PaymentMethod.ESPECES
+async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: string): Promise<string> {
+  if (methodCodeOrId && methodCodeOrId.length > 20) {
+    return methodCodeOrId;
+  }
+  
+  let type: PaymentType = 'CASH';
+  if (methodCodeOrId === 'CB' || methodCodeOrId === 'CARTE') type = 'CARD';
+  if (methodCodeOrId === 'MOBILE_MONEY' || methodCodeOrId === 'MOBILE') type = 'MOBILE_MONEY';
+
+  let pm = await prisma.paymentMethod.findFirst({
+    where: { storeId, type }
+  });
+  
+  if (!pm) {
+    pm = await prisma.paymentMethod.findFirst({
+      where: { storeId: null, type }
+    });
+  }
+
+  if (!pm) {
+    pm = await prisma.paymentMethod.create({
+      data: { name: type === 'CASH' ? 'Espèces' : type, type, storeId, isDefault: true }
+    });
+  }
+
+  return pm.id;
 }
 
-export async function settleOrderPayment(orderId: string, paymentMode: PaymentMethod | string, storeId?: string) {
+export async function settleOrderPayment(orderId: string, paymentMode: string, storeId?: string) {
   try {
     const existingOrder = await prisma.order.findUnique({ where: { id: orderId }, include: orderInclude })
 
@@ -34,7 +56,7 @@ export async function settleOrderPayment(orderId: string, paymentMode: PaymentMe
       return { success: false, error: 'Cette commande a ete annulee et ne peut plus etre encaissee' }
     }
 
-    const paymentMethod = normalizePaymentMethod(paymentMode)
+    const paymentMethodId = await resolvePaymentMethodId(existingOrder.storeId, paymentMode)
     const updatedOrder = await prisma.$transaction(async (tx) => {
       const pendingPayment = await tx.payment.findFirst({
         where: { orderId, status: PaymentStatus.EN_ATTENTE },
@@ -44,11 +66,11 @@ export async function settleOrderPayment(orderId: string, paymentMode: PaymentMe
       if (pendingPayment) {
         await tx.payment.update({
           where: { id: pendingPayment.id },
-          data: { method: paymentMethod, status: PaymentStatus.REUSSIE, amount: existingOrder.total },
+          data: { paymentMethodId: paymentMethodId, status: PaymentStatus.REUSSIE, amount: existingOrder.total },
         })
       } else {
         await tx.payment.create({
-          data: { orderId, method: paymentMethod, status: PaymentStatus.REUSSIE, amount: existingOrder.total },
+          data: { orderId, paymentMethodId: paymentMethodId, status: PaymentStatus.REUSSIE, amount: existingOrder.total },
         })
       }
 

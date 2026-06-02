@@ -22,7 +22,7 @@ type SupplementOption = {
 }
 
 export default function SupplementsManagement() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [options, setOptions] = useState<SupplementOption[]>([])
   const [categories, setCategories] = useState<CategoryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,23 +42,29 @@ export default function SupplementsManagement() {
 
   // Load Categories and Options when storeId is available
   useEffect(() => {
-    const storeId = session?.user?.storeId
-    if (!storeId) return
+    if (status === 'loading') return
 
+    const storeId = session?.user?.storeId
+    if (!storeId) {
+      setLoading(false)
+      return
+    }
+
+    const activeStoreId = storeId as string
     let isCancelled = false
 
     async function fetchData() {
-      setLoading(true)
       try {
+        setLoading(true)
         const [catsData, optsData] = await Promise.all([
-          getCategories(storeId),
-          getProductOptions(storeId as string)
+          getCategories(activeStoreId),
+          getProductOptions(activeStoreId)
         ])
         if (isCancelled) return
         setCategories(catsData as CategoryItem[])
         setOptions(optsData as SupplementOption[])
       } catch (err) {
-        console.error("Failed to load data:", err)
+        console.error("Failed to load supplements data:", err)
       } finally {
         if (!isCancelled) setLoading(false)
       }
@@ -69,13 +75,17 @@ export default function SupplementsManagement() {
     return () => {
       isCancelled = true
     }
-  }, [session?.user?.storeId])
+  }, [session?.user?.storeId, status])
 
   async function loadOptions() {
     const storeId = session?.user?.storeId
     if (!storeId) return
-    const optsData = await getProductOptions(storeId)
-    setOptions(optsData as SupplementOption[])
+    try {
+      const optsData = await getProductOptions(storeId)
+      setOptions(optsData as SupplementOption[])
+    } catch (err) {
+      console.error("Failed to reload supplements options:", err)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -91,26 +101,32 @@ export default function SupplementsManagement() {
       return
     }
 
-    setIsSubmitting(true)
-    const price = formData.type === 'SUPPLEMENT' ? parseFloat(formData.price) || 0 : 0
-    const categoryId = formData.categoryId ? formData.categoryId : null
+    try {
+      setIsSubmitting(true)
+      const price = formData.type === 'SUPPLEMENT' ? parseFloat(formData.price) || 0 : 0
+      const categoryId = formData.categoryId ? formData.categoryId : null
 
-    const res = await createProductOption({
-      storeId,
-      name: formData.name.trim(),
-      price,
-      categoryId,
-      type: formData.type
-    })
+      const res = await createProductOption({
+        storeId,
+        name: formData.name.trim(),
+        price,
+        categoryId,
+        type: formData.type
+      })
 
-    if (res.success) {
-      setShowModal(false)
-      setFormData({ name: '', price: '0', type: 'SUPPLEMENT', categoryId: '' })
-      await loadOptions()
-    } else {
-      setErrorModal(res.error || "Erreur lors de la création")
+      if (res.success) {
+        setShowModal(false)
+        setFormData({ name: '', price: '0', type: 'SUPPLEMENT', categoryId: '' })
+        await loadOptions()
+      } else {
+        setErrorModal(res.error || "Erreur lors de la création")
+      }
+    } catch (err) {
+      console.error("Failed to submit supplement option:", err)
+      setErrorModal("Une erreur inattendue est survenue.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   async function confirmDelete() {

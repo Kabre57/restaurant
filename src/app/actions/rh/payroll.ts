@@ -77,7 +77,7 @@ export async function generatePayrollForPeriod(storeId: string, period: string) 
       const taxResult = calculateIvoryCoastSalary(
         baseSalary, 
         emp.maritalStatus, 
-        emp.numberOfChildren, 
+        emp.numberOfChildren ?? 0, 
         rates
       )
 

@@ -1,0 +1,2 @@
+"generator client {\n  provider = \"prisma-client-js\"\n}\n\ndatasource db {\n  provider  = \"postgresql\"\n  url       = env(\"DATABASE_URL\")\n  directUrl = env(\"DIRECT_DATABASE_URL\")\n}\n\n// ---- STRUCTURE COMMERCIALE EXISTANTE ----\n\nmodel Store {\
+<truncated 18785 bytes>

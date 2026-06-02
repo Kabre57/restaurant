@@ -25,32 +25,19 @@ function getCategoryAccent(name: string) {
 
   if (normalizedName.includes('boisson')) {
     return {
-      pill: 'bg-[#e7f5ff] text-[#1971c2] border-[#a5d8ff]',
-      icon: <GlassWater className="w-4 h-4" />,
+      pill: 'bg-[#e7f5ff] text-[#1971c2] border-[#a5d8ff]'
     }
   }
 
   if (normalizedName.includes('dessert')) {
     return {
-      pill: 'bg-[#fff0f6] text-[#c2255c] border-[#faa2c1]',
-      icon: <Soup className="w-4 h-4" />,
+      pill: 'bg-[#fff0f6] text-[#c2255c] border-[#faa2c1]'
     }
   }
 
   return {
-    pill: 'bg-[#fff4e6] text-[#d9480f] border-[#ffc078]',
-    icon: <ChefHat className="w-4 h-4" />,
+    pill: 'bg-[#fff4e6] text-[#d9480f] border-[#ffc078]'
   }
-}
-
-function getCategoryEmoji(name: string) {
-  const normalizedName = name.toLowerCase()
-  if (normalizedName.includes('burger')) return '🍔'
-  if (normalizedName.includes('poulet')) return '🍗'
-  if (normalizedName.includes('frite')) return '🍟'
-  if (normalizedName.includes('boisson')) return '🥤'
-  if (normalizedName.includes('dessert')) return '🍰'
-  return '🍽️'
 }
 
 function ServerMenuItemCard({
@@ -66,6 +53,7 @@ function ServerMenuItemCard({
   const canDisplayImage = Boolean(product.image) && failedImageSrc !== product.image
   const prepMinutes = Math.max(1, product.averagePrepTimeMins || 15)
   const accent = getCategoryAccent(categoryName)
+  const initials = product.name ? product.name.trim().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PR'
 
   return (
     <article className="rounded-[2rem] border border-[#ebeef2] bg-white p-4 shadow-[0_20px_45px_rgba(33,37,41,0.05)] transition-all hover:-translate-y-1 hover:shadow-[0_28px_60px_rgba(33,37,41,0.08)]">
@@ -79,11 +67,13 @@ function ServerMenuItemCard({
               unoptimized
               sizes="96px"
               onError={() => setFailedImageSrc(product.image || null)}
-              className="object-contain p-2"
+              className="object-cover"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-3xl">
-              {getCategoryEmoji(categoryName)}
+            <div className="flex h-full items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-[#E9ECEF] flex items-center justify-center text-xs font-black text-[#868E96] select-none">
+                {initials}
+              </div>
             </div>
           )}
         </div>
@@ -92,7 +82,6 @@ function ServerMenuItemCard({
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.24em] ${accent.pill}`}>
-                {accent.icon}
                 {categoryName}
               </div>
               <h3 className="mt-3 text-base font-black uppercase tracking-tight text-[#1f2328]">
@@ -261,7 +250,6 @@ export function ServerMenuView({
                 <div className="mb-6 flex flex-col gap-4 border-b border-[#f1f3f5] pb-5 md:flex-row md:items-end md:justify-between">
                   <div>
                     <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[9px] font-black uppercase tracking-[0.24em] ${accent.pill}`}>
-                      {accent.icon}
                       {group.category.name}
                     </div>
                     <h3 className="mt-4 text-2xl font-black uppercase tracking-tight text-[#212529]">

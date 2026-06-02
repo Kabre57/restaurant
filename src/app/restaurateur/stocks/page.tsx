@@ -51,7 +51,7 @@ type GlobalIngredient = {
 }
 
 export default function RestaurateurStocks() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const storeId = session?.user?.storeId as string
 
   const [activeTab, setActiveTab] = useState<'products' | 'ingredients' | 'recipes'>('products')
@@ -63,28 +63,36 @@ export default function RestaurateurStocks() {
 
   async function loadData() {
     if (!storeId) return
-    setLoading(true)
+    try {
+      setLoading(true)
 
-    // Load products
-    const rawProducts = await getProductsByStore(storeId)
-    setProducts(rawProducts as StockProduct[])
+      // Load products
+      const rawProducts = await getProductsByStore(storeId)
+      setProducts(rawProducts as StockProduct[])
 
-    // Load raw inventory
-    const rawInventory = await getInventoryByStore(storeId)
-    setInventoryList(rawInventory as any[])
+      // Load raw inventory
+      const rawInventory = await getInventoryByStore(storeId)
+      setInventoryList(rawInventory as any[])
 
-    // Load global ingredients list
-    const rawGlobal = await getAllIngredients()
-    setGlobalIngredients(rawGlobal as GlobalIngredient[])
-
-    setLoading(false)
+      // Load global ingredients list
+      const rawGlobal = await getAllIngredients()
+      setGlobalIngredients(rawGlobal as GlobalIngredient[])
+    } catch (err) {
+      console.error("Failed to load inventory data:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (storeId) {
       void loadData()
+    } else {
+      setLoading(false)
     }
-  }, [storeId])
+  }, [storeId, status])
 
   const lowStockProductsCount = products.filter(p => p.trackStock && p.stockQuantity <= p.minStockLevel).length
   const lowStockIngredientsCount = inventoryList.filter(item => item.quantity <= item.minStock).length

@@ -1,157 +1,211 @@
-'use client'
+"use client";
 
-import { signIn, getSession } from "next-auth/react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import {
-  UtensilsCrossed, Lock, Mail, Loader2, Eye, EyeOff
-} from "lucide-react"
+import { useState, Suspense } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff, Lock, Mail, Loader2, Utensils } from "lucide-react";
 
-// Redirection par défaut après connexion
-const DEFAULT_REDIRECT = '/'
+const ROLE_CONFIG = {
+  ADMIN:        { redirect: "/admin/dashboard" },
+  RESTAURATEUR: { redirect: "/restaurateur/stats" },
+  CASHIER:      { redirect: "/cashier" },
+  KITCHEN:      { redirect: "/kds" },
+  SERVER:       { redirect: "/serveur" },
+} as const;
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail]               = useState("")
-  const [password, setPassword]         = useState("")
-  const [showPw, setShowPw]             = useState(false)
-  const [error, setError]               = useState("")
-  const [loading, setLoading]           = useState(false)
+function LoginForm() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl  = searchParams.get("callbackUrl") ?? "";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    
-    try {
-      const res = await signIn("credentials", { 
-        redirect: false, 
-        email, 
-        password 
-      })
-      
-      if (res?.error) {
-        setError("Email ou mot de passe incorrect")
-      } else {
-        const session = await getSession()
-        const role = session?.user?.role
-        
-        // Redirection basée sur le rôle retourné par le backend
-        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-          router.push('/admin/dashboard')
-        } else if (role === 'RESTAURATEUR') {
-          router.push('/restaurateur/stats')
-        } else if (role === 'KITCHEN') {
-          router.push('/kds')
-        } else if (role === 'SERVER') {
-          router.push('/serveur')
-        } else {
-          router.push(DEFAULT_REDIRECT)
-        }
-        
-        router.refresh()
-      }
-    } catch {
-      setError("Une erreur est survenue, veuillez réessayer")
-    } finally {
-      setLoading(false)
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setLoading(false);
+
+    if (!result?.ok || result.error) {
+      setError("Email ou mot de passe incorrect.");
+      return;
     }
+
+    // Redirection
+    if (callbackUrl) {
+      router.push(callbackUrl);
+    } else {
+      const res = await fetch("/api/auth/session");
+      const data = await res.json();
+      const role = data?.user?.role as keyof typeof ROLE_CONFIG;
+      const target = ROLE_CONFIG[role]?.redirect ?? "/restaurateur/stats";
+      router.push(target);
+    }
+    router.refresh();
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-[#F8F9FA] text-[#171717] font-sans">
-
-      {/* Left Side — Restaurant Photo */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-[#171717] overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-60"
-          style={{ backgroundImage: "url('/restaurant-interior.jpg')" }}
+    <div className="min-h-screen flex bg-white font-sans">
+      
+      {/* Colonne de Gauche : Grande image d'ambiance (uniquement sur md+) */}
+      <div className="hidden md:flex md:w-1/2 lg:w-[50%] xl:w-[40%] relative">
+        <img
+          src="/restaurant-interior.jpg"
+          alt="Restaurant Interior"
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-16">
-          <h2 className="text-4xl font-extrabold text-white mb-4 leading-tight">
-            Gérez votre restaurant<br/>en toute simplicité.
+        {/* Overlay sombre élégant pour la lisibilité */}
+        <div className="absolute inset-0 bg-black/40" />
+        
+        {/* Texte en bas à gauche */}
+        <div className="absolute bottom-16 left-12 pr-12 text-white z-10">
+          <h2 className="text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight">
+            Gérez votre restaurant<br />en toute simplicité.
           </h2>
         </div>
       </div>
 
-      {/* Right Side — Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-16 bg-white">
-        <div className="w-full max-w-[440px]">
-
-          <div className="mb-10">
-            <div className="w-14 h-14 bg-[#FF6D00] rounded-[16px] flex items-center justify-center mb-6 shadow-lg shadow-[#FF6D00]/20">
-              <UtensilsCrossed className="text-white" size={26}/>
-            </div>
-            <h1 className="text-4xl font-extrabold text-[#171717] tracking-tight mb-2">Bienvenue</h1>
-            <p className="text-[#6B7280] font-medium text-lg">Connectez-vous à votre espace.</p>
+      {/* Colonne de Droite : Formulaire de connexion sur fond blanc */}
+      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white">
+        <div className="w-full max-w-[420px] flex flex-col justify-center">
+          
+          {/* Logo orange couverts croisés */}
+          <div className="w-12 h-12 bg-[#FF6D00] rounded-[16px] flex items-center justify-center mb-6 shadow-md shadow-[#FF6D00]/10">
+            <Utensils className="text-white" size={24} />
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="bg-[#FEF2F2] border border-[#EF4444]/30 text-[#EF4444] px-4 py-3 rounded-2xl text-sm font-medium text-center">
-                {error}
-              </div>
-            )}
+          {/* Titre & Sous-titre */}
+          <h1 className="text-3xl font-extrabold text-[#171717] tracking-tight mb-2">
+            Bienvenue
+          </h1>
+          <p className="text-[#6B7280] font-medium text-sm mb-8">
+            Connectez-vous à votre espace.
+          </p>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#171717] ml-1">Adresse Email</label>
+          {/* Alert Erreur */}
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-700 text-xs font-semibold px-4 py-3.5 rounded-[12px] mb-6 text-center">
+              {error}
+            </div>
+          )}
+
+          {/* Formulaire de Connexion */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Adresse Email */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#171717] ml-1 block">
+                Adresse Email
+              </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={20}/>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+                  <Mail size={18} />
+                </span>
                 <input
-                  type="email" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="votre@email.com" 
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="resto@gourmet.ci"
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-[#F8F9FA] border-none rounded-[16px] text-[#171717] font-medium focus:ring-2 focus:ring-[#FF6D00] outline-none transition-all"
+                  className="w-full pl-11 pr-4 py-3.5 bg-[#EFF3F8] rounded-[14px] outline-none text-sm font-medium text-[#171717] border border-[#EFF3F8] focus:border-[#FF6D00] focus:ring-2 focus:ring-[#FF6D00]/10 focus:bg-white transition-all"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#171717] ml-1">Mot de passe</label>
+            {/* Mot de passe */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#171717] ml-1 block">
+                Mot de passe
+              </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={20}/>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+                  <Lock size={18} />
+                </span>
                 <input
-                  type={showPw ? "text" : "password"} 
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••" 
+                  id="password"
+                  type={showPwd ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
                   required
-                  className="w-full pl-12 pr-12 py-4 bg-[#F8F9FA] border-none rounded-[16px] text-[#171717] font-medium focus:ring-2 focus:ring-[#FF6D00] outline-none transition-all"
+                  className="w-full pl-11 pr-12 py-3.5 bg-[#EFF3F8] rounded-[14px] outline-none text-sm font-medium text-[#171717] border border-[#EFF3F8] focus:border-[#FF6D00] focus:ring-2 focus:ring-[#FF6D00]/10 focus:bg-white transition-all"
                 />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#171717]"
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#171717] transition-colors"
                 >
-                  {showPw ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm py-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="w-5 h-5 rounded-[6px] border-2 border-[#E5E7EB] bg-[#F8F9FA] flex items-center justify-center">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-[#FF6D00]"/>
-                </div>
-                <span className="font-bold text-[#6B7280]">Se souvenir de moi</span>
+            {/* Se souvenir de moi & Mot de passe oublié */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <label className="flex items-center gap-2 font-bold text-[#6B7280] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-[#EFF3F8] text-[#FF6D00] focus:ring-[#FF6D00]/20 w-4 h-4 cursor-pointer"
+                />
+                Se souvenir de moi
               </label>
-              <a href="#" className="text-[#FF6D00] hover:text-[#E66200] font-extrabold">Mot de passe oublié ?</a>
+              <button
+                type="button"
+                className="font-bold text-[#FF6D00] hover:text-[#E66200] transition-colors"
+                onClick={() => alert("Veuillez contacter votre administrateur pour réinitialiser votre mot de passe.")}
+              >
+                Mot de passe oublié ?
+              </button>
             </div>
 
+            {/* Bouton de Soumission Orange */}
             <button
-              type="submit" 
+              id="login-submit"
+              type="submit"
               disabled={loading}
-              className="w-full bg-[#FF6D00] hover:bg-[#E66200] text-white font-extrabold text-lg py-4 rounded-[16px] shadow-lg shadow-[#FF6D00]/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-2"
+              className="w-full py-4 bg-[#FF6D00] hover:bg-[#E66200] disabled:opacity-60 text-white font-extrabold rounded-[18px] shadow-lg shadow-[#FF6D00]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-6 text-sm"
             >
-              {loading ? <Loader2 size={22} className="animate-spin"/> : "Se connecter"}
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Connexion...
+                </>
+              ) : (
+                "Se connecter"
+              )}
             </button>
           </form>
 
         </div>
       </div>
+      
     </div>
-  )
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7]">
+        <Loader2 className="animate-spin text-[#FF6D00]" size={36} />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  );
 }

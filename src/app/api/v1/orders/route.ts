@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { redis } from '@/lib/redis';
-import { OrderType, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { OrderType, PaymentStatus, PaymentType } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,26 @@ export async function POST(request: Request) {
     }
 
     const orderType = (type || 'DINE_IN') as OrderType;
-    const payment = (paymentMode || 'ESPECES') as PaymentMethod;
+    const payment = paymentMode || 'ESPECES';
+
+    let paymentType: PaymentType = 'CASH';
+    if (payment === 'CB' || payment === 'CARTE') paymentType = 'CARD';
+    if (payment === 'MOBILE_MONEY' || payment === 'MOBILE') paymentType = 'MOBILE_MONEY';
+
+    let pm = await prisma.paymentMethod.findFirst({
+      where: { storeId, type: paymentType }
+    });
+    if (!pm) {
+      pm = await prisma.paymentMethod.findFirst({
+        where: { storeId: null, type: paymentType }
+      });
+    }
+    if (!pm) {
+      pm = await prisma.paymentMethod.create({
+        data: { name: paymentType === 'CASH' ? 'Espèces' : paymentType, type: paymentType, storeId, isDefault: true }
+      });
+    }
+    const paymentMethodId = pm.id;
 
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -34,7 +53,7 @@ export async function POST(request: Request) {
           },
           payments: {
             create: [{
-              method: payment,
+              paymentMethodId: paymentMethodId,
               amount: total,
               status: 'REUSSIE' as PaymentStatus
             }]

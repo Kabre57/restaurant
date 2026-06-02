@@ -1,4 +1,4 @@
-export type PaymentMode = 'ESPECES' | 'CB' | 'MOBILE_MONEY'
+export type PaymentMode = string
 export type OrderFlowMode = 'DIRECT' | 'TABLE_SERVICE'
 export type POSViewMode = 'POS' | 'FLOOR_PLAN' | 'RESERVATIONS'
 export { computeEstimatedPrepMinutes, formatEstimatedReadyTime, getDefaultPrepMinutes } from '@/lib/prep-estimates'
@@ -13,12 +13,18 @@ export function nextDisplayOrderId(current: number) {
 }
 
 export function createClientRequestId(storeId: string, cashierId: string) {
-  const randomId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${performance.now().toString(36).replace('.', '')}`
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
 
-  return `${storeId}:${cashierId}:${randomId}`
+  // Robust standard UUID v4 fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
+
 
 export function normalizeLiveOrderStatus(status?: string) {
   if (status === 'PRÉPARATION' || status === 'PREPARATION') return 'PREPARATION'

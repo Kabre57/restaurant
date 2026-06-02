@@ -1,3 +1,4 @@
+// src/components/pos/hooks/usePOSCheckout.ts
 'use client'
 
 import { useState } from 'react'
@@ -5,6 +6,8 @@ import type { Table } from '@prisma/client'
 
 import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders'
 import { searchCustomer, validatePromotion } from '@/app/actions/loyalty'
+import { getRoundedTotal } from '@/app/actions/storeSettings'
+import { getPaymentMethods } from '@/app/actions/paymentMethods'
 import { addOrderToSyncQueue } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
@@ -63,18 +66,32 @@ export function usePOSCheckout({
   onAlert,
   operatorRole = 'CASHIER',
 }: UsePOSCheckoutOptions) {
+  const [paymentMethods, setPaymentMethods] = useState<{ id: string; name: string; type: string; icon: string | null; isDefault: boolean }[]>([])
+  
+  // Fetch payment methods once on mount
+  useState(() => {
+    getPaymentMethods(storeId).then((res) => {
+      if (res.success && res.methods) {
+        setPaymentMethods(res.methods as any[])
+      }
+    })
+  })
+
   const [isProcessing, setIsProcessing] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [lastOrder, setLastOrder] = useState<ReceiptOrder | null>(null)
   const [amountReceived, setAmountReceived] = useState('')
   const [changeAmount, setChangeAmount] = useState<number | null>(null)
+  const [selectedBills, setSelectedBills] = useState<{ id: string; value: number }[]>([])
   const [promoCode, setPromoCode] = useState('')
   const [discount, setDiscount] = useState(0)
   const [appliedPromoId, setAppliedPromoId] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<PaymentCustomer | null>(null)
   const [customerResults, setCustomerResults] = useState<PaymentCustomer[]>([])
   const [paymentContext, setPaymentContext] = useState<PaymentContext>({ kind: 'NEW_ORDER' })
+  const [roundedTotal, setRoundedTotal] = useState<number | null>(null)
+  const [roundingDiff, setRoundingDiff] = useState(0)
 
   const isSettlementFlow = paymentContext.kind === 'SETTLEMENT'
   const grossTotal = getTotal()
@@ -82,6 +99,33 @@ export function usePOSCheckout({
   const paymentTotal = isSettlementFlow
     ? Number(paymentContext.order.total || 0)
     : newOrderNetTotal
+
+  // Fonction d'impression automatique du ticket et ouverture du tiroir-caisse
+  const triggerAutoPrint = async (orderData: ReceiptOrder) => {
+    onAlert({
+      title: 'Impression',
+      message: "Ticket en cours d'impression...",
+      type: 'info',
+    })
+
+    try {
+      await fetch('/api/hardware/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: orderData }),
+      })
+
+      if (orderData.paymentMode === 'ESPECES') {
+        await fetch('/api/hardware/cash-drawer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: orderData.id, total: orderData.total }),
+        })
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'impression automatique:", err)
+    }
+  }
 
   const getSelectedActiveTableOrder = () => {
     if (!selectedTable) return null
@@ -99,11 +143,14 @@ export function usePOSCheckout({
   const resetPaymentFields = () => {
     setAmountReceived('')
     setChangeAmount(null)
+    setSelectedBills([])
     setPromoCode('')
     setDiscount(0)
     setAppliedPromoId(null)
     setSelectedCustomer(null)
     setCustomerResults([])
+    setRoundedTotal(null)
+    setRoundingDiff(0)
   }
 
   const closePaymentModal = () => {
@@ -111,6 +158,36 @@ export function usePOSCheckout({
     setPaymentContext({ kind: 'NEW_ORDER' })
     resetPaymentFields()
   }
+
+  const handleAddBill = (value: number) => {
+    const newBill = {
+      id: `${value}-${Date.now()}-${Math.random()}`,
+      value,
+    }
+    const newBills = [...selectedBills, newBill]
+    setSelectedBills(newBills)
+
+    const totalFromBills = newBills.reduce((sum, b) => sum + b.value, 0)
+    calculateChange(totalFromBills.toString())
+  }
+
+  const handleRemoveBill = (id: string) => {
+    const updatedBills = selectedBills.filter((bill) => bill.id !== id)
+    setSelectedBills(updatedBills)
+
+    const totalFromBills = updatedBills.reduce((sum, b) => sum + b.value, 0)
+    if (totalFromBills > 0) {
+      calculateChange(totalFromBills.toString())
+    } else {
+      calculateChange('')
+    }
+  }
+
+  const handleResetBills = () => {
+    setSelectedBills([])
+    calculateChange('')
+  }
+
 
   const calculateChange = (value: string) => {
     setAmountReceived(value)
@@ -120,7 +197,9 @@ export function usePOSCheckout({
     }
 
     const received = parseFloat(value)
-    setChangeAmount(received - paymentTotal)
+    // Utiliser le total arrondi pour le calcul du rendu de monnaie si disponible
+    const effectiveTotal = roundedTotal ?? paymentTotal
+    setChangeAmount(Math.max(0, received - effectiveTotal))
   }
 
   const handleApplyPromo = async () => {
@@ -160,9 +239,21 @@ export function usePOSCheckout({
     setShowPaymentModal(true)
   }
 
-  const openNewOrderPayment = () => {
+  const openNewOrderPayment = async () => {
     setPaymentContext({ kind: 'NEW_ORDER' })
     resetPaymentFields()
+
+    // Pré-calculer l'arrondi pour les paiements espèces
+    try {
+      const result = await getRoundedTotal(newOrderNetTotal, storeId)
+      if (result.roundingDiff !== 0) {
+        setRoundedTotal(result.roundedTotal)
+        setRoundingDiff(result.roundingDiff)
+      }
+    } catch {
+      // En cas d'erreur, on continue sans arrondi
+    }
+
     setShowPaymentModal(true)
   }
 
@@ -229,7 +320,7 @@ export function usePOSCheckout({
 
       if (result.success && result.order) {
         mergeLiveOrder(result.order)
-        setLastOrder({
+        const receiptData = {
           id: result.order.id,
           displayId: orderId,
           items: buildReceiptItemsFromOrder(result.order),
@@ -237,9 +328,14 @@ export function usePOSCheckout({
           date: new Date(),
           estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
           ...getReceiptPaymentMeta(mode, Number(result.order.total || paymentTotal)),
-        })
+        }
+        setLastOrder(receiptData)
 
         updateSessionStats(Number(result.order.total || paymentTotal))
+        
+        // Déclenchement automatique de l'impression physique du ticket
+        void triggerAutoPrint(receiptData)
+
         setShowReceipt(true)
         closePaymentModal()
         onAfterCheckout()
@@ -258,6 +354,8 @@ export function usePOSCheckout({
   // Gere la creation locale, distante et offline d'une commande encaissee a la caisse.
   const finalizeNewPaidOrder = async (mode: PaymentMode) => {
     const currentTotal = newOrderNetTotal
+    // Appliquer l'arrondi uniquement pour les paiements espèces
+    const cashTotal = mode === 'ESPECES' && roundedTotal !== null ? roundedTotal : currentTotal
     const paymentMode = mode
 
     setIsProcessing(true)
@@ -279,7 +377,7 @@ export function usePOSCheckout({
 
         if (result.success && result.order) {
           mergeLiveOrder(result.order)
-          setLastOrder({
+          const receiptData = {
             id: result.order.id,
             displayId: orderId,
             items: buildReceiptItemsFromCart(items),
@@ -287,10 +385,15 @@ export function usePOSCheckout({
             date: new Date(),
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
             ...getReceiptPaymentMeta(paymentMode, currentTotal),
-          })
+          }
+          setLastOrder(receiptData)
 
           clearCart()
           updateSessionStats(currentTotal)
+          
+          // Déclenchement automatique de l'impression physique du ticket
+          void triggerAutoPrint(receiptData)
+
           setShowReceipt(true)
           closePaymentModal()
           advanceOrderId()
@@ -309,7 +412,7 @@ export function usePOSCheckout({
         clientRequestId: createClientRequestId(storeId, cashierId),
         storeId,
         cashierId,
-        total: currentTotal,
+        total: cashTotal,
         discount,
         promotionId: appliedPromoId || undefined,
         customerId: selectedCustomer?.id || undefined,
@@ -322,19 +425,28 @@ export function usePOSCheckout({
         type: 'DINE_IN' as const,
         paymentMode,
         tableId: selectedTable?.id || undefined,
+        externalPayload: {
+          selectedBills: selectedBills.map(b => b.value)
+        }
       }
 
       if (isOnline) {
         const result = await createOrder(orderData)
         if (result.success && result.order) {
           mergeLiveOrder(result.order)
-          setLastOrder({
+          const receiptData = {
             ...orderData,
             id: result.order.id,
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
             ...getReceiptPaymentMeta(paymentMode, currentTotal),
-          })
+            items: buildReceiptItemsFromCart(items),
+          }
+          setLastOrder(receiptData)
           updateSessionStats(currentTotal)
+          
+          // Déclenchement automatique de l'impression physique du ticket
+          void triggerAutoPrint(receiptData)
+
           setShowReceipt(true)
           closePaymentModal()
           clearCart()
@@ -350,12 +462,18 @@ export function usePOSCheckout({
         await addOrderToSyncQueue(orderData)
         await refreshSyncQueueCount()
         updateSessionStats(currentTotal)
-        setLastOrder({
+        const receiptData = {
           ...orderData,
           id: orderData.clientRequestId,
           isOffline: true,
           ...getReceiptPaymentMeta(paymentMode, currentTotal),
-        })
+          items: buildReceiptItemsFromCart(items),
+        }
+        setLastOrder(receiptData)
+        
+        // Déclenchement automatique de l'impression physique du ticket même hors-ligne
+        void triggerAutoPrint(receiptData)
+
         setShowReceipt(true)
         closePaymentModal()
         clearCart()
@@ -380,17 +498,26 @@ export function usePOSCheckout({
         type: 'DINE_IN' as const,
         paymentMode,
         tableId: selectedTable?.id || undefined,
+        externalPayload: {
+          selectedBills: selectedBills.map(b => b.value)
+        }
       }
 
       await addOrderToSyncQueue(orderData)
       await refreshSyncQueueCount()
       updateSessionStats(currentTotal)
-      setLastOrder({
+      const receiptData = {
         ...orderData,
         id: orderData.clientRequestId,
         isOffline: true,
         ...getReceiptPaymentMeta(paymentMode, currentTotal),
-      })
+        items: buildReceiptItemsFromCart(items),
+      }
+      setLastOrder(receiptData)
+      
+      // Déclenchement automatique de l'impression physique du ticket
+      void triggerAutoPrint(receiptData)
+
       setShowReceipt(true)
       closePaymentModal()
       clearCart()
@@ -434,5 +561,12 @@ export function usePOSCheckout({
     handleCheckoutClick,
     handleCheckout,
     openSettlementForOrder,
+    selectedBills,
+    onAddBill: handleAddBill,
+    onRemoveBill: handleRemoveBill,
+    onResetBills: handleResetBills,
+    roundedTotal,
+    roundingDiff,
+    paymentMethods,
   }
 }

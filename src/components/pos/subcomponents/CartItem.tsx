@@ -23,10 +23,12 @@ export function CartItem({ item, onAdd, onSub, onOptionsClick }: CartItemProps) 
             src={item.image || ''}
             alt={item.name}
             onError={() => setFailedImageSrc(item.image || null)}
-            className="w-full h-full object-contain p-1"
+            className="w-full h-full object-cover"
           />
         ) : (
-          <span className="text-2xl opacity-40">🍽️</span>
+          <div className="flex h-full w-full items-center justify-center bg-[#f1f3f5] text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">
+            {item.name ? item.name.trim().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PR'}
+          </div>
         )}
       </div>
       <div className="flex-1 flex flex-col gap-1">

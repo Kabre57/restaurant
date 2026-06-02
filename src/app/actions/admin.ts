@@ -41,9 +41,11 @@ export async function updateProductPrice(productId: string, price: number) {
   }
 }
 
-export async function getProductsForAdmin() {
+export async function getProductsForAdmin(storeId?: string) {
   try {
+    const where = storeId ? { storeId } : {}
     const products = await prisma.product.findMany({
+      where,
       orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
       include: { category: true },
     })
@@ -54,9 +56,13 @@ export async function getProductsForAdmin() {
   }
 }
 
-export async function getCategories() {
+export async function getCategories(storeId?: string) {
   try {
-    return await prisma.category.findMany({ orderBy: { name: 'asc' } })
+    const where = storeId ? { storeId } : {}
+    return await prisma.category.findMany({ 
+      where,
+      orderBy: { name: 'asc' } 
+    })
   } catch (error) {
     return []
   }
@@ -140,18 +146,23 @@ export async function getSalesReport(storeId: string | null, period: 'daily' | '
 }
 
 
-export async function getGlobalStats() {
+export async function getGlobalStats(storeId?: string) {
   try {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
+    const orderWhere = storeId 
+      ? { createdAt: { gte: today }, storeId } 
+      : { createdAt: { gte: today } }
+
     const orderCount = await prisma.order.count({
-      where: { createdAt: { gte: today } }
+      where: orderWhere
     })
     
-    const storeCount = await prisma.store.count()
+    const storeCount = storeId ? 1 : await prisma.store.count()
 
     const stores = await prisma.store.findMany({
+      where: storeId ? { id: storeId } : undefined,
       include: {
         orders: {
           where: { status: 'COMPLETED' },
@@ -176,6 +187,7 @@ export async function getGlobalStats() {
     }).sort((a, b) => b.revenue - a.revenue).slice(0, 3)
 
     const recentOrders = await prisma.order.findMany({
+      where: storeId ? { storeId } : undefined,
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { store: true }

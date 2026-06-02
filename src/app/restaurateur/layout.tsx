@@ -32,6 +32,8 @@ import {
   CreditCard,
   Star,
   PlusSquare,
+  Coins,
+  Key,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -47,6 +49,7 @@ const menuItems = [
   { name: 'Suppléments', icon: <PlusSquare />, href: '/restaurateur/supplements', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes', roles: ['RESTAURATEUR', 'MANAGER', 'WAITER', 'CASHIER'] },
+  { name: 'Rotation Caisse', icon: <Coins />, href: '/restaurateur/caisse/rotation', roles: ['RESTAURATEUR', 'MANAGER', 'CASHIER'] },
   { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons', roles: ['RESTAURATEUR', 'MANAGER'] },
   {
     name: 'Ressources Humaines',
@@ -66,6 +69,7 @@ const menuItems = [
   },
   { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support', roles: ['ALL'] },
   { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config', roles: ['RESTAURATEUR'] },
+  { name: 'Clés API', icon: <Key />, href: '/restaurateur/integrations/api-tokens', roles: ['RESTAURATEUR'] },
   { name: 'Espaces', icon: <Compass />, href: '/espaces', roles: ['ALL'] },
 ]
 
@@ -80,12 +84,18 @@ export default function RestaurateurLayout({ children }: { children: React.React
   })
 
   useEffect(() => {
+    console.log("[RestaurateurLayout Session Client]", session)
     if (!session?.user?.storeId) return
 
     let isCancelled = false
 
     getStoreDetails(session.user.storeId).then((data) => {
-      if (isCancelled || !data) return
+      if (isCancelled) return
+      if (!data) {
+        // Session obsolète après réinitialisation de la BDD
+        void signOut({ callbackUrl: '/login' })
+        return
+      }
       setStore(data as StoreSummary)
     })
 
@@ -135,15 +145,12 @@ export default function RestaurateurLayout({ children }: { children: React.React
 
         <nav className="flex-1 overflow-y-auto space-y-1.5 px-4 py-6 lg:px-3 xl:px-4">
           {menuItems.map((item) => {
-            const userRole = session?.user?.role || 'WAITER'
-            const canAccessItem = item.roles.includes('ALL') || item.roles.includes(userRole)
-            if (!canAccessItem) return null
-
+            const userRole = session?.user?.role || 'RESTAURATEUR'
             let filteredSubItems = item.subItems
+
             if (filteredSubItems) {
-              filteredSubItems = filteredSubItems.filter(sub => sub.roles.includes('ALL') || sub.roles.includes(userRole))
-              // Rename labels if the user is a manager vs employee (optional)
-              if (userRole === 'RESTAURATEUR' || userRole === 'MANAGER') {
+              // Si c'est un compte manager/restaurateur, on renomme pour un style plus professionnel
+              if (userRole === 'RESTAURATEUR' || userRole === 'MANAGER' || userRole === 'ADMIN') {
                 filteredSubItems = filteredSubItems.map(sub => {
                   if (sub.name === 'Mes Contrats') return { ...sub, name: 'Contrats' }
                   if (sub.name === 'Mes Bulletins') return { ...sub, name: 'Paie & Salaires' }
@@ -151,7 +158,6 @@ export default function RestaurateurLayout({ children }: { children: React.React
                   return sub
                 })
               }
-              if (filteredSubItems.length === 0) return null
             }
 
             const isActive = pathname.startsWith(item.href) && (!filteredSubItems || pathname === item.href)

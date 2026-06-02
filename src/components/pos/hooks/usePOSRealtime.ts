@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { normalizeLiveOrder } from '../lib/pos-helpers'
+import { playNotificationSound } from '@/lib/sound'
 
 export type StockAlert = {
   name: string
@@ -127,6 +128,7 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerC
     })
 
     if (readyMessage) {
+      playNotificationSound('success')
       onReadyOrder?.(readyMessage)
     }
   }, [onReadyOrder])
@@ -163,6 +165,7 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerC
     posAlertSource.addEventListener('server-call', (event) => {
       try {
         const alert = JSON.parse(event.data) as POSAlertEvent
+        playNotificationSound('warning')
         onServerCall?.(buildPOSAlertMessage(alert))
       } catch (error) {
         console.error('Failed to parse POS alert event:', error)

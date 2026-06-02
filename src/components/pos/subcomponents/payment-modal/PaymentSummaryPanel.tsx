@@ -8,15 +8,17 @@ type PaymentSummaryPanelProps = {
   discount: number
   changeAmount: number | null
   mode: PaymentMode
+  paymentMethods: { id: string; name: string; type: string; icon: string | null }[]
   isProcessing: boolean
   onModeChange: (mode: PaymentMode) => void
   onFinalize: () => void
 }
 
-function getButtonClassName(mode: PaymentMode) {
-  if (mode === 'ESPECES') return 'bg-[#2f9e44] hover:bg-[#2b8a3e]'
-  if (mode === 'CB') return 'bg-[#339af0] hover:bg-[#228be6]'
-  return 'bg-[#f59f00] hover:bg-[#e67700]'
+function getButtonClassName(type: string) {
+  if (type === 'CASH') return 'bg-[#2f9e44] hover:bg-[#2b8a3e]'
+  if (type === 'CARD') return 'bg-[#339af0] hover:bg-[#228be6]'
+  if (type === 'MOBILE_MONEY') return 'bg-[#f59f00] hover:bg-[#e67700]'
+  return 'bg-[#7048e8] hover:bg-[#5f3dc4]'
 }
 
 export function PaymentSummaryPanel({
@@ -24,26 +26,29 @@ export function PaymentSummaryPanel({
   discount,
   changeAmount,
   mode,
+  paymentMethods,
   isProcessing,
   onModeChange,
   onFinalize,
 }: PaymentSummaryPanelProps) {
+  const activeMethod = paymentMethods.find(m => m.name === mode)
+  const activeMethodType = activeMethod?.type || 'OTHER'
   const netTotal = Math.max(0, total - discount)
-  const cashDisabled = mode === 'ESPECES' && (changeAmount === null || changeAmount < 0)
+  const cashDisabled = activeMethodType === 'CASH' && (changeAmount === null || changeAmount < 0)
 
   return (
-    <div className="bg-[#1a1d24] text-white p-12 flex flex-col justify-between md:w-1/2">
+    <div className="bg-[#1a1d24] text-white p-8 md:p-9 flex flex-col justify-between md:w-1/2 overflow-y-auto custom-scrollbar max-h-[90vh]">
       <div>
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Mode de Paiement</span>
         </div>
 
-        <PaymentModeSelector mode={mode} onChange={onModeChange} />
+        <PaymentModeSelector mode={mode} onChange={onModeChange} paymentMethods={paymentMethods} />
 
-        <div className="space-y-4">
-          <div className="space-y-1">
+        <div className="space-y-3.5">
+          <div className="space-y-0.5">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Sous-total</span>
-            <p className="text-xl font-bold opacity-80">{total.toLocaleString()} FCFA</p>
+            <p className="text-lg font-bold opacity-80">{total.toLocaleString()} FCFA</p>
           </div>
 
           {discount > 0 && (
@@ -53,21 +58,21 @@ export function PaymentSummaryPanel({
             </div>
           )}
 
-          <div className="pt-4 border-t border-white/10">
+          <div className="pt-3.5 border-t border-white/10">
             <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Total Net</span>
-            <div className="text-5xl font-black tracking-tighter">
-              {netTotal.toLocaleString()} <span className="text-xl opacity-50">FCFA</span>
+            <div className="text-4xl font-black tracking-tighter">
+              {netTotal.toLocaleString()} <span className="text-lg opacity-50">FCFA</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-6 pt-12 border-t border-white/10">
-        {mode === 'ESPECES' && changeAmount !== null && (
+      <div className="space-y-4 pt-8 border-t border-white/10">
+        {activeMethodType === 'CASH' && changeAmount !== null && (
           <div className="animate-in fade-in slide-in-from-left-4 duration-500">
             <span className="text-[10px] font-black uppercase tracking-widest text-[#2f9e44]">À Rendre au Client</span>
-            <div className={`text-5xl font-black tracking-tighter ${changeAmount >= 0 ? 'text-[#2f9e44]' : 'text-[#e03131]'}`}>
-              {Math.abs(changeAmount).toLocaleString()} <span className="text-xl opacity-50">FCFA</span>
+            <div className={`text-4xl font-black tracking-tighter ${changeAmount >= 0 ? 'text-[#2f9e44]' : 'text-[#e03131]'}`}>
+              {Math.abs(changeAmount).toLocaleString()} <span className="text-lg opacity-50">FCFA</span>
             </div>
           </div>
         )}
@@ -75,7 +80,7 @@ export function PaymentSummaryPanel({
         <button
           onClick={onFinalize}
           disabled={isProcessing || cashDisabled}
-          className={`w-full ${getButtonClassName(mode)} disabled:bg-white/10 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95`}
+          className={`w-full ${getButtonClassName(activeMethodType)} disabled:bg-white/10 text-white py-4.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95`}
         >
           {isProcessing ? 'Encaissement...' : 'Confirmer le Paiement'}
         </button>
@@ -83,3 +88,4 @@ export function PaymentSummaryPanel({
     </div>
   )
 }
+
