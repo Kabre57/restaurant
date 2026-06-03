@@ -28,8 +28,8 @@ export default function LoansPage() {
     async function fetchData() {
       setLoading(true)
       const [loansRes, empRes] = await Promise.all([
-        getLoans(session?.user?.storeId as string, userId),
-        isManager ? getEmployees(session?.user?.storeId as string) : Promise.resolve({ success: true, employees: [] })
+        getLoans(userId),
+        isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
       ])
       
       if (isCancelled) return
@@ -54,7 +54,7 @@ export default function LoansPage() {
     const res = await createLoan(data)
     if (res.success) {
       setShowModal(false)
-      const refreshRes = await getLoans(session?.user?.storeId as string, userId)
+      const refreshRes = await getLoans(userId)
       if (refreshRes.success && refreshRes.loans) {
         setLoans(refreshRes.loans)
       }
@@ -68,7 +68,7 @@ export default function LoansPage() {
     
     const res = await updateLoanStatus(id, newStatus)
     if (res.success) {
-      const refreshRes = await getLoans(session?.user?.storeId as string, userId)
+      const refreshRes = await getLoans(userId)
       if (refreshRes.success && refreshRes.loans) {
         setLoans(refreshRes.loans)
       }

@@ -2,10 +2,13 @@
 
 import { Priority, TicketStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { supportStatusSchema, supportTicketSchema } from '@/lib/validation/schemas'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function getSupportTickets() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.supportTicket.findMany({
       orderBy: { createdAt: 'desc' },
@@ -26,6 +29,8 @@ export async function getSupportTickets() {
 }
 
 export async function getSupportStats() {
+  await requireAuth(["ADMIN"])
+
   try {
     const [open, inProgress, closed, critical] = await Promise.all([
       prisma.supportTicket.count({ where: { status: TicketStatus.OPEN } }),
@@ -42,9 +47,12 @@ export async function getSupportStats() {
 }
 
 export async function getSupportTicketsByUser(userId: string) {
+  const { userId: authUserId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER", "KITCHEN"])
+  const targetUserId = role === "ADMIN" ? userId : authUserId
+
   try {
     return await prisma.supportTicket.findMany({
-      where: { userId },
+      where: { userId: targetUserId },
       orderBy: { createdAt: 'desc' },
     })
   } catch (error) {
@@ -59,8 +67,10 @@ export async function createSupportTicket(data: {
   priority: Priority
   userId?: string
 }) {
+  const { userId: authUserId } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER", "KITCHEN"])
+
   try {
-    const parsed = supportTicketSchema.safeParse(data)
+    const parsed = supportTicketSchema.safeParse({ ...data, userId: authUserId })
     if (!parsed.success) {
       return { success: false, error: 'Données du ticket invalides.' }
     }
@@ -70,7 +80,7 @@ export async function createSupportTicket(data: {
         subject: parsed.data.subject,
         description: parsed.data.description,
         priority: parsed.data.priority,
-        userId: parsed.data.userId || null,
+        userId: authUserId,
       },
     })
 
@@ -83,6 +93,8 @@ export async function createSupportTicket(data: {
 }
 
 export async function updateSupportTicketStatus(id: string, status: TicketStatus) {
+  await requireAuth(["ADMIN"])
+
   try {
     const parsed = supportStatusSchema.safeParse({ id, status })
     if (!parsed.success) return { success: false, error: 'Statut invalide.' }

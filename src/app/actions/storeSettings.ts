@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { RoundingType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { applyRounding } from '@/lib/roundingUtils'

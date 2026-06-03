@@ -1,7 +1,8 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export type ContractData = {
   userId: string
@@ -16,7 +17,9 @@ export type ContractData = {
   numberOfChildren?: number
 }
 
-export async function getContracts(storeId: string, userId?: string) {
+export async function getContracts(userId?: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const whereClause: any = { user: { storeId } }
     if (userId) {
@@ -40,10 +43,20 @@ export async function getContracts(storeId: string, userId?: string) {
 }
 
 export async function createContract(data: ContractData) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     if (!data.userId || !data.type || !data.startDate || !data.baseSalary) {
       return { success: false, error: 'Les champs obligatoires ne sont pas remplis.' }
     }
+
+    // Vérifier que l'employé cible appartient au store de l'appelant
+    const targetUser = await prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { storeId: true }
+    })
+    if (!targetUser) return { success: false, error: 'Employé introuvable.' }
+    assertSameStore(targetUser.storeId, storeId, "Employé")
 
     const contract = await prisma.contract.create({
       data: {
@@ -80,7 +93,17 @@ export async function createContract(data: ContractData) {
 }
 
 export async function updateContract(id: string, data: Partial<ContractData>) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que le contrat appartient au store via l'utilisateur
+    const existing = await prisma.contract.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Contrat introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Contrat")
+
     const contract = await prisma.contract.update({
       where: { id },
       data
@@ -110,9 +133,15 @@ export async function updateContract(id: string, data: Partial<ContractData>) {
 }
 
 export async function terminateContract(contractId: string, date: Date, reason: string, indemnityAmount: number = 0) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
-    const contract = await prisma.contract.findUnique({ where: { id: contractId } })
+    const contract = await prisma.contract.findUnique({
+      where: { id: contractId },
+      include: { user: { select: { storeId: true } } }
+    })
     if (!contract) return { success: false, error: 'Contrat introuvable.' }
+    assertSameStore(contract.user.storeId, storeId, "Contrat")
 
     await prisma.$transaction([
       prisma.contract.update({
@@ -135,7 +164,17 @@ export async function terminateContract(contractId: string, date: Date, reason: 
 }
 
 export async function deleteContract(id: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que le contrat appartient au store
+    const existing = await prisma.contract.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Contrat introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Contrat")
+
     await prisma.contract.delete({ where: { id } })
     revalidatePath('/restaurateur/rh/contrats')
     return { success: true }

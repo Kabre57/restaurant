@@ -29,8 +29,8 @@ export default function EvaluationsPage() {
     async function fetchData() {
       setLoading(true)
       const [evalRes, empRes] = await Promise.all([
-        getEvaluations(session?.user?.storeId as string, userId),
-        isManager ? getEmployees(session?.user?.storeId as string) : Promise.resolve({ success: true, employees: [] })
+        getEvaluations(userId),
+        isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
       ])
       
       if (isCancelled) return
@@ -61,7 +61,7 @@ export default function EvaluationsPage() {
 
     if (res.success) {
       setShowModal(false)
-      const refreshRes = await getEvaluations(session?.user?.storeId as string, userId)
+      const refreshRes = await getEvaluations(userId)
       if (refreshRes.success && refreshRes.evaluations) {
         setEvaluations(refreshRes.evaluations)
       }
@@ -74,7 +74,7 @@ export default function EvaluationsPage() {
     if (!confirm("Voulez-vous vraiment supprimer cette évaluation ?")) return
     const res = await deleteEvaluation(id)
     if (res.success) {
-      const refreshRes = await getEvaluations(session?.user?.storeId as string, userId)
+      const refreshRes = await getEvaluations(userId)
       if (refreshRes.success && refreshRes.evaluations) {
         setEvaluations(refreshRes.evaluations)
       }

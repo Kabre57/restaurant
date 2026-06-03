@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
 import { 
   createProductSchema, 
@@ -9,6 +9,8 @@ import {
   updateCategorySchema,
   formatZodError 
 } from '@/lib/validation/schemas'
+
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function createProduct(data: { 
   name: string, 
@@ -21,8 +23,11 @@ export async function createProduct(data: {
   stockQuantity?: number,
   minStockLevel?: number
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
-    const parsed = createProductSchema.safeParse(data)
+    const parsed = createProductSchema.safeParse({ ...data, storeId: finalStoreId })
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
     }
@@ -33,7 +38,7 @@ export async function createProduct(data: {
         name: validatedData.name,
         price: validatedData.price,
         category: { connect: { id: validatedData.categoryId } },
-        store: { connect: { id: validatedData.storeId } },
+        store: { connect: { id: finalStoreId } },
         image: validatedData.image,
         averagePrepTimeMins: validatedData.averagePrepTimeMins,
         trackStock: validatedData.trackStock,
@@ -43,7 +48,7 @@ export async function createProduct(data: {
     })
     
     // Invalidation du cache des produits du magasin
-    await redis.del(REDIS_KEYS.products(validatedData.storeId))
+    await redis.del(REDIS_KEYS.products(finalStoreId))
     
     return { success: true, product }
   } catch (error) {
@@ -64,7 +69,15 @@ export async function updateProduct(id: string, data: {
   minStockLevel?: number,
   storeId?: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.product.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Produit non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId, "Produit")
+    }
+
     const parsed = updateProductSchema.safeParse(data)
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
@@ -72,10 +85,12 @@ export async function updateProduct(id: string, data: {
     const validatedData = parsed.data
 
     const { categoryId, storeId, ...rest } = validatedData
+    const finalStoreId = role === "ADMIN" ? (storeId || existing.storeId) : authStoreId
+
     const updateData: any = {
       ...rest,
       ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
-      ...(storeId ? { store: { connect: { id: storeId } } } : {})
+      store: { connect: { id: finalStoreId } }
     }
 
     try {
@@ -105,7 +120,15 @@ export async function updateProduct(id: string, data: {
 }
 
 export async function deleteProduct(id: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.product.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Produit non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId, "Produit")
+    }
+
     const product = await prisma.product.delete({
       where: { id }
     })
@@ -121,10 +144,13 @@ export async function deleteProduct(id: string) {
 }
 
 export async function getProductsByStore(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
-    return await getCached(REDIS_KEYS.products(storeId), 300, async () => {
+    return await getCached(REDIS_KEYS.products(targetStoreId), 300, async () => {
       return await prisma.product.findMany({
-        where: { storeId },
+        where: { storeId: targetStoreId },
         include: { category: true },
         orderBy: { name: 'asc' }
       })
@@ -136,8 +162,11 @@ export async function getProductsByStore(storeId: string) {
 }
 
 export async function getCategories(storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? (storeId || authStoreId) : authStoreId
+
   try {
-    const where = storeId ? { storeId } : {}
+    const where = { storeId: targetStoreId }
     return await prisma.category.findMany({
       where,
       orderBy: { name: 'asc' }
@@ -149,9 +178,12 @@ export async function getCategories(storeId?: string) {
 }
 
 export async function getCategoriesByStore(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.category.findMany({
-      where: { storeId },
+      where: { storeId: targetStoreId },
       orderBy: { name: 'asc' }
     })
   } catch (error) {
@@ -161,8 +193,11 @@ export async function getCategoriesByStore(storeId: string) {
 }
 
 export async function createCategory(data: { name: string, storeId: string, imageUrl?: string }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
-    const parsed = adminCategorySchema.safeParse(data)
+    const parsed = adminCategorySchema.safeParse({ ...data, storeId: finalStoreId })
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
     }
@@ -171,11 +206,11 @@ export async function createCategory(data: { name: string, storeId: string, imag
     const category = await prisma.category.create({
       data: {
         name: validatedData.name,
-        store: { connect: { id: validatedData.storeId } },
+        store: { connect: { id: finalStoreId } },
         imageUrl: validatedData.imageUrl || null
       }
     })
-    await redis.del(REDIS_KEYS.products(validatedData.storeId))
+    await redis.del(REDIS_KEYS.products(finalStoreId))
     return { success: true, category }
   } catch (error) {
     console.error("Failed to create category:", error)
@@ -184,7 +219,15 @@ export async function createCategory(data: { name: string, storeId: string, imag
 }
 
 export async function updateCategory(id: string, data: { name?: string, imageUrl?: string }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.category.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Catégorie non trouvée" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId, "Catégorie")
+    }
+
     const parsed = updateCategorySchema.safeParse(data)
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
@@ -204,7 +247,15 @@ export async function updateCategory(id: string, data: { name?: string, imageUrl
 }
 
 export async function deleteCategory(id: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.category.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Catégorie non trouvée" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId, "Catégorie")
+    }
+
     const category = await prisma.category.delete({
       where: { id }
     })

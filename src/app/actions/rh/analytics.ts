@@ -1,8 +1,11 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
-export async function getHrDashboardMetrics(storeId: string) {
+export async function getHrDashboardMetrics() {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     // 1. Total employees
     const totalEmployees = await prisma.user.count({

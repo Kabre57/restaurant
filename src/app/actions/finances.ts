@@ -1,9 +1,12 @@
 'use server'
 
 import { PaymentStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function getFinancialSummary() {
+  await requireAuth(["ADMIN"])
+
   try {
     const stores = await prisma.store.findMany({
       select: {

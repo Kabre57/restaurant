@@ -3,7 +3,7 @@
 // Le client s'abonne avec : new EventSource('/api/tables/events?restaurantId=xxx')
 
 import { NextRequest } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from '@/lib/db'
 import { TableData, TableStatus } from "../route";
 
 export const runtime = "nodejs"; // SSE nécessite Node.js runtime (pas Edge)

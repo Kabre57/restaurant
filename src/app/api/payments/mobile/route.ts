@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentStatus, PaymentType, Prisma } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/db'
 import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
 import { formatZodError, mobilePaymentSchema } from '@/lib/validation/schemas';
 

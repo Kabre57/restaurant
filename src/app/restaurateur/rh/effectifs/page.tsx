@@ -36,7 +36,7 @@ export default function EffectifsPage() {
 
     async function fetchData() {
       setLoading(true)
-      const res = await getEmployees(storeId as string)
+      const res = await getEmployees()
       if (isCancelled) return
       if (res.success && res.employees) {
         setEmployees(res.employees)
@@ -54,7 +54,7 @@ export default function EffectifsPage() {
   async function loadData() {
     if (!session?.user?.storeId) return
     setLoading(true)
-    const res = await getEmployees(session.user.storeId)
+    const res = await getEmployees()
     if (res.success && res.employees) {
       setEmployees(res.employees)
     }

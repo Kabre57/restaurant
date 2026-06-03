@@ -1,9 +1,12 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
-export async function getEvaluations(storeId: string, userId?: string) {
+export async function getEvaluations(userId?: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const whereClause: any = { user: { storeId } }
     if (userId) {
@@ -30,11 +33,32 @@ export async function getEvaluations(storeId: string, userId?: string) {
 }
 
 export async function createEvaluation(data: any) {
+  const { storeId, userId: sessionUserId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'employé évalué appartient au store
+    const targetUser = await prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { storeId: true }
+    })
+    if (!targetUser) return { success: false, error: 'Employé introuvable.' }
+    assertSameStore(targetUser.storeId, storeId, "Employé")
+
+    // Vérifier que l'évaluateur appartient aussi au store (si spécifié)
+    const evaluatorId = data.evaluatorId || sessionUserId
+    if (data.evaluatorId && data.evaluatorId !== sessionUserId) {
+      const evaluatorUser = await prisma.user.findUnique({
+        where: { id: data.evaluatorId },
+        select: { storeId: true }
+      })
+      if (!evaluatorUser) return { success: false, error: 'Évaluateur introuvable.' }
+      assertSameStore(evaluatorUser.storeId, storeId, "Évaluateur")
+    }
+
     const evaluation = await prisma.evaluation.create({
       data: {
         userId: data.userId,
-        evaluatorId: data.evaluatorId,
+        evaluatorId: evaluatorId,
         period: data.period,
         overallScore: Math.round(parseFloat(data.score || data.overallScore || '5')),
         criteria: data.skills || data.criteria || {},
@@ -53,7 +77,17 @@ export async function createEvaluation(data: any) {
 }
 
 export async function updateEvaluation(id: string, data: any) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'évaluation appartient au store
+    const existing = await prisma.evaluation.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Évaluation introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Évaluation")
+
     const evaluation = await prisma.evaluation.update({
       where: { id },
       data: {
@@ -75,7 +109,17 @@ export async function updateEvaluation(id: string, data: any) {
 }
 
 export async function deleteEvaluation(id: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'évaluation appartient au store
+    const existing = await prisma.evaluation.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Évaluation introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Évaluation")
+
     await prisma.evaluation.delete({ where: { id } })
     revalidatePath('/restaurateur/rh/evaluations')
     return { success: true }

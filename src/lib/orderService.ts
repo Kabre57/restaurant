@@ -7,6 +7,7 @@
 //   - Champs Prisma alignés : storeId (pas restaurantId), total (pas totalAmount), price (pas unitPrice)
 
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderData> {
   // 4. Essai DB Prisma
   //    ⚠️  Prisma paramétrise toutes les valeurs → AUCUN risque d'injection SQL.
   try {
-    const { default: prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     if (prisma) {
       if (input.tableId) {
         const dbTable = await prisma.table.findUnique({
@@ -167,7 +168,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderData> {
     }
   } catch (err) {
     // Log explicite — remplace les anciens catch silencieux qui masquaient les erreurs DB
-    console.warn("[orderService] DB non disponible, bascule en mémoire :", (err as Error).message);
+    logger.warn("[orderService] DB non disponible, bascule en mémoire :", (err as Error).message);
   }
 
   // 5. Fallback in-memory
@@ -196,7 +197,7 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderData> {
 export async function getOrders(restaurantId: string, status?: OrderStatus): Promise<OrderData[]> {
   // DB first — Prisma paramétrise restaurantId → pas d'injection SQL
   try {
-    const { default: prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     if (prisma) {
       const orders = await prisma.order.findMany({
         where: {
@@ -236,7 +237,7 @@ export async function getOrders(restaurantId: string, status?: OrderStatus): Pro
       }));
     }
   } catch (err) {
-    console.warn("[orderService] getOrders DB indisponible :", (err as Error).message);
+    logger.warn("[orderService] getOrders DB indisponible :", (err as Error).message);
   }
 
   // In-memory fallback
@@ -248,7 +249,7 @@ export async function getOrders(restaurantId: string, status?: OrderStatus): Pro
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<OrderData | null> {
   // DB first — orderId est un CUID Prisma, jamais interprété comme SQL
   try {
-    const { default: prisma } = await import("@/lib/prisma");
+    const { prisma } = await import("@/lib/db");
     if (prisma) {
       const updated = await prisma.order.update({
         where: { id: orderId },
@@ -285,7 +286,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
       return result;
     }
   } catch (err) {
-    console.warn("[orderService] updateOrderStatus DB indisponible :", (err as Error).message);
+    logger.warn("[orderService] updateOrderStatus DB indisponible :", (err as Error).message);
   }
 
   // In-memory fallback

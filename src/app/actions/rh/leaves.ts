@@ -1,9 +1,12 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
-export async function getLeaveRequests(storeId: string, userId?: string) {
+export async function getLeaveRequests(userId?: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const whereClause: any = { user: { storeId } }
     if (userId) {
@@ -27,7 +30,17 @@ export async function getLeaveRequests(storeId: string, userId?: string) {
 }
 
 export async function createLeaveRequest(data: any) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'employé cible appartient au store
+    const targetUser = await prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { storeId: true }
+    })
+    if (!targetUser) return { success: false, error: 'Employé introuvable.' }
+    assertSameStore(targetUser.storeId, storeId, "Employé")
+
     const leave = await prisma.leaveRequest.create({
       data: {
         userId: data.userId,
@@ -47,11 +60,21 @@ export async function createLeaveRequest(data: any) {
   }
 }
 
-export async function updateLeaveRequestStatus(id: string, status: string, comment?: string, approvedById?: string) {
+export async function updateLeaveRequestStatus(id: string, status: string, comment?: string) {
+  const { storeId, userId: approverUserId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que la demande de congé appartient au store
+    const existing = await prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Demande de congé introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Demande de congé")
+
     const updateData: any = { status }
     if (status === 'APPROVED') {
-      updateData.approvedBy = approvedById || 'Manager'
+      updateData.approvedBy = approverUserId // ✅ Utilise l'ID de session, pas un paramètre client
       updateData.approvedAt = new Date()
     } else if (status === 'REJECTED') {
       updateData.rejectedNote = comment || ''
@@ -70,7 +93,17 @@ export async function updateLeaveRequestStatus(id: string, status: string, comme
 }
 
 export async function deleteLeaveRequest(id: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que la demande appartient au store
+    const existing = await prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Demande de congé introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Demande de congé")
+
     await prisma.leaveRequest.delete({ where: { id } })
     revalidatePath('/restaurateur/rh/conges')
     return { success: true }

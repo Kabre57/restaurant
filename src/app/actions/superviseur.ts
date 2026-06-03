@@ -3,7 +3,8 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 type SuperviseurAccount = {
   id: string
@@ -13,6 +14,8 @@ type SuperviseurAccount = {
 }
 
 export async function getSuperviseurAccounts() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.$queryRaw<SuperviseurAccount[]>`
       SELECT "id", "name", "email", "createdAt"
@@ -27,6 +30,8 @@ export async function getSuperviseurAccounts() {
 }
 
 export async function createSuperviseurAccount(data: { name: string; email: string; password: string }) {
+  await requireAuth(["ADMIN"])
+
   try {
     const name = data.name.trim()
     const email = data.email.trim().toLowerCase()
@@ -68,6 +73,8 @@ export async function createSuperviseurAccount(data: { name: string; email: stri
 }
 
 export async function getMultiSiteCriticalStocks() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.product.findMany({
       where: {
@@ -99,6 +106,8 @@ export async function getMultiSiteCriticalStocks() {
 }
 
 export async function getRecentMultiSiteMovements() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.stockMovement.findMany({
       orderBy: {

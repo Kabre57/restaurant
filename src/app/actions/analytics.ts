@@ -1,13 +1,17 @@
 'use server'
 
 import { PaymentStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+
+import { requireAuth } from '@/lib/auth-guard'
 
 function dayKey(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
 export async function getAdminAnalytics() {
+  await requireAuth(["ADMIN"])
+
   try {
     const since = new Date()
     since.setDate(since.getDate() - 30)

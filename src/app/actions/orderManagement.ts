@@ -1,10 +1,11 @@
 'use server'
 
 import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { publishOrderEvent, publishStockAlert } from './orderNotifications'
 import { decrementIngredientInventory, incrementIngredientInventory } from './inventory'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 const orderInclude = {
   items: {
@@ -24,6 +25,8 @@ const orderInclude = {
  * Annuler une commande et recréditer ses stocks.
  */
 export async function cancelOrder(orderId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -38,6 +41,10 @@ export async function cancelOrder(orderId: string) {
 
     if (!order) {
       return { success: false, error: 'Commande introuvable' }
+    }
+
+    if (role !== "ADMIN") {
+      assertSameStore(order.storeId, authStoreId)
     }
 
     if (order.status === OrderStatus.CANCELLED) {
@@ -107,6 +114,8 @@ export async function modifyOrder(
   orderId: string,
   updatedItems: { productId: string; quantity: number; options?: string }[]
 ) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
     if (!updatedItems.length) {
       return { success: false, error: 'La commande doit contenir au moins un article' }
@@ -121,6 +130,10 @@ export async function modifyOrder(
 
     if (!order) {
       return { success: false, error: 'Commande introuvable' }
+    }
+
+    if (role !== "ADMIN") {
+      assertSameStore(order.storeId, authStoreId)
     }
 
     if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.COMPLETED) {

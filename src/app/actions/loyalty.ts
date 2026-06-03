@@ -1,12 +1,17 @@
 'use server'
 
-import prisma from '@/lib/prisma'
-
+import { prisma } from '@/lib/db'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 /**
  * Valide un code promo et retourne le montant de la remise.
  */
 export async function validatePromotion(code: string, storeId: string, currentTotal: number) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+  if (role !== "ADMIN") {
+    assertSameStore(storeId, authStoreId)
+  }
+
   try {
     const promo = await prisma.promotion.findFirst({
       where: { code, storeId, isActive: true },
@@ -40,10 +45,14 @@ export async function validatePromotion(code: string, storeId: string, currentTo
 /**
  * Recherche un client par téléphone ou nom.
  */
-export async function searchCustomer(query: string) {
+export async function searchCustomer(query: string, storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+  const targetStoreId = role === "ADMIN" ? (storeId || authStoreId) : authStoreId
+
   try {
     return await prisma.customer.findMany({
       where: {
+        storeId: targetStoreId,
         OR: [
           { phone: { contains: query } },
           { firstName: { contains: query, mode: 'insensitive' } },
@@ -63,6 +72,7 @@ export async function searchCustomer(query: string) {
  * Règle : 1 point par 100 FCFA dépensés.
  */
 export async function processLoyaltyPoints(customerId: string, orderTotal: number) {
+  await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
   return creditLoyaltyPoints(customerId, orderTotal)
 }
 
@@ -73,15 +83,20 @@ export async function processLoyaltyPoints(customerId: string, orderTotal: numbe
  * Calcule le prochain palier de récompense (tous les 100 points).
  */
 export async function getLoyaltySummary(customerId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
     const loyalty = await prisma.loyalty.findUnique({
       where: { customerId },
       include: {
-        customer: { select: { firstName: true, lastName: true, phone: true } },
+        customer: { select: { firstName: true, lastName: true, phone: true, storeId: true } },
       },
     })
 
     if (!loyalty) return null
+    if (role !== "ADMIN") {
+      assertSameStore(loyalty.customer.storeId, authStoreId)
+    }
 
     const nextThreshold = Math.ceil((loyalty.points + 1) / 100) * 100
 
@@ -103,10 +118,18 @@ export async function getLoyaltySummary(customerId: string) {
  * Appelé automatiquement après chaque commande complétée.
  */
 export async function creditLoyaltyPoints(customerId: string, orderTotal: number) {
-  const pointsToAdd = Math.floor(orderTotal / 100)
-  if (pointsToAdd <= 0) return { success: true, pointsAdded: 0 }
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
 
   try {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    if (!customer) return { success: false, pointsAdded: 0 }
+    if (role !== "ADMIN") {
+      assertSameStore(customer.storeId, authStoreId)
+    }
+
+    const pointsToAdd = Math.floor(orderTotal / 100)
+    if (pointsToAdd <= 0) return { success: true, pointsAdded: 0 }
+
     const loyalty = await prisma.loyalty.upsert({
       where: { customerId },
       update: { points: { increment: pointsToAdd } },
@@ -129,7 +152,15 @@ export async function creditLoyaltyPoints(customerId: string, orderTotal: number
  * Retourne une erreur si solde insuffisant.
  */
 export async function redeemLoyaltyPoints(customerId: string, points: number) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    if (!customer) return { success: false, error: 'Client introuvable' }
+    if (role !== "ADMIN") {
+      assertSameStore(customer.storeId, authStoreId)
+    }
+
     const loyalty = await prisma.loyalty.findUnique({ where: { customerId } })
 
     if (!loyalty || loyalty.points < points) {
@@ -155,7 +186,15 @@ export async function redeemLoyaltyPoints(customerId: string, points: number) {
  * Historique des N dernières commandes avec points gagnés.
  */
 export async function getLoyaltyHistory(customerId: string, limit = 10) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    if (!customer) return []
+    if (role !== "ADMIN") {
+      assertSameStore(customer.storeId, authStoreId)
+    }
+
     const orders = await prisma.order.findMany({
       where: { customerId, status: 'COMPLETED' },
       orderBy: { createdAt: 'desc' },

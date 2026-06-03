@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { redis, redisPub, REDIS_CHANNELS, REDIS_KEYS, getCached } from "@/lib/redis";
-import prisma from "@/lib/prisma";
+import { prisma } from '@/lib/db'
 
 export type TableStatus = "LIBRE" | "OCCUPEE" | "RESERVEE" | "EN_NETTOYAGE";
 

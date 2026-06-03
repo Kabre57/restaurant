@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 
 export async function updateStoreConfig(storeId: string, data: { name?: string, address?: string, phone?: string, logo?: string }) {
   try {

@@ -1,10 +1,15 @@
 /*
   Warnings:
 
-  - The values [MANAGER] on the enum `Role` will be removed. If these variants are still used in the database, this will fail.
   - You are about to drop the column `icon` on the `Category` table. All the data in the column will be lost.
   - You are about to drop the column `method` on the `Payment` table. All the data in the column will be lost.
+  - A unique constraint covering the columns `[storeId,phone]` on the table `Customer` will be added. If there are existing duplicate values, this will fail.
+  - A unique constraint covering the columns `[storeId,phone]` on the table `DeliveryPerson` will be added. If there are existing duplicate values, this will fail.
+  - A unique constraint covering the columns `[storeId,name]` on the table `Ingredient` will be added. If there are existing duplicate values, this will fail.
   - A unique constraint covering the columns `[matricule]` on the table `User` will be added. If there are existing duplicate values, this will fail.
+  - Added the required column `storeId` to the `Customer` table without a default value. This is not possible if the table is not empty.
+  - Added the required column `storeId` to the `DeliveryPerson` table without a default value. This is not possible if the table is not empty.
+  - Added the required column `storeId` to the `Ingredient` table without a default value. This is not possible if the table is not empty.
   - Added the required column `paymentMethodId` to the `Payment` table without a default value. This is not possible if the table is not empty.
 
 */
@@ -35,17 +40,6 @@ CREATE TYPE "OperationType" AS ENUM ('PAY_IN', 'PAY_OUT');
 -- CreateEnum
 CREATE TYPE "IngMvtReason" AS ENUM ('TRANSFER_OUT', 'TRANSFER_IN', 'ADJUSTMENT_LOSS', 'ADJUSTMENT_THEFT', 'ADJUSTMENT_WASTE', 'ADJUSTMENT_CORRECTION', 'INITIAL_STOCK', 'DELIVERY');
 
--- AlterEnum
-BEGIN;
-CREATE TYPE "Role_new" AS ENUM ('ADMIN', 'RESTAURATEUR', 'CASHIER', 'SERVER', 'KITCHEN', 'DELIVERY');
-ALTER TABLE "User" ALTER COLUMN "role" DROP DEFAULT;
-ALTER TABLE "User" ALTER COLUMN "role" TYPE "Role_new" USING ("role"::text::"Role_new");
-ALTER TYPE "Role" RENAME TO "Role_old";
-ALTER TYPE "Role_new" RENAME TO "Role";
-DROP TYPE "Role_old";
-ALTER TABLE "User" ALTER COLUMN "role" SET DEFAULT 'CASHIER';
-COMMIT;
-
 -- DropForeignKey
 ALTER TABLE "Order" DROP CONSTRAINT "Order_cashierId_fkey";
 
@@ -58,12 +52,22 @@ ALTER TABLE "ProductPlatformMapping" DROP CONSTRAINT "ProductPlatformMapping_sto
 -- DropForeignKey
 ALTER TABLE "StorePlatformConnection" DROP CONSTRAINT "StorePlatformConnection_storeId_fkey";
 
+-- DropIndex
+DROP INDEX "Customer_phone_key";
+
 -- AlterTable
 ALTER TABLE "Category" DROP COLUMN "icon";
 
 -- AlterTable
+ALTER TABLE "Customer" ADD COLUMN     "storeId" TEXT NOT NULL;
+
+-- AlterTable
+ALTER TABLE "DeliveryPerson" ADD COLUMN     "storeId" TEXT NOT NULL;
+
+-- AlterTable
 ALTER TABLE "Ingredient" ADD COLUMN     "costPrice" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
-ADD COLUMN     "sellPrice" DOUBLE PRECISION NOT NULL DEFAULT 0.0;
+ADD COLUMN     "sellPrice" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+ADD COLUMN     "storeId" TEXT NOT NULL;
 
 -- AlterTable
 ALTER TABLE "Order" ADD COLUMN     "discount" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -490,7 +494,25 @@ CREATE INDEX "IngredientMovement_storeId_createdAt_idx" ON "IngredientMovement"(
 CREATE INDEX "Category_storeId_idx" ON "Category"("storeId");
 
 -- CreateIndex
+CREATE INDEX "Customer_storeId_idx" ON "Customer"("storeId");
+
+-- CreateIndex
 CREATE INDEX "Customer_email_idx" ON "Customer"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Customer_storeId_phone_key" ON "Customer"("storeId", "phone");
+
+-- CreateIndex
+CREATE INDEX "DeliveryPerson_storeId_idx" ON "DeliveryPerson"("storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DeliveryPerson_storeId_phone_key" ON "DeliveryPerson"("storeId", "phone");
+
+-- CreateIndex
+CREATE INDEX "Ingredient_storeId_idx" ON "Ingredient"("storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Ingredient_storeId_name_key" ON "Ingredient"("storeId", "name");
 
 -- CreateIndex
 CREATE INDEX "Loyalty_points_idx" ON "Loyalty"("points");
@@ -532,6 +554,9 @@ CREATE INDEX "User_storeId_role_idx" ON "User"("storeId", "role");
 CREATE INDEX "User_storeId_status_idx" ON "User"("storeId", "status");
 
 -- AddForeignKey
+ALTER TABLE "DeliveryPerson" ADD CONSTRAINT "DeliveryPerson_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_cashierId_fkey" FOREIGN KEY ("cashierId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -551,6 +576,12 @@ ALTER TABLE "Promotion" ADD CONSTRAINT "Promotion_storeId_fkey" FOREIGN KEY ("st
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "PaymentMethod"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Customer" ADD CONSTRAINT "Customer_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Ingredient" ADD CONSTRAINT "Ingredient_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProductOption" ADD CONSTRAINT "ProductOption_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

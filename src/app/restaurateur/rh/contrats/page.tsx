@@ -31,8 +31,8 @@ export default function ContratsPage() {
       const userId = isManager ? undefined : session?.user?.id
 
       const [contractsRes, employeesRes] = await Promise.all([
-        getContracts(storeId as string, userId),
-        isManager ? getEmployees(storeId as string) : Promise.resolve({ success: true, employees: [] })
+        getContracts(userId),
+        isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
       ])
       
       if (isCancelled) return
@@ -60,7 +60,7 @@ export default function ContratsPage() {
     const isManager = userRole === 'RESTAURATEUR' || userRole === 'MANAGER'
     const userId = isManager ? undefined : session?.user?.id
 
-    const res = await getContracts(session.user.storeId, userId)
+    const res = await getContracts(userId)
     if (res.success && res.contracts) {
       setContracts(res.contracts)
     }

@@ -1,5 +1,5 @@
 import React from 'react'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { ShoppingBag, Clock, CheckCircle2, AlertCircle, Search } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'

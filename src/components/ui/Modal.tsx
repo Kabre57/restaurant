@@ -32,14 +32,14 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = "ma
       />
       
       {/* Modal Content */}
-      <div className={`relative w-full ${maxWidth} bg-white rounded-[24px] shadow-2xl flex flex-col m-4 max-h-[90vh]`}>
+      <div className={`relative w-full ${maxWidth} bg-[var(--ui-surface)] rounded-[24px] shadow-2xl flex flex-col m-4 max-h-[90vh]`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#E5E7EB]">
-          <h2 className="text-xl font-extrabold text-[#171717]">{title}</h2>
+        <div className="flex items-center justify-between p-6 border-b border-[var(--ui-border)]">
+          <h2 className="text-xl font-extrabold text-[var(--ui-text)]">{title}</h2>
           <button 
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-[#F8F9FA] flex items-center justify-center text-[#9CA3AF] hover:text-[#171717] hover:bg-[#E5E7EB] transition-colors"
+            className="w-10 h-10 rounded-xl bg-[var(--ui-bg)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-border)] transition-colors"
           >
             <X size={20} />
           </button>

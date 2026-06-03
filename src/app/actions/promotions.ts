@@ -1,11 +1,16 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { DiscountType } from '@prisma/client'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function getPromotions() {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const where = role === "ADMIN" ? {} : { storeId: authStoreId }
+
   try {
     return await prisma.promotion.findMany({
+      where,
       include: { store: true },
       orderBy: { createdAt: 'desc' }
     })
@@ -24,13 +29,16 @@ export async function createPromotion(data: {
   endDate?: Date
   usageLimit?: number
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
     const promotion = await prisma.promotion.create({
       data: {
         code: data.code.toUpperCase(),
         discountType: data.discountType,
         value: data.value,
-        store: { connect: { id: data.storeId } },
+        store: { connect: { id: finalStoreId } },
         startDate: data.startDate,
         endDate: data.endDate,
         usageLimit: data.usageLimit,
@@ -44,7 +52,15 @@ export async function createPromotion(data: {
 }
 
 export async function deletePromotion(id: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.promotion.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Promotion non trouvée" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.promotion.delete({
       where: { id }
     })
@@ -56,7 +72,15 @@ export async function deletePromotion(id: string) {
 }
 
 export async function togglePromotionStatus(id: string, isActive: boolean) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.promotion.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Promotion non trouvée" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const promotion = await prisma.promotion.update({
       where: { id },
       data: { isActive }
@@ -69,6 +93,9 @@ export async function togglePromotionStatus(id: string, isActive: boolean) {
 }
 
 export async function verifyPromoCode(code: string, storeId: string, subtotal: number) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     const normalizedCode = code.trim().toUpperCase()
 
@@ -79,7 +106,7 @@ export async function verifyPromoCode(code: string, storeId: string, subtotal: n
     const promotion = await prisma.promotion.findFirst({
       where: {
         code: normalizedCode,
-        storeId,
+        storeId: targetStoreId,
         isActive: true,
         OR: [{ startDate: null }, { startDate: { lte: new Date() } }],
       },

@@ -1,8 +1,9 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 // Define a type for employee creation/update
 export type EmployeeData = {
@@ -19,8 +20,6 @@ export type EmployeeData = {
   nationalite?:    string        // était: nationality
   address?:        string
   phone?:          string
-  // personalPhone supprimé (n'existe pas dans Prisma)
-
   salary?:         number
   contractType?:   string
   hireDate?:       Date | null
@@ -31,7 +30,9 @@ export type EmployeeData = {
   bankAccount?:    string        // était: rib (n'existe pas dans Prisma)
 }
 
-export async function getEmployees(storeId: string) {
+export async function getEmployees() {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const employees = await prisma.user.findMany({
       where: { storeId },
@@ -51,6 +52,8 @@ export async function getEmployees(storeId: string) {
 }
 
 export async function getEmployeeById(id: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const employee = await prisma.user.findUnique({
       where: { id },
@@ -70,6 +73,14 @@ export async function getEmployeeById(id: string) {
         }
       }
     })
+
+    if (!employee) {
+      return { success: false, error: 'Employé non trouvé.' }
+    }
+
+    // Isolation multi-tenant : vérifier que l'employé appartient au store
+    assertSameStore(employee.storeId, storeId, "Employé")
+
     return { success: true, employee }
   } catch (error) {
     console.error("Failed to fetch employee:", error)
@@ -77,7 +88,9 @@ export async function getEmployeeById(id: string) {
   }
 }
 
-export async function createEmployee(storeId: string, data: EmployeeData) {
+export async function createEmployee(data: EmployeeData) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     if (!data.name || !data.email || !data.password) {
       return { success: false, error: 'Nom, email et mot de passe sont requis.' }
@@ -95,7 +108,7 @@ export async function createEmployee(storeId: string, data: EmployeeData) {
 
     const newEmployee = await prisma.user.create({
       data: {
-        storeId,
+        storeId, // ✅ Utilise le storeId de la session, jamais du client
         name:     data.name.trim(),
         email:    data.email.trim().toLowerCase(),
         password: hashedPassword,
@@ -109,8 +122,6 @@ export async function createEmployee(storeId: string, data: EmployeeData) {
         nationalite:   data.nationalite,     // champ Prisma correct
         address:       data.address,
         phone:         data.phone,
-        // personalPhone n'existe pas dans Prisma — supprimé
-
         salary:       data.salary,
         contractType: data.contractType,
         hireDate:     data.hireDate,
@@ -133,7 +144,14 @@ export async function createEmployee(storeId: string, data: EmployeeData) {
 }
 
 export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'employé appartient au store avant modification
+    const existing = await prisma.user.findUnique({ where: { id }, select: { storeId: true } })
+    if (!existing) return { success: false, error: 'Employé non trouvé.' }
+    assertSameStore(existing.storeId, storeId, "Employé")
+
     const updateData: any = { ...data }
     
     if (data.email) {
@@ -160,7 +178,14 @@ export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
 }
 
 export async function deleteEmployee(id: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que l'employé appartient au store avant suppression
+    const existing = await prisma.user.findUnique({ where: { id }, select: { storeId: true } })
+    if (!existing) return { success: false, error: 'Employé non trouvé.' }
+    assertSameStore(existing.storeId, storeId, "Employé")
+
     await prisma.user.delete({
       where: { id }
     })

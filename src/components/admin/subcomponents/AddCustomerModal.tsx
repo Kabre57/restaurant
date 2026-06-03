@@ -7,9 +7,10 @@ import { createCustomer } from '@/app/actions/clients'
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  storeId?: string
 }
 
-export function AddCustomerModal({ onClose, onSuccess }: Props) {
+export function AddCustomerModal({ onClose, onSuccess, storeId }: Props) {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -19,7 +20,7 @@ export function AddCustomerModal({ onClose, onSuccess }: Props) {
     setIsSubmitting(true)
     setError('')
 
-    const res = await createCustomer(form)
+    const res = await createCustomer({ ...form, storeId })
     if (res.success) {
       onSuccess()
     } else {

@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { ShiftStatus, OperationType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 

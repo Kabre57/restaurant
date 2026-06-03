@@ -1,7 +1,7 @@
 import React from 'react'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { AdminInventoryClient } from '@/components/admin/AdminInventoryClient'
+import { AdminInventoryClient } from '@/components/admin/inventory/AdminInventoryClient'
 
 import { cookies } from 'next/headers'
 

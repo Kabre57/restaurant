@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { IngMvtReason } from '@prisma/client'
 import { 
@@ -8,6 +8,7 @@ import {
   updateInventorySchema, 
   formatZodError 
 } from '@/lib/validation/schemas'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function createIngredient(data: {
   storeId: string
@@ -16,8 +17,11 @@ export async function createIngredient(data: {
   quantity: number
   minStock: number
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
-    const parsed = createIngredientSchema.safeParse(data)
+    const parsed = createIngredientSchema.safeParse({ ...data, storeId: finalStoreId })
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
     }
@@ -25,14 +29,18 @@ export async function createIngredient(data: {
 
     // Upsert the ingredient to avoid duplicates
     let ingredient = await prisma.ingredient.findFirst({
-      where: { name: { equals: validatedData.name.trim(), mode: 'insensitive' } }
+      where: { 
+        name: { equals: validatedData.name.trim(), mode: 'insensitive' },
+        storeId: finalStoreId
+      }
     })
 
     if (!ingredient) {
       ingredient = await prisma.ingredient.create({
         data: {
           name: validatedData.name.trim(),
-          unit: validatedData.unit.trim()
+          unit: validatedData.unit.trim(),
+          storeId: finalStoreId
         }
       })
     }
@@ -41,7 +49,7 @@ export async function createIngredient(data: {
     const existingInventory = await prisma.inventory.findUnique({
       where: {
         storeId_ingredientId: {
-          storeId: validatedData.storeId,
+          storeId: finalStoreId,
           ingredientId: ingredient.id
         }
       }
@@ -53,7 +61,7 @@ export async function createIngredient(data: {
 
     const inventory = await prisma.inventory.create({
       data: {
-        storeId: validatedData.storeId,
+        storeId: finalStoreId,
         ingredientId: ingredient.id,
         quantity: validatedData.quantity,
         minStock: validatedData.minStock
@@ -69,7 +77,15 @@ export async function createIngredient(data: {
 }
 
 export async function updateInventory(id: string, quantity: number, minStock: number) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.inventory.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Inventaire non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const parsed = updateInventorySchema.safeParse({ quantity, minStock })
     if (!parsed.success) {
       return { success: false, error: `Validation échouée: ${formatZodError(parsed.error)}` }
@@ -94,7 +110,15 @@ export async function updateInventory(id: string, quantity: number, minStock: nu
 }
 
 export async function deleteInventory(id: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.inventory.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Inventaire non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.inventory.delete({
       where: { id }
     })
@@ -174,9 +198,12 @@ export async function incrementIngredientInventory(tx: any, storeId: string, pro
 }
 
 export async function getInventoryByStore(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.inventory.findMany({
-      where: { storeId },
+      where: { storeId: targetStoreId },
       include: {
         ingredient: true
       },
@@ -193,7 +220,15 @@ export async function getInventoryByStore(storeId: string) {
 }
 
 export async function getProductRecipe(productId: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+
   try {
+    const product = await prisma.product.findUnique({ where: { id: productId } })
+    if (!product) return []
+    if (role !== "ADMIN") {
+      assertSameStore(product.storeId, authStoreId)
+    }
+
     return await prisma.productIngredient.findMany({
       where: { productId },
       include: {
@@ -207,7 +242,15 @@ export async function getProductRecipe(productId: string) {
 }
 
 export async function saveProductRecipe(productId: string, recipeItems: { ingredientId: string; quantity: number }[]) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const product = await prisma.product.findUnique({ where: { id: productId } })
+    if (!product) return { success: false, error: "Produit non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(product.storeId, authStoreId)
+    }
+
     return await prisma.$transaction(async (tx) => {
       // 1. Delete existing recipe mappings
       await tx.productIngredient.deleteMany({
@@ -233,9 +276,13 @@ export async function saveProductRecipe(productId: string, recipeItems: { ingred
   }
 }
 
-export async function getAllIngredients() {
+export async function getAllIngredients(storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? (storeId || authStoreId) : authStoreId
+
   try {
     return await prisma.ingredient.findMany({
+      where: targetStoreId ? { storeId: targetStoreId } : undefined,
       orderBy: { name: 'asc' }
     })
   } catch (error) {
@@ -251,6 +298,11 @@ export async function transferStockAction(data: {
   quantity: number
   note?: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  if (role !== "ADMIN") {
+    assertSameStore(data.sourceStoreId, authStoreId, "Magasin source")
+  }
+
   try {
     const { sourceStoreId, destStoreId, ingredientId, quantity, note } = data
 
@@ -344,18 +396,21 @@ export async function adjustStockAction(data: {
   reason: IngMvtReason
   note?: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const targetStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
-    const { storeId, ingredientId, quantity, type, reason, note } = data
+    const { ingredientId, quantity, type, reason, note } = data
 
     return await prisma.$transaction(async (tx) => {
       let inv = await tx.inventory.findUnique({
-        where: { storeId_ingredientId: { storeId, ingredientId } }
+        where: { storeId_ingredientId: { storeId: targetStoreId, ingredientId } }
       })
 
       if (!inv) {
         inv = await tx.inventory.create({
           data: {
-            storeId,
+            storeId: targetStoreId,
             ingredientId,
             quantity: 0,
             minStock: 5
@@ -385,7 +440,7 @@ export async function adjustStockAction(data: {
       // Log movement
       await tx.ingredientMovement.create({
         data: {
-          storeId,
+          storeId: targetStoreId,
           ingredientId,
           quantity: delta,
           reason,
@@ -404,9 +459,12 @@ export async function adjustStockAction(data: {
 }
 
 export async function getInventoryValuationReport(storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     const inventories = await prisma.inventory.findMany({
-      where: storeId ? { storeId } : undefined,
+      where: targetStoreId ? { storeId: targetStoreId } : undefined,
       include: {
         ingredient: true,
         store: { select: { name: true } }
@@ -458,9 +516,12 @@ export async function getInventoryValuationReport(storeId?: string) {
 }
 
 export async function getIngredientMovements(storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.ingredientMovement.findMany({
-      where: storeId ? { storeId } : undefined,
+      where: targetStoreId ? { storeId: targetStoreId } : undefined,
       include: {
         ingredient: true,
         store: { select: { name: true } }
@@ -474,7 +535,15 @@ export async function getIngredientMovements(storeId?: string) {
 }
 
 export async function updateIngredientPrices(ingredientId: string, costPrice: number, sellPrice: number) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.ingredient.findUnique({ where: { id: ingredientId } })
+    if (!existing) return { success: false, error: "Ingrédient non trouvé" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.ingredient.update({
       where: { id: ingredientId },
       data: {

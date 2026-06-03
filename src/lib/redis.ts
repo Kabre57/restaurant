@@ -1,6 +1,8 @@
 // src/lib/redis.ts
 // Client Redis avec fallback en mémoire si ioredis n'est pas installé
 
+import { logger } from '@/lib/logger';
+
 // ─── Types ───────────────────────────────────────────────
 export interface RedisLike {
   get(key: string): Promise<string | null>;
@@ -91,11 +93,11 @@ function tryLoadRedis(): RedisLike {
     const client = new Redis(url, { maxRetriesPerRequest: 2, enableReadyCheck: false, lazyConnect: true });
     client.on("error", (err: Error) => {
       if (process.env.NODE_ENV !== "production")
-        console.warn("[Redis] non-fatal:", err.message);
+        logger.warn("[Redis] non-fatal:", err.message);
     });
     return client;
   } catch {
-    console.info("[Redis] ioredis not found — using in-memory fallback");
+    logger.info("[Redis] ioredis not found — using in-memory fallback");
     return memClient;
   }
 }
@@ -139,7 +141,7 @@ export async function getCached<T>(key: string, ttl: number, fetchFn: () => Prom
       return JSON.parse(cached) as T;
     }
   } catch (error) {
-    console.warn(`[Redis] Erreur de lecture du cache pour la clé ${key}:`, error);
+    logger.warn(`[Redis] Erreur de lecture du cache pour la clé ${key}:`, error);
   }
 
   const data = await fetchFn();
@@ -149,7 +151,7 @@ export async function getCached<T>(key: string, ttl: number, fetchFn: () => Prom
       await redis.setex(key, ttl, JSON.stringify(data));
     }
   } catch (error) {
-    console.warn(`[Redis] Erreur d'écriture du cache pour la clé ${key}:`, error);
+    logger.warn(`[Redis] Erreur d'écriture du cache pour la clé ${key}:`, error);
   }
 
   return data;

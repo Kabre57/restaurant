@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/db'
 import { redis } from '@/lib/redis';
 import { OrderType, PaymentStatus, PaymentType } from '@prisma/client';
+import { validateApiToken } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("authorization") ?? "";
+    const apiKeyHeader = request.headers.get("x-api-key") ?? "";
+    let token = authHeader.replace("Bearer ", "").trim();
+    if (!token && apiKeyHeader) {
+      token = apiKeyHeader.trim();
+    }
+
+    const isValid = await validateApiToken(token);
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { storeId, cashierId, items, total, type, paymentMode, clientRequestId } = body;
 

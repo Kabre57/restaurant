@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { createCsv, createExcelHtml, createSimplePdf } from '@/lib/exports'
 import { format } from 'date-fns'

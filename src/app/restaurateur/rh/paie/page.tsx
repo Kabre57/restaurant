@@ -30,7 +30,7 @@ export default function PaiePage() {
       const isManager = userRole === 'RESTAURATEUR' || userRole === 'MANAGER'
       const userId = isManager ? undefined : session?.user?.id
       
-      const res = await getPayrolls(storeId as string, userId)
+      const res = await getPayrolls(userId)
       if (isCancelled) return
       if (res.success && res.payrolls) {
         setPayrolls(res.payrolls)
@@ -52,7 +52,7 @@ export default function PaiePage() {
     const isManager = userRole === 'RESTAURATEUR' || userRole === 'MANAGER'
     const userId = isManager ? undefined : session?.user?.id
     
-    const res = await getPayrolls(session.user.storeId, userId)
+    const res = await getPayrolls(userId)
     if (res.success && res.payrolls) {
       setPayrolls(res.payrolls)
     }
@@ -62,7 +62,7 @@ export default function PaiePage() {
   async function handleGenerate() {
     if (!session?.user?.storeId) return
     setGenerating(true)
-    const res = await generatePayrollForPeriod(session.user.storeId, period)
+    const res = await generatePayrollForPeriod(period)
     if (res.success) {
       loadData()
     } else {

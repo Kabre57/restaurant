@@ -3,7 +3,7 @@
 import { OrderStatus, OrderType, PaymentStatus, Prisma, PaymentType } from '@prisma/client'
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { computeEstimatedPrepMinutes } from '@/lib/prep-estimates'
 import { orderCreateSchema } from '@/lib/validation/schemas'
 import { checkRateLimit } from '@/lib/rate-limit'

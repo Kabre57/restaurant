@@ -1,10 +1,13 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { calculateIvoryCoastSalary } from '@/lib/rh/ivoryCoastTax'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
-export async function getPayrolls(storeId: string, userId?: string) {
+export async function getPayrolls(userId?: string) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const whereClause: any = { user: { storeId } }
     if (userId) {
@@ -30,7 +33,9 @@ export async function getPayrolls(storeId: string, userId?: string) {
   }
 }
 
-export async function generatePayrollForPeriod(storeId: string, period: string) {
+export async function generatePayrollForPeriod(period: string) {
+  const { storeId, userId: generatedBy } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     // 1. Check HrConfiguration (if none, use default values)
     const hrConfig = await prisma.hrConfiguration.findFirst({
@@ -101,6 +106,9 @@ export async function generatePayrollForPeriod(storeId: string, period: string) 
       generated.push(payroll)
     }
 
+    // Log d'audit de la génération de paie
+    console.info(`[AUDIT] Paie ${period} générée par ${generatedBy} pour le store ${storeId} — ${generated.length} bulletin(s)`)
+
     revalidatePath('/restaurateur/rh/paie')
     revalidatePath('/restaurateur/rh/dashboard')
 
@@ -112,7 +120,17 @@ export async function generatePayrollForPeriod(storeId: string, period: string) 
 }
 
 export async function markPayrollAsPaid(id: string, reference?: string) {
+  const { storeId, userId: markedBy } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    // Vérifier que le bulletin appartient au store
+    const existing = await prisma.payroll.findUnique({
+      where: { id },
+      include: { user: { select: { storeId: true } } }
+    })
+    if (!existing) return { success: false, error: 'Bulletin introuvable.' }
+    assertSameStore(existing.user.storeId, storeId, "Bulletin de paie")
+
     const payroll = await prisma.payroll.update({
       where: { id },
       data: {
@@ -121,6 +139,9 @@ export async function markPayrollAsPaid(id: string, reference?: string) {
         reference
       }
     })
+
+    // Log d'audit du paiement
+    console.info(`[AUDIT] Bulletin ${id} marqué comme payé par ${markedBy} — Ref: ${reference || 'N/A'}`)
     
     revalidatePath('/restaurateur/rh/paie')
     return { success: true, payroll }

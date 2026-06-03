@@ -1,8 +1,9 @@
 'use server'
 
 import { OrderStatus, PaymentStatus, PaymentType } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { publishOrderEvent } from './orderNotifications'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 const orderInclude = {
   items: {
@@ -47,11 +48,18 @@ async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: string):
 }
 
 export async function settleOrderPayment(orderId: string, paymentMode: string, storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
     const existingOrder = await prisma.order.findUnique({ where: { id: orderId }, include: orderInclude })
 
     if (!existingOrder) return { success: false, error: 'Commande introuvable' }
-    if (storeId && existingOrder.storeId !== storeId) return { success: false, error: 'Commande hors périmètre restaurant' }
+    if (role !== "ADMIN") {
+      assertSameStore(existingOrder.storeId, authStoreId)
+    } else if (storeId && existingOrder.storeId !== storeId) {
+      return { success: false, error: 'Commande hors périmètre restaurant' }
+    }
+
     if (existingOrder.status === OrderStatus.CANCELLED) {
       return { success: false, error: 'Cette commande a ete annulee et ne peut plus etre encaissee' }
     }
@@ -99,11 +107,18 @@ export async function settleOrderPayment(orderId: string, paymentMode: string, s
 }
 
 export async function markOrderServed(orderId: string, storeId?: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
     const existingOrder = await prisma.order.findUnique({ where: { id: orderId }, include: orderInclude })
 
     if (!existingOrder) return { success: false, error: 'Commande introuvable' }
-    if (storeId && existingOrder.storeId !== storeId) return { success: false, error: 'Commande hors périmètre restaurant' }
+    if (role !== "ADMIN") {
+      assertSameStore(existingOrder.storeId, authStoreId)
+    } else if (storeId && existingOrder.storeId !== storeId) {
+      return { success: false, error: 'Commande hors périmètre restaurant' }
+    }
+
     if (existingOrder.status !== OrderStatus.PRET) {
       return { success: false, error: 'Seule une commande prête peut être marquée servie' }
     }

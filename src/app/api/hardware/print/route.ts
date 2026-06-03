@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { sendHardwareCommand } from '@/lib/hardware/agent'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { generateEscPosBuffer } from '@/lib/printService'
 
 export async function POST(req: NextRequest) {

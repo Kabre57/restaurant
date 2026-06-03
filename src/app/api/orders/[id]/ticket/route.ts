@@ -16,9 +16,9 @@ export async function GET(
   if (!order) {
     // Essai DB
     try {
-      const { db } = await import("@/lib/db");
-      if (db) {
-        const dbOrder = await db.order.findUnique({
+      const { prisma } = await import("@/lib/db");
+      if (prisma) {
+        const dbOrder = await prisma.order.findUnique({
           where: { id },
           include: { items: { include: { product: true } }, table: true },
         });
@@ -26,12 +26,12 @@ export async function GET(
 
         return generateTicketHTML({
           id:          dbOrder.id,
-          orderNumber: dbOrder.orderNumber,
-          tableNumber: dbOrder.table?.number ?? null,
+          orderNumber: `#${dbOrder.id.slice(-4).toUpperCase()}`,
+          tableNumber: dbOrder.table?.number.toString() ?? null,
           type:        dbOrder.type,
-          totalAmount: dbOrder.totalAmount,
+          totalAmount: dbOrder.total,
           createdAt:   dbOrder.createdAt.toISOString(),
-          items:       dbOrder.items.map((i: any) => ({ name: i.product.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+          items:       dbOrder.items.map((i: any) => ({ name: i.product.name, quantity: i.quantity, unitPrice: i.price })),
         });
       }
     } catch { /* fallback */ }

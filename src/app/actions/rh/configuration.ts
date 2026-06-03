@@ -1,7 +1,8 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { requireAuth } from '@/lib/auth-guard'
 
 export type HrConfigurationData = {
   cnpsEmployeeRate: number
@@ -13,7 +14,10 @@ export type HrConfigurationData = {
   taxRates: string
 }
 
-export async function getHrConfiguration(storeId: string) {
+export async function getHrConfiguration() {
+  // Lecture autorisée pour ADMIN et RESTAURATEUR
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
     const config = await prisma.hrConfiguration.findUnique({
       where: { storeId }
@@ -67,7 +71,10 @@ export async function getHrConfiguration(storeId: string) {
   }
 }
 
-export async function updateHrConfiguration(storeId: string, data: HrConfigurationData) {
+export async function updateHrConfiguration(data: HrConfigurationData) {
+  // Seul ADMIN peut modifier les barèmes fiscaux
+  const { storeId, userId: modifiedBy } = await requireAuth(["ADMIN"])
+
   try {
     const config = await prisma.hrConfiguration.upsert({
       where: { storeId },
@@ -91,6 +98,9 @@ export async function updateHrConfiguration(storeId: string, data: HrConfigurati
         taxRates: JSON.parse(data.taxRates)
       }
     })
+
+    // Log d'audit : modification de la configuration fiscale
+    console.info(`[AUDIT] Configuration RH modifiée par ${modifiedBy} pour le store ${storeId}`)
 
     revalidatePath('/restaurateur/rh/configuration')
     revalidatePath('/restaurateur/rh')

@@ -28,8 +28,8 @@ export default function CongesPage() {
     async function fetchData() {
       setLoading(true)
       const [leavesRes, empRes] = await Promise.all([
-        getLeaveRequests(session?.user?.storeId as string, userId),
-        isManager ? getEmployees(session?.user?.storeId as string) : Promise.resolve({ success: true, employees: [] })
+        getLeaveRequests(userId),
+        isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
       ])
       
       if (isCancelled) return
@@ -54,7 +54,7 @@ export default function CongesPage() {
     const res = await createLeaveRequest(data)
     if (res.success) {
       setShowModal(false)
-      const refreshRes = await getLeaveRequests(session?.user?.storeId as string, userId)
+      const refreshRes = await getLeaveRequests(userId)
       if (refreshRes.success && refreshRes.leaves) {
         setLeaves(refreshRes.leaves)
       }
@@ -67,9 +67,9 @@ export default function CongesPage() {
     if (!confirm("Voulez-vous vraiment changer le statut de cette demande ?")) return
     
     // In a real app, you could open a modal to ask for a comment
-    const res = await updateLeaveRequestStatus(id, newStatus, "", session?.user?.id)
+    const res = await updateLeaveRequestStatus(id, newStatus)
     if (res.success) {
-      const refreshRes = await getLeaveRequests(session?.user?.storeId as string, userId)
+      const refreshRes = await getLeaveRequests(userId)
       if (refreshRes.success && refreshRes.leaves) {
         setLeaves(refreshRes.leaves)
       }

@@ -1,8 +1,9 @@
 import crypto from 'node:crypto'
 import { DeliveryPlatform, OrderStatus, OrderType, Prisma } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { redis } from '@/lib/redis'
 import { decrementIngredientInventory } from '@/app/actions/inventory'
+import { logger } from '@/lib/logger'
 
 const orderInclude = {
   items: {
@@ -237,7 +238,7 @@ async function publishStockAlert(storeId: string, product: { name: string; stock
   try {
     await redis.publish(`store:${storeId}:stock-alert`, JSON.stringify(product))
   } catch (error) {
-    console.error('Failed to publish stock alert:', error)
+    logger.error('Failed to publish stock alert:', error)
   }
 }
 
@@ -247,7 +248,7 @@ async function publishOrderEvent(order: { storeId?: string | null }) {
   try {
     await redis.publish(`store:${order.storeId}:orders:new-order`, JSON.stringify(order))
   } catch (error) {
-    console.error('Failed to publish external order event:', error)
+    logger.error('Failed to publish external order event:', error)
   }
 }
 

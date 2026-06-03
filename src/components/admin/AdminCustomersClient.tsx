@@ -20,9 +20,10 @@ interface Props {
   averagePoints: number
   customers: CustomerData[]
   refreshDataAction: () => void
+  activeStoreId?: string
 }
 
-export function AdminCustomersClient({ totalCustomersCount, averagePoints, customers, refreshDataAction }: Props) {
+export function AdminCustomersClient({ totalCustomersCount, averagePoints, customers, refreshDataAction, activeStoreId }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -169,6 +170,7 @@ export function AdminCustomersClient({ totalCustomersCount, averagePoints, custo
         <AddCustomerModal
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleSuccess}
+          storeId={activeStoreId}
         />
       )}
     </div>

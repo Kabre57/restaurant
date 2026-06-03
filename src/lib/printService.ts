@@ -1,6 +1,8 @@
 // src/lib/printService.ts — Service d'impression brut ESC/POS pour imprimantes thermiques 80mm
 // Compatible avec les connexions réseau directes (TCP/IP) ou locales
 
+import { logger } from "@/lib/logger";
+
 export interface PrintJobData {
   title: string;
   items: { name: string; qty: number; price: number }[];
@@ -34,7 +36,7 @@ export function generateEscPosBuffer(data: PrintJobData): Uint8Array {
       commands.push(...Array.from(logoBytes));
       commands.push(LF);
     } catch (e) {
-      console.error("Erreur de décodage du logo ESC/POS:", e);
+      logger.error("Erreur de décodage du logo ESC/POS:", e);
     }
   }
 

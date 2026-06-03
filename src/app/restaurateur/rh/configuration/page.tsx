@@ -58,7 +58,7 @@ export default function ConfigurationRhPage() {
 
   const loadConfig = async () => {
     setIsLoading(true)
-    const result = await getHrConfiguration(storeId as string)
+    const result = await getHrConfiguration()
     if (result.success && result.config) {
       let parsedRates = defaultTaxRates;
       try {
@@ -154,7 +154,7 @@ export default function ConfigurationRhPage() {
       taxRates: JSON.stringify(formData.taxRates)
     }
 
-    const result = await updateHrConfiguration(storeId, dataToSave as any)
+    const result = await updateHrConfiguration(dataToSave as any)
     
     if (result.success) {
       setMessage({ text: 'Configuration enregistrée avec succès.', type: 'success' })

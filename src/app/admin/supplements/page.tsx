@@ -1,5 +1,5 @@
 import React from 'react'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import AdminSupplementsClient from './AdminSupplementsClient'
 
 export const dynamic = 'force-dynamic'

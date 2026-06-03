@@ -44,6 +44,9 @@ model Store {
   printers            Printer[]
   PaymentMethod       PaymentMethod[]
   ingredientMovements IngredientMovement[]
+  ingredients         Ingredient[]
+  deliveryPeople      DeliveryPerson[]
+  customers           Customer[]
 }
 
 model User {
@@ -129,6 +132,11 @@ model DeliveryPerson {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   orders      Order[]
+  storeId     String
+  store       Store          @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, phone])
 }
 
 model Category {
@@ -154,6 +162,7 @@ model Product {
   description         String?
   price               Float
   image               String?
+  barcode             String?                  // Code-barres (EAN-13, UPC, etc.)
   isAvailable         Boolean                  @default(true)
   averagePrepTimeMins Int                      @default(15)
   createdAt           DateTime                 @default(now())
@@ -169,6 +178,7 @@ model Product {
   ingredients         ProductIngredient[]
   stockMovements      StockMovement[]
 
+  @@unique([storeId, barcode])
   @@index([storeId, categoryId, isAvailable])
 }
 
@@ -247,7 +257,7 @@ model ProductPlatformMapping {
 model Promotion {
   id           String       @id @default(cuid())
   storeId      String
-  code         String       @unique
+  code         String
   description  String?
   discountType DiscountType @default(PERCENTAGE)
   value        Float
@@ -260,6 +270,8 @@ model Promotion {
   updatedAt    DateTime     @updatedAt
   orders       Order[]
   store        Store        @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, code])
 }
 
 model OrderItem {
@@ -298,14 +310,19 @@ model Customer {
   id        String   @id @default(cuid())
   firstName String
   lastName  String
-  phone     String?  @unique
+  phone     String?
   email     String?
+  notes     String?  // Notes sur les préférences / particularités du client
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   loyalty   Loyalty?
   orders    Order[]
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
 
+  @@index([storeId])
   @@index([email])
+  @@unique([storeId, phone])
 }
 
 model Loyalty {
@@ -337,6 +354,7 @@ model Table {
   store        Store         @relation(fields: [storeId], references: [id])
 
   @@index([storeId])
+  @@unique([storeId, number])
 }
 
 model Reservation {
@@ -368,6 +386,11 @@ model Ingredient {
   inventory Inventory[]
   products  ProductIngredient[]
   movements IngredientMovement[]
+  storeId   String
+  store     Store               @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, name])
 }
 
 model ProductIngredient {
@@ -449,6 +472,7 @@ enum Role {
   SERVER
   KITCHEN
   DELIVERY
+  MANAGER
 }
 
 enum TicketStatus {

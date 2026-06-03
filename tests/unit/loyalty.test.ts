@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { creditLoyaltyPoints, redeemLoyaltyPoints, validatePromotion } from '@/app/actions/loyalty'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 
 // Mock de Prisma
-vi.mock('@/lib/prisma', () => {
+vi.mock('@/lib/db', () => {
   return {
-    default: {
+    prisma: {
       loyalty: {
         upsert: vi.fn(),
         findUnique: vi.fn(),
@@ -14,13 +14,39 @@ vi.mock('@/lib/prisma', () => {
       promotion: {
         findFirst: vi.fn(),
       },
+      customer: {
+        findUnique: vi.fn(),
+      },
     },
+  }
+})
+
+// Mock de requireAuth pour éviter les erreurs hors requête Next.js
+vi.mock('@/lib/auth-guard', () => {
+  return {
+    requireAuth: vi.fn().mockResolvedValue({
+      storeId: 'store-1',
+      role: 'RESTAURATEUR',
+      userId: 'user-1'
+    }),
+    assertSameStore: vi.fn()
   }
 })
 
 describe('Loyalty Points Calculation & Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(prisma.customer.findUnique).mockResolvedValue({
+      id: 'cust-1',
+      name: 'Client Test',
+      phone: '0707070707',
+      email: 'test@example.com',
+      loyaltyPoints: 100,
+      totalSpent: 10000,
+      storeId: 'store-1',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
   })
 
   describe('creditLoyaltyPoints', () => {

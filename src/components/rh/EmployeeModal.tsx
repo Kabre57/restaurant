@@ -51,7 +51,7 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
 
     if (!isEditing) {
       data.password = formData.get('password') as string
-      const result = await createEmployee(storeId, data)
+      const result = await createEmployee(data)
       if (result.success) {
         onSuccess()
       } else {

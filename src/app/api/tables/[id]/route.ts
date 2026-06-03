@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { redisPub, REDIS_CHANNELS } from "@/lib/redis";
-import prisma from "@/lib/prisma";
+import { prisma } from '@/lib/db'
 import { TableData, TableStatus } from "../route";
 
 function getZoneInfo(tableNumber: number) {

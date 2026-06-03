@@ -28,7 +28,7 @@ export default function DashboardRHPage() {
     let isCancelled = false
 
     async function fetchData() {
-      const res = await getHrDashboardMetrics(session?.user?.storeId as string)
+      const res = await getHrDashboardMetrics()
       if (isCancelled) return
       if (res.success && res.metrics) {
         setMetrics(res.metrics)

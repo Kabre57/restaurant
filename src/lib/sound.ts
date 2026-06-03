@@ -1,5 +1,7 @@
 'use client'
 
+import { logger } from '@/lib/logger'
+
 /**
  * Génère des sons de notification d'interface de manière synthétique avec l'AudioContext du navigateur.
  * Fonctionne parfaitement hors-ligne, sans requérir de fichiers MP3 physiques ou d'actifs distants.
@@ -53,6 +55,6 @@ export function playNotificationSound(type: 'info' | 'success' | 'warning' = 'in
     }
   } catch (error) {
     // Les navigateurs bloquent souvent l'audio tant que l'utilisateur n'a pas interagi avec la page.
-    console.warn('[AudioContext] Lecture audio bloquée ou non supportée :', error)
+    logger.warn('[AudioContext] Lecture audio bloquée ou non supportée :', error)
   }
 }

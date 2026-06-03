@@ -35,8 +35,7 @@ export const spec = {
             in: "query",
             required: false,
             schema: {
-              type: "string",
-              enum: ["PENDING", "PREPARING", "READY", "PAID", "DELIVERED", "CANCELLED"]
+              $ref: "#/components/schemas/OrderStatus"
             },
             description: "Filtrer par statut de commande."
           }
@@ -106,8 +105,7 @@ export const spec = {
                 required: ["status"],
                 properties: {
                   status: {
-                    type: "string",
-                    enum: ["PENDING", "PREPARING", "READY", "PAID", "DELIVERED", "CANCELLED"]
+                    $ref: "#/components/schemas/OrderStatus"
                   },
                   prepTime: {
                     type: "integer",
@@ -523,8 +521,7 @@ export const spec = {
           storeId: { type: "string" },
           tableId: { type: "string", nullable: true },
           status: {
-            type: "string",
-            enum: ["PENDING", "PREPARING", "READY", "PAID", "DELIVERED", "CANCELLED"]
+            $ref: "#/components/schemas/OrderStatus"
           },
           total: { type: "number" },
           tax: { type: "number" },
@@ -615,8 +612,7 @@ export const spec = {
           id: { type: "string" },
           number: { type: "integer" },
           status: {
-            type: "string",
-            enum: ["AVAILABLE", "OCCUPIED", "RESERVED"]
+            $ref: "#/components/schemas/TableStatus"
           },
           seats: { type: "integer" }
         }
@@ -632,6 +628,27 @@ export const spec = {
           footer: { type: "string" },
           rawEscPos: { type: "string" }
         }
+      },
+      OrderStatus: {
+        type: "string",
+        enum: ["EN_ATTENTE", "PREPARATION", "PRET", "COMPLETED", "CANCELLED"],
+        description: "Status de la commande:\n- EN_ATTENTE: Commande reçue, en attente de préparation\n- PREPARATION: En cours de préparation en cuisine\n- PRET: Commande prête à être servie/remise\n- COMPLETED: Commande terminée et servie\n- CANCELLED: Commande annulée"
+      },
+      PaymentType: {
+        type: "string",
+        enum: ["CASH", "CARD", "MOBILE_MONEY", "CHECK", "MEAL_VOUCHER", "GIFT_CARD", "OTHER"]
+      },
+      OrderType: {
+        type: "string",
+        enum: ["DINE_IN", "TAKEAWAY", "DELIVERY"]
+      },
+      TableStatus: {
+        type: "string",
+        enum: ["AVAILABLE", "OCCUPIED", "RESERVED"]
+      },
+      ReservationStatus: {
+        type: "string",
+        enum: ["EN_ATTENTE", "CONFIRMED", "CANCELLED", "COMPLETED"]
       }
     }
   }

@@ -2,12 +2,16 @@
 
 import { Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function getStoreStaff(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.user.findMany({
-      where: { storeId },
+      where: { storeId: targetStoreId },
       select: {
         id: true,
         name: true,
@@ -40,6 +44,9 @@ export async function createStaffMember(data: {
   phone?: string
   status?: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
     const hashedPassword = await bcrypt.hash(data.password, 10)
     
@@ -49,7 +56,7 @@ export async function createStaffMember(data: {
         email: data.email,
         password: hashedPassword,
         role: data.role,
-        storeId: data.storeId,
+        storeId: finalStoreId,
         salary: data.salary,
         contractType: data.contractType,
         hireDate: data.hireDate,
@@ -67,7 +74,15 @@ export async function createStaffMember(data: {
 }
 
 export async function deleteStaffMember(userId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.user.findUnique({ where: { id: userId } })
+    if (!existing) return { success: false, error: "Membre du personnel introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.user.delete({
       where: { id: userId }
     })
@@ -92,8 +107,17 @@ export async function updateStaffMember(userId: string, data: {
   phone?: string
   status?: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.user.findUnique({ where: { id: userId } })
+    if (!existing) return { success: false, error: "Membre du personnel introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const updateData: any = { ...data }
+    delete updateData.storeId
     
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10)
