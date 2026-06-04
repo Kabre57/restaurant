@@ -3,7 +3,8 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 type SuperviseurAccount = {
   id: string
@@ -13,6 +14,8 @@ type SuperviseurAccount = {
 }
 
 export async function getSuperviseurAccounts() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.$queryRaw<SuperviseurAccount[]>`
       SELECT "id", "name", "email", "createdAt"
@@ -27,6 +30,8 @@ export async function getSuperviseurAccounts() {
 }
 
 export async function createSuperviseurAccount(data: { name: string; email: string; password: string }) {
+  await requireAuth(["ADMIN"])
+
   try {
     const name = data.name.trim()
     const email = data.email.trim().toLowerCase()
@@ -64,5 +69,66 @@ export async function createSuperviseurAccount(data: { name: string; email: stri
   } catch (error) {
     console.error('Failed to create superviseur account:', error)
     return { success: false, error: 'Impossible de créer le compte Superviseur.' }
+  }
+}
+
+export async function getMultiSiteCriticalStocks() {
+  await requireAuth(["ADMIN"])
+
+  try {
+    return await prisma.product.findMany({
+      where: {
+        trackStock: true,
+        stockQuantity: {
+          lt: prisma.product.fields.minStockLevel
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        stockQuantity: true,
+        minStockLevel: true,
+        store: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        stockQuantity: 'asc'
+      },
+      take: 10
+    })
+  } catch (error) {
+    console.error('Failed to fetch multi-site critical stocks:', error)
+    return []
+  }
+}
+
+export async function getRecentMultiSiteMovements() {
+  await requireAuth(["ADMIN"])
+
+  try {
+    return await prisma.stockMovement.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        product: {
+          select: {
+            name: true,
+            store: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      take: 10
+    })
+  } catch (error) {
+    console.error('Failed to fetch multi-site movements:', error)
+    return []
   }
 }

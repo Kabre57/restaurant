@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { getStoreSettings } from '@/app/actions/storeSettings'
 
 type ReceiptItem = {
   name?: string
@@ -23,14 +24,39 @@ export type ReceiptOrder = {
 
 interface ReceiptModalProps {
   order: ReceiptOrder
+  storeId?: string
   onClose: () => void
 }
 
-export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
+export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
   const isPendingSettlement = order.paymentMode === 'A regler en caisse'
   const orderDate = new Date(order.date || new Date())
   const subtotal = Math.round(order.total / 1.18)
   const tax = order.total - subtotal
+
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [headerText, setHeaderText] = useState<string | null>(null)
+  const [footerText, setFooterText] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadSettings() {
+      if (!storeId) return
+      const res = await getStoreSettings(storeId)
+      if (res.success && res.settings) {
+        setHeaderText(res.settings.receiptHeader || null)
+        setFooterText(res.settings.receiptFooter || null)
+        if (res.settings.receiptLogo) {
+          try {
+            const parsed = JSON.parse(res.settings.receiptLogo)
+            setLogoPreview(parsed.visual || null)
+          } catch (e) {
+            setLogoPreview(null)
+          }
+        }
+      }
+    }
+    void loadSettings()
+  }, [storeId])
 
   async function handlePrint() {
     await fetch('/api/hardware/print', {
@@ -52,15 +78,24 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 overflow-y-auto">
-      <div className="receipt-print-area bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-10 duration-500">
+      <div className="receipt-print-area bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-10 duration-500 font-sans">
         <div className="text-center border-b border-dashed border-[#dee2e6] pb-6 mb-6">
-          <div className="w-16 h-16 bg-[#212529] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-black">POS</span>
-          </div>
+          {logoPreview ? (
+            <img src={logoPreview} alt="Logo" className="h-16 object-contain mx-auto mb-4" />
+          ) : (
+            <div className="w-16 h-16 bg-[#212529] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-2xl font-black">POS</span>
+            </div>
+          )}
           <h2 className="text-xl font-black text-[#212529] uppercase tracking-tighter">
             {isPendingSettlement ? 'Bon de Commande' : 'Ticket de Caisse'}
           </h2>
           <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Commande #{order.displayId || order.id}</p>
+          {headerText && (
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-2 whitespace-pre-line leading-tight">
+              {headerText}
+            </p>
+          )}
         </div>
 
         {(isPendingSettlement || order.estimatedPrepMinutes) && (
@@ -123,8 +158,12 @@ export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
           </div>
         </div>
 
-        <div className="bg-[#f8f9fa] rounded-2xl p-4 text-center mb-8">
-          <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Merci pour votre visite !</p>
+        <div className="bg-[#f8f9fa] rounded-2xl p-4 text-center mb-8 space-y-1">
+          {footerText ? (
+            <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest whitespace-pre-line leading-tight">{footerText}</p>
+          ) : (
+            <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Merci pour votre visite !</p>
+          )}
           <span className="text-[9px] font-bold text-[#adb5bd]">{orderDate.toLocaleString('fr-FR')}</span>
         </div>
 

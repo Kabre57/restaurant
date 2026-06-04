@@ -19,7 +19,13 @@ export async function GET(req: NextRequest) {
       let closed = false;
 
       const send = (payload: string) => {
-        if (!closed) controller.enqueue(encoder.encode(payload));
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(payload));
+        } catch {
+          closed = true;
+          clearInterval(heartbeat);
+        }
       };
 
       const heartbeat = setInterval(() => {

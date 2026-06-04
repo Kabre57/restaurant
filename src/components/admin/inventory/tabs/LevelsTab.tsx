@@ -1,80 +1,32 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Archive, Plus, AlertTriangle, BarChart2, Search } from 'lucide-react'
-import { AddIngredientModal } from './subcomponents/AddIngredientModal'
-import { UpdateInventoryModal } from './subcomponents/UpdateInventoryModal'
-import { deleteInventory } from '@/app/actions/inventory'
-import { Trash2, Edit2 } from 'lucide-react'
-
-type InventoryData = {
-  id: string
-  quantity: number
-  minStock: number
-  lastUpdated: Date
-  ingredient: { name: string; unit: string }
-  store: { name: string }
-}
+import React from 'react'
+import { Archive, AlertTriangle, BarChart2, Search, Edit2, Trash2 } from 'lucide-react'
+import { InventoryData } from '../hooks/useInventory'
 
 interface Props {
   totalIngredients: number
   lowStockCount: number
-  inventories: InventoryData[]
-  stores: { id: string, name: string }[]
-  refreshDataAction: () => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  filteredInventories: InventoryData[]
+  setEditingInventory: (inventory: InventoryData | null) => void
+  handleDelete: (id: string) => void
+  isDeleting: string | null
 }
 
-export function AdminInventoryClient({ totalIngredients, lowStockCount, inventories, stores, refreshDataAction }: Props) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [editingInventory, setEditingInventory] = useState<InventoryData | null>(null)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-
-  const filteredInventories = inventories.filter(item =>
-    item.ingredient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.store.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const handleSuccess = () => {
-    setIsAddModalOpen(false)
-    setEditingInventory(null)
-    refreshDataAction()
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer cet ingrédient de l\'inventaire ?')) return
-    setIsDeleting(id)
-    const res = await deleteInventory(id)
-    setIsDeleting(null)
-    if (res.success) {
-      refreshDataAction()
-    } else {
-      alert(res.error || 'Erreur lors de la suppression')
-    }
-  }
-
+export function LevelsTab({
+  totalIngredients,
+  lowStockCount,
+  searchQuery,
+  setSearchQuery,
+  filteredInventories,
+  setEditingInventory,
+  handleDelete,
+  isDeleting
+}: Props) {
   return (
-    <div className="space-y-8 relative">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#FF6D00]">LOGISTIQUE CENTRALE</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-black sm:text-4xl">
-            Gestion de l'Inventaire
-          </h1>
-          <p className="mt-2 text-sm font-semibold text-[#868e96]">
-            Suivi des stocks d'ingrédients, alertes de rupture et états de réapprovisionnement par restaurant.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF6D00] px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-md shadow-orange-500/10 hover:bg-[#E66200] transition-all"
-        >
-          <Plus className="h-4 w-4" />
-          Ajouter Ingrédient
-        </button>
-      </div>
-
+    <div className="space-y-8 animate-fadeIn">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {/* KPI 1 */}
@@ -120,7 +72,7 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
         </div>
       </div>
 
-      {/* Inventory Table Section */}
+      {/* Table */}
       <div className="rounded-2xl border border-[#E5E7EB] bg-white p-7 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <h2 className="text-base font-black text-black">Niveaux de Stocks Actuels</h2>
@@ -164,11 +116,11 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
                     <tr key={item.id} className="hover:bg-[#F8F9FA]/50 transition-colors">
                       <td className="py-4 font-black text-black">{item.ingredient.name}</td>
                       <td className="py-4 font-bold text-black">{item.store.name}</td>
-                      <td className={`py-4 font-black F CFA {isLow ? 'text-red-500' : 'text-[#FF6D00]'}`}>{item.quantity}</td>
+                      <td className={`py-4 font-black ${isLow ? 'text-red-500' : 'text-[#FF6D00]'}`}>{item.quantity}</td>
                       <td className="py-4 text-[#868e96] font-bold">{item.minStock}</td>
                       <td className="py-4 font-bold text-black">{item.ingredient.unit}</td>
                       <td className="py-4">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest F CFA {
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                           isLow ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                         }`}>
                           {isLow ? 'Critique' : 'Normal'}
@@ -202,22 +154,6 @@ export function AdminInventoryClient({ totalIngredients, lowStockCount, inventor
           </div>
         )}
       </div>
-
-      {isAddModalOpen && (
-        <AddIngredientModal
-          stores={stores}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={handleSuccess}
-        />
-      )}
-
-      {editingInventory && (
-        <UpdateInventoryModal
-          inventory={editingInventory}
-          onClose={() => setEditingInventory(null)}
-          onSuccess={handleSuccess}
-        />
-      )}
     </div>
   )
 }

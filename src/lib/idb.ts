@@ -1,6 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
-export type CachedCategory = { id: string; name: string; icon: string | null };
+export type CachedCategory = { id: string; name: string; imageUrl: string | null };
 export type CachedProduct = {
   id: string;
   categoryId: string;
@@ -9,6 +9,9 @@ export type CachedProduct = {
   image: string | null;
   averagePrepTimeMins?: number | null;
   isAvailable?: boolean;
+  stockQuantity?: number | null;
+  trackStock?: boolean | null;
+  barcode?: string | null;
 };
 export type QueuedOrder = {
   id?: number;
@@ -17,7 +20,7 @@ export type QueuedOrder = {
   cashierId: string;
   total: number;
   type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
-  paymentMode: 'ESPECES' | 'CB' | 'MOBILE_MONEY';
+  paymentMode: string;
   items: { productId: string; quantity: number; price: number; name?: string; options?: string }[];
   createdAt: number;
 };

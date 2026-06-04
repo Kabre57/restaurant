@@ -1,6 +1,7 @@
 'use server'
 
 import { redis } from '@/lib/redis'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 type POSOrderAlertPayload = {
   id: string
@@ -10,6 +11,11 @@ type POSOrderAlertPayload = {
 }
 
 export async function publishStockAlert(storeId: string, product: { name: string, stockQuantity: number }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+  if (role !== "ADMIN") {
+    assertSameStore(storeId, authStoreId)
+  }
+
   try {
     await redis.publish(`store:${storeId}:stock-alert`, JSON.stringify(product))
   } catch (error) {
@@ -18,7 +24,12 @@ export async function publishStockAlert(storeId: string, product: { name: string
 }
 
 export async function publishOrderEvent(eventName: 'new-order' | 'order-updated', order: { storeId?: string }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
   if (!order.storeId) return
+
+  if (role !== "ADMIN") {
+    assertSameStore(order.storeId, authStoreId)
+  }
 
   try {
     await redis.publish(`store:${order.storeId}:orders:${eventName}`, JSON.stringify(order))
@@ -28,7 +39,12 @@ export async function publishOrderEvent(eventName: 'new-order' | 'order-updated'
 }
 
 export async function publishPOSOrderAlert(type: 'ORDER_CREATED' | 'ORDER_READY', order: POSOrderAlertPayload) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
   if (!order.storeId) return
+
+  if (role !== "ADMIN") {
+    assertSameStore(order.storeId, authStoreId)
+  }
 
   try {
     await redis.publish(`store:${order.storeId}:pos-alerts`, JSON.stringify({

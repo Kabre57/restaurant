@@ -98,7 +98,7 @@ export default function AdminSuperviseurPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef1ff] text-[var(--parabellum-primary)]">
             <UserCog className="h-5 w-5" />
           </div>
-          <h2 className="text-lg font-black text-black">Nouveau Franchiseur</h2>
+          <h2 className="text-lg font-black text-black">Nouveau Supervision</h2>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">

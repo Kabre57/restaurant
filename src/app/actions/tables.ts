@@ -2,12 +2,16 @@
 
 import { TableStatus, TableShape } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function getTablesByStore(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.table.findMany({
-      where: { storeId },
+      where: { storeId: targetStoreId },
       orderBy: { number: 'asc' }
     })
   } catch (error) {
@@ -17,10 +21,13 @@ export async function getTablesByStore(storeId: string) {
 }
 
 export async function createTable(data: { storeId: string, number: number, capacity: number, x?: number, y?: number, shape?: TableShape }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
     const table = await prisma.table.create({
       data: {
-        storeId: data.storeId,
+        storeId: finalStoreId,
         number: data.number,
         capacity: data.capacity,
         x: data.x || 0,
@@ -37,7 +44,15 @@ export async function createTable(data: { storeId: string, number: number, capac
 }
 
 export async function updateTablePosition(tableId: string, x: number, y: number) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.table.findUnique({ where: { id: tableId } })
+    if (!existing) return { success: false, error: "Table introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const table = await prisma.table.update({
       where: { id: tableId },
       data: { x, y }
@@ -50,7 +65,15 @@ export async function updateTablePosition(tableId: string, x: number, y: number)
 }
 
 export async function updateTableDetails(tableId: string, data: { number?: number, capacity?: number, shape?: TableShape, width?: number, height?: number }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.table.findUnique({ where: { id: tableId } })
+    if (!existing) return { success: false, error: "Table introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const table = await prisma.table.update({
       where: { id: tableId },
       data
@@ -64,7 +87,15 @@ export async function updateTableDetails(tableId: string, data: { number?: numbe
 }
 
 export async function deleteTable(tableId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.table.findUnique({ where: { id: tableId } })
+    if (!existing) return { success: false, error: "Table introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.table.delete({
       where: { id: tableId }
     })

@@ -1,21 +1,30 @@
 import React from 'react'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { AdminInventoryClient } from '@/components/admin/AdminInventoryClient'
+import { AdminInventoryClient } from '@/components/admin/inventory/AdminInventoryClient'
+
+import { cookies } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminInventoryPage() {
+  const cookieStore = await cookies()
+  const activeStoreId = cookieStore.get('admin_active_store_id')?.value
+
   const [totalIngredients, lowStockCount, inventories, stores] = await Promise.all([
-    prisma.ingredient.count(),
+    activeStoreId
+      ? prisma.inventory.count({ where: { storeId: activeStoreId } })
+      : prisma.ingredient.count(),
     prisma.inventory.count({
       where: {
+        ...(activeStoreId ? { storeId: activeStoreId } : {}),
         quantity: {
           lt: prisma.inventory.fields.minStock
         }
       }
     }),
     prisma.inventory.findMany({
+      where: activeStoreId ? { storeId: activeStoreId } : undefined,
       orderBy: { quantity: 'asc' },
       include: {
         ingredient: true,

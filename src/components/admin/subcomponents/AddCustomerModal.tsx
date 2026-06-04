@@ -7,10 +7,11 @@ import { createCustomer } from '@/app/actions/clients'
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  storeId?: string
 }
 
-export function AddCustomerModal({ onClose, onSuccess }: Props) {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '' })
+export function AddCustomerModal({ onClose, onSuccess, storeId }: Props) {
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', notes: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -19,7 +20,7 @@ export function AddCustomerModal({ onClose, onSuccess }: Props) {
     setIsSubmitting(true)
     setError('')
 
-    const res = await createCustomer(form)
+    const res = await createCustomer({ ...form, storeId })
     if (res.success) {
       onSuccess()
     } else {
@@ -83,6 +84,16 @@ export function AddCustomerModal({ onClose, onSuccess }: Props) {
               onChange={e => setForm({ ...form, email: e.target.value })}
               className="w-full rounded-xl border border-[#E5E7EB] bg-[#F8F9FA] px-4 py-3 text-sm font-bold focus:border-[#FF6D00] focus:outline-none transition-colors"
               placeholder="jean.dupont@email.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Notes / Préférences</label>
+            <textarea 
+              value={form.notes}
+              onChange={e => setForm({ ...form, notes: e.target.value })}
+              className="w-full rounded-xl border border-[#E5E7EB] bg-[#F8F9FA] px-4 py-3 text-sm font-bold focus:border-[#FF6D00] focus:outline-none transition-colors min-h-[80px] resize-none"
+              placeholder="Notes sur les préférences, intolérances, habitudes..."
             />
           </div>
 

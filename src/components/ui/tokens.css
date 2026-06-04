@@ -1,0 +1,90 @@
+/* src/components/ui/tokens.css */
+/* Design Tokens pour l'interface POS tactile et premium */
+
+:root {
+  /* Dimensions tactiles minimales */
+  --touch-min-size: 44px;
+  --touch-input-height: 48px;
+  
+  /* Échelle de Espacement Tactile - Espacement généreux pour éviter les fautes de frappe */
+  --spacing-xs: 0.5rem;   /* 8px */
+  --spacing-sm: 0.75rem;  /* 12px */
+  --spacing-md: 1rem;     /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  
+  /* Palette de Couleurs HSL Curée & Premium */
+  --color-brand-hsl: 26, 100%, 50%; /* #FF6D00 */
+  --color-brand-hover-hsl: 26, 100%, 45%;
+  --color-brand-active-hsl: 26, 100%, 40%;
+  
+  --ui-primary: hsl(var(--color-brand-hsl));
+  --ui-primary-hover: hsl(var(--color-brand-hover-hsl));
+  --ui-primary-active: hsl(var(--color-brand-active-hsl));
+  --ui-primary-light: hsla(var(--color-brand-hsl), 0.08);
+  
+  /* Mode clair par défaut */
+  --ui-bg: #f8fafc;
+  --ui-surface: #ffffff;
+  --ui-border: #e2e8f0;
+  --ui-text: #0f172a;
+  --ui-text-muted: #64748b;
+  
+  --ui-secondary: #64748b;
+  --ui-secondary-hover: #475569;
+  --ui-secondary-active: #334155;
+  --ui-secondary-light: #f1f5f9;
+
+  --ui-danger: #ff6b6b;
+  --ui-danger-hover: #ff8787;
+  --ui-danger-active: #ffa8a8;
+  --ui-danger-light: rgba(255, 107, 107, 0.1);
+  
+  --ui-success: #51cf66;
+  --ui-success-light: rgba(81, 207, 102, 0.1);
+  
+  --ui-warning: #ffd43b;
+  --ui-warning-light: rgba(255, 212, 59, 0.1);
+  
+  --ui-info: #339af0;
+  --ui-info-light: rgba(51, 154, 240, 0.1);
+  
+  /* Typographie */
+  --font-family: var(--font-sans), 'Outfit', 'Inter', sans-serif;
+  --radius-touch: 1rem; /* 16px - Bords doux */
+  --radius-badge: 9999px;
+  
+  /* Ombres */
+  --shadow-touch: 0 15px 35px -10px rgba(0, 0, 0, 0.3);
+  --shadow-active: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Mode sombre (préférence système) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-bg: #0f172a;
+    --ui-surface: #1e293b;
+    --ui-text: #f1f5f9;
+    --ui-text-muted: #94a3b8;
+    --ui-border: #334155;
+    
+    --ui-secondary: #94a3b8;
+    --ui-secondary-hover: #cbd5e1;
+    --ui-secondary-active: #e2e8f0;
+    --ui-secondary-light: #1e293b;
+  }
+}
+
+/* Support pour toggle manuel */
+.dark {
+  --ui-bg: #0f172a;
+  --ui-surface: #1e293b;
+  --ui-text: #f1f5f9;
+  --ui-text-muted: #94a3b8;
+  --ui-border: #334155;
+  
+  --ui-secondary: #94a3b8;
+  --ui-secondary-hover: #cbd5e1;
+  --ui-secondary-active: #e2e8f0;
+  --ui-secondary-light: #1e293b;
+}

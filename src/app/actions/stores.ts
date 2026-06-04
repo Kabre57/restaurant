@@ -1,10 +1,16 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function getStoreDetails(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  if (role !== "ADMIN") {
+    assertSameStore(storeId, authStoreId)
+  }
+
   try {
     const store = await prisma.store.findUnique({
       where: { id: storeId },
@@ -25,6 +31,8 @@ export async function getStoreDetails(storeId: string) {
 }
 
 export async function getStores() {
+  await requireAuth(["ADMIN"])
+
   try {
     return await prisma.store.findMany({
       select: {
@@ -64,6 +72,8 @@ export async function createStore(data: {
   managerEmail: string
   managerPassword: string
 }) {
+  await requireAuth(["ADMIN"])
+
   try {
     if (!data.name.trim() || !data.managerEmail.trim() || !data.managerPassword.trim()) {
       return { success: false, error: 'Nom du restaurant, email manager et mot de passe requis.' }

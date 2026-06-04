@@ -15,7 +15,7 @@ type CategoryItem = {
 }
 
 export default function CategoriesManagement() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [categories, setCategories] = useState<CategoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -31,17 +31,29 @@ export default function CategoriesManagement() {
   })
 
   useEffect(() => {
+    if (status === 'loading') return
+
     const storeId = session?.user?.storeId
-    if (!storeId) return
+    if (!storeId) {
+      setLoading(false)
+      return
+    }
 
     let isCancelled = false
 
     async function fetchCategories() {
-      setLoading(true)
-      const data = await getCategories(storeId)
-      if (isCancelled) return
-      setCategories(data as CategoryItem[])
-      setLoading(false)
+      try {
+        setLoading(true)
+        const data = await getCategories(storeId)
+        if (isCancelled) return
+        setCategories(data as CategoryItem[])
+      } catch (err) {
+        console.error("Failed to load categories:", err)
+      } finally {
+        if (!isCancelled) {
+          setLoading(false)
+        }
+      }
     }
 
     void fetchCategories()
@@ -49,40 +61,59 @@ export default function CategoriesManagement() {
     return () => {
       isCancelled = true
     }
-  }, [session?.user?.storeId])
+  }, [session?.user?.storeId, status])
 
   async function loadCategories() {
-    setLoading(true)
-    const data = await getCategories(session?.user?.storeId as string)
-    setCategories(data as CategoryItem[])
-    setLoading(false)
+    const storeId = session?.user?.storeId
+    if (!storeId) return
+    try {
+      setLoading(true)
+      const data = await getCategories(storeId)
+      setCategories(data as CategoryItem[])
+    } catch (err) {
+      console.error("Failed to reload categories:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setIsSubmitting(true)
-    
-    const payload = {
-      ...formData,
-      storeId: session?.user?.storeId as string
+    const storeId = session?.user?.storeId
+    if (!storeId) {
+      setErrorModal("Identifiant du restaurant introuvable. Veuillez vous reconnecter.")
+      return
     }
 
-    let res
-    if (editingCategory) {
-      res = await updateCategory(editingCategory.id, payload)
-    } else {
-      res = await createCategory(payload)
-    }
+    try {
+      setIsSubmitting(true)
+      
+      const payload = {
+        ...formData,
+        storeId
+      }
 
-    if (res.success) {
-      setShowModal(false)
-      setEditingCategory(null)
-      setFormData({ name: '', imageUrl: '' })
-      loadCategories()
-    } else {
-      setErrorModal(res.error || "Erreur lors de l'enregistrement")
+      let res
+      if (editingCategory) {
+        res = await updateCategory(editingCategory.id, payload)
+      } else {
+        res = await createCategory(payload)
+      }
+
+      if (res.success) {
+        setShowModal(false)
+        setEditingCategory(null)
+        setFormData({ name: '', imageUrl: '' })
+        loadCategories()
+      } else {
+        setErrorModal(res.error || "Erreur lors de l'enregistrement")
+      }
+    } catch (err) {
+      console.error("Failed to submit category:", err)
+      setErrorModal("Une erreur inattendue est survenue.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   async function confirmDelete() {
@@ -162,7 +193,17 @@ export default function CategoriesManagement() {
             <tr key={category.id} className="transition hover:bg-[#fafbfc]">
               <td className="px-6 py-4 text-sm font-bold text-[#72788f]">{index + 1}</td>
               <td className="px-6 py-4 text-sm font-bold text-[#495057]">{category.name}</td>
-              <td className="px-6 py-4 text-sm font-medium text-[#72788f]">{category.imageUrl ? 'Image définie' : 'Aucune image'}</td>
+              <td className="px-6 py-4 text-sm font-medium text-[#72788f]">
+                {category.imageUrl ? (
+                  <div className="w-12 h-12 rounded-xl bg-[#F4F6F8] border border-[#EFF3F8] overflow-hidden relative flex items-center justify-center">
+                    <img src={category.imageUrl} alt={category.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-[#F4F6F8] border border-[#EFF3F8] flex items-center justify-center text-[#adb5bd] text-xs font-black">
+                    AUCUNE
+                  </div>
+                )}
+              </td>
               <td className="px-6 py-4"><CrudStatus tone={category.imageUrl ? 'success' : 'muted'}>{category.imageUrl ? 'Complète' : 'À compléter'}</CrudStatus></td>
               <td className="px-6 py-4">
                 <div className="flex justify-end gap-2">

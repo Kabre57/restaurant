@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentStatus } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/db'
 import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
 
 function mapCinetPayStatus(status: unknown) {

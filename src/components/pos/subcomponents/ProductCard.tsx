@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
-import { Plus } from 'lucide-react'
+import { Plus, Star } from 'lucide-react'
 
 export type ProductCardItem = {
   id: string
@@ -10,71 +10,108 @@ export type ProductCardItem = {
   price: number
   image?: string | null
   averagePrepTimeMins?: number | null
+  stockQuantity?: number | null
+  trackStock?: boolean | null
 }
 
 interface ProductCardProps {
   product: ProductCardItem
   onAdd: () => void
   categoryName: string
+  isFavori?: boolean
+  onToggleFavori?: () => void
 }
 
-export function ProductCard({ product, onAdd, categoryName }: ProductCardProps) {
+export function ProductCard({
+  product,
+  onAdd,
+  categoryName,
+  isFavori = false,
+  onToggleFavori,
+}: ProductCardProps) {
   const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null)
 
-  const getCategoryEmoji = (name: string) => {
-    const n = name.toLowerCase()
-    if (n.includes('burger')) return '🍔'
-    if (n.includes('poulet')) return '🍗'
-    if (n.includes('frite')) return '🍟'
-    if (n.includes('boisson')) return '🥤'
-    if (n.includes('dessert')) return '🍰'
-    return '🍽️'
-  }
-
-  const emoji = getCategoryEmoji(categoryName)
-  const isDrink = categoryName.toLowerCase().includes('boisson')
   const canDisplayImage = Boolean(product.image) && failedImageSrc !== product.image
-  const prepMinutes = Math.max(1, product.averagePrepTimeMins || 15)
+  const initials = product.name ? product.name.trim().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'PR'
 
   return (
-    <div onClick={onAdd} className="bg-pos-surface rounded-3xl overflow-hidden border border-pos-border hover:border-brand-500 transition-all duration-300 cursor-pointer group flex flex-col shadow-soft hover:shadow-xl hover:-translate-y-1.5">
-      <div className="aspect-[4/3] bg-gradient-to-b from-pos-bg to-pos-border/30 relative overflow-hidden p-4">
+    <div 
+      onClick={onAdd} 
+      className="bg-white rounded-[24px] overflow-hidden border border-[#EFF3F8] hover:border-[#FF6D00] transition-all duration-300 cursor-pointer group flex flex-col p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transform active:scale-[0.98]"
+    >
+      {/* Zone visuelle de l'image (en haut, cadre gris arrondi avec respiration) */}
+      <div className="w-full aspect-[4/3] bg-[#F4F6F8] rounded-[20px] relative overflow-hidden flex items-center justify-center p-4 shrink-0 select-none">
         {canDisplayImage ? (
-          <div className="relative w-full h-full rounded-[1.5rem] bg-white/90 border border-white/80 shadow-[0_18px_40px_rgba(33,37,41,0.08)] flex items-center justify-center overflow-hidden">
+          <div className="w-full h-full relative overflow-hidden">
             <Image
               src={product.image || ''}
               alt={product.name}
               fill
               unoptimized
-              sizes="250px"
+              sizes="200px"
               onError={() => setFailedImageSrc(product.image || null)}
-              className={`w-full h-full object-contain transition-transform duration-700 ${isDrink ? 'p-1 scale-[1.08] group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`}
+              className="w-full h-full object-contain p-1 transition-transform duration-700 group-hover:scale-105"
             />
           </div>
         ) : (
-          <div className="w-full h-full rounded-[1.5rem] bg-white/80 border border-white/80 flex items-center justify-center">
-            <div className="w-16 h-16 bg-white/50 rounded-full border border-white flex items-center justify-center text-2xl">
-              {emoji}
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-[#E9ECEF] flex items-center justify-center text-xs font-black text-[#868E96] select-none">
+              {initials}
             </div>
           </div>
         )}
-        <div className="absolute top-4 left-4 bg-pos-surface/90 backdrop-blur px-3 py-1 rounded-full text-[9px] font-bold text-pos-text border border-pos-border uppercase tracking-widest">
+
+        {/* Badge Catégorie en haut à gauche */}
+        <div className="absolute top-3 left-3 bg-[#e9ecef]/85 backdrop-blur-sm text-[#495057] px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-wider border border-[#dee2e6]/50">
           {categoryName}
         </div>
-        <div className="absolute top-4 right-4 bg-brand-500 text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-brand/20">
-          ~ {prepMinutes} min
+
+        {/* Badge de stock orange vif en haut à droite */}
+        <div className="absolute top-3 right-3 bg-[#FF5500] text-white px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-wider shadow-sm">
+          STOCK: {product.stockQuantity ?? 0}
         </div>
+
+        {/* Bouton Étoile Favori */}
+        {onToggleFavori && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFavori()
+            }}
+            className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm border border-gray-100 hover:scale-110 active:scale-95 transition-all shadow-md text-amber-400"
+            aria-label="Ajouter aux favoris"
+          >
+            <Star className={`w-4 h-4 ${isFavori ? 'fill-amber-400 text-amber-400' : 'text-gray-400'}`} />
+          </button>
+        )}
       </div>
-      <div className="p-6 pt-3 flex flex-col gap-4">
-        <h3 className="font-bold text-sm text-pos-text uppercase leading-tight tracking-tight min-h-[2.5rem] flex items-center">{product.name}</h3>
-        <div className="flex items-center justify-between">
+
+      {/* Détails du produit en dessous (sur fond blanc, sans chevauchement) */}
+      <div className="flex flex-col pt-4 flex-1 justify-between">
+        <div>
+          <h3 className="font-extrabold text-xs text-[#212529] uppercase tracking-wide leading-tight line-clamp-2">
+            {product.name}
+          </h3>
+        </div>
+
+        <div className="flex justify-between items-center mt-4 pt-2 border-t border-dashed border-[#EFF3F8]">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-pos-text-muted uppercase tracking-widest leading-none mb-1">Prix</span>
-            <span className="font-bold text-brand-600 text-lg leading-none">{product.price.toLocaleString()} <span className="text-[10px] text-pos-text-muted">FCFA</span></span>
+            <span className="text-[9px] font-bold text-[#adb5bd] uppercase tracking-widest leading-none mb-1">
+              Prix
+            </span>
+            <span className="font-black text-sm text-[#212529] tracking-tight">
+              {product.price.toLocaleString()} <span className="text-[10px] text-[#FF6D00] font-black">FCFA</span>
+            </span>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-brand-50 group-hover:bg-brand-500 flex items-center justify-center text-brand-600 group-hover:text-white transition-all shadow-sm">
-            <Plus className="w-5 h-5" />
-          </div>
+
+          {/* Bouton Plus tactile orange */}
+          <button 
+            type="button"
+            className="w-10 h-10 rounded-full bg-[#FF6D00] text-white flex items-center justify-center shadow-md hover:bg-[#E65C00] transition-all duration-200 transform active:scale-90 group-hover:scale-105 shrink-0"
+          >
+            <Plus className="w-5 h-5 stroke-[3px]" />
+          </button>
         </div>
       </div>
     </div>

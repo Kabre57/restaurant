@@ -18,6 +18,7 @@ type POSOrderSidebarProps = {
     price: number
     quantity: number
     options?: string
+    image?: string | null
   }[]
   isProcessing: boolean
   subtotal: number
@@ -64,9 +65,8 @@ export function POSOrderSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col overflow-hidden border-l border-[#e9ecef] bg-white shadow-2xl transition-transform duration-300 xl:static xl:w-[450px] xl:max-w-none xl:translate-x-0 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col overflow-hidden border-l border-[#e9ecef] bg-white shadow-2xl transition-transform duration-300 xl:static xl:w-[450px] xl:max-w-none xl:translate-x-0 ${isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         <div className="flex items-end justify-between border-b border-[#f1f3f5] p-6 pb-4 sm:p-8 sm:pb-4">
           <div>

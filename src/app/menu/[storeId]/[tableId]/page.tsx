@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import type { Category, Product } from '@prisma/client'
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient'
 import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products'

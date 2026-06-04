@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import type { Role } from '@prisma/client'
-import { Trash2, Edit3, X, Loader2, AlertCircle } from 'lucide-react'
+import { Trash2, Edit3, X, Loader2, AlertCircle, Phone, Calendar, DollarSign, Briefcase } from 'lucide-react'
 import { getStoreStaff, createStaffMember, updateStaffMember, deleteStaffMember } from '@/app/actions/staff'
 import { useSession } from 'next-auth/react'
 import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudStatus, CrudTable } from '@/components/ui/ParabellumCrudTable'
@@ -13,18 +13,34 @@ type StaffMember = {
   name: string
   email: string
   role: string
+  salary?: number
+  contractType?: string
+  hireDate?: Date | string
+  phone?: string
+  status?: string
   createdAt: Date
 }
 
 const STAFF_ROLE_OPTIONS: Array<{ value: RestaurantStaffRole; label: string; badgeClassName: string }> = [
-  { value: 'CASHIER', label: 'Caissier(ere)', badgeClassName: 'bg-[#339af0] text-white' },
-  { value: 'SERVER', label: 'Serveur', badgeClassName: 'bg-[#12b886] text-white' },
-  { value: 'KITCHEN', label: 'Cuisinier(ere)', badgeClassName: 'bg-[#51cf66] text-white' },
-  { value: 'RESTAURATEUR', label: 'Manager', badgeClassName: 'bg-[#ae3ec9] text-white' },
+  { value: 'CASHIER', label: 'Caissier(ere)', badgeClassName: 'bg-[#eef1ff] text-[var(--parabellum-primary)] border border-blue-100' },
+  { value: 'SERVER', label: 'Serveur', badgeClassName: 'bg-[#ebfbee] text-[#2f9e44] border border-green-100' },
+  { value: 'KITCHEN', label: 'Cuisinier(ere)', badgeClassName: 'bg-[#fff4e6] text-[#fd7e14] border border-orange-100' },
+  { value: 'RESTAURATEUR', label: 'Manager', badgeClassName: 'bg-[#f3f0ff] text-[#9c36b5] border border-purple-100' },
+]
+
+const STAFF_STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: 'Actif', badgeClassName: 'bg-[#ebfbee] text-[#2f9e44]' },
+  { value: 'LEAVE', label: 'En congé', badgeClassName: 'bg-[#fff9db] text-[#f08c00]' },
+  { value: 'SUSPENDED', label: 'Suspendu', badgeClassName: 'bg-[#fff5f5] text-[#e03131]' },
+  { value: 'INACTIVE', label: 'Inactif', badgeClassName: 'bg-[#f1f3f5] text-[#adb5bd]' }
 ]
 
 function getRoleMeta(role: string) {
   return STAFF_ROLE_OPTIONS.find((option) => option.value === role) || { label: role, badgeClassName: 'bg-[#adb5bd] text-white' }
+}
+
+function getStatusMeta(status: string) {
+  return STAFF_STATUS_OPTIONS.find((opt) => opt.value === status) || { label: 'Actif', badgeClassName: 'bg-[#ebfbee] text-[#2f9e44]' }
 }
 
 export default function StaffManagement() {
@@ -43,7 +59,12 @@ export default function StaffManagement() {
     name: '',
     email: '',
     password: '',
-    role: 'CASHIER' as RestaurantStaffRole
+    role: 'CASHIER' as RestaurantStaffRole,
+    salary: '',
+    contractType: 'CDI',
+    hireDate: '',
+    phone: '',
+    status: 'ACTIVE'
   })
 
   useEffect(() => {
@@ -75,15 +96,27 @@ export default function StaffManagement() {
     e.preventDefault()
     setIsSubmitting(true)
     
+    const submitPayload = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password || undefined,
+      salary: formData.salary ? parseFloat(formData.salary) : undefined,
+      contractType: formData.contractType,
+      hireDate: formData.hireDate ? new Date(formData.hireDate) : undefined,
+      phone: formData.phone || undefined,
+      status: formData.status
+    }
+
     let res;
     if (editingStaff) {
       res = await updateStaffMember(editingStaff.id, {
-        ...formData,
+        ...submitPayload,
         role: formData.role as Role
       })
     } else {
       res = await createStaffMember({
-        ...formData,
+        ...submitPayload,
+        password: formData.password,
         role: formData.role as Role,
         storeId: session?.user?.storeId as string
       })
@@ -92,7 +125,7 @@ export default function StaffManagement() {
     if (res.success) {
       setShowModal(false)
       setEditingStaff(null)
-      setFormData({ name: '', email: '', password: '', role: 'CASHIER' })
+      setFormData({ name: '', email: '', password: '', role: 'CASHIER', salary: '', contractType: 'CDI', hireDate: '', phone: '', status: 'ACTIVE' })
       loadStaff()
     } else {
       setErrorModal(res.error || "Erreur lors de l'enregistrement")
@@ -105,8 +138,13 @@ export default function StaffManagement() {
     setFormData({
       name: member.name,
       email: member.email,
-      password: '', // Empty password field
-      role: member.role as RestaurantStaffRole
+      password: '', 
+      role: member.role as RestaurantStaffRole,
+      salary: member.salary ? member.salary.toString() : '',
+      contractType: member.contractType || 'CDI',
+      hireDate: member.hireDate ? new Date(member.hireDate).toISOString().slice(0, 10) : '',
+      phone: member.phone || '',
+      status: member.status || 'ACTIVE'
     })
     setShowModal(true)
   }
@@ -135,13 +173,17 @@ export default function StaffManagement() {
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Gestion du Personnel</h1>
-          <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Gerez vos caissiers, serveurs, cuisiniers et managers</p>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Gestion RH & Personnel</h1>
+          <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Pilotez les salaires, contrats, coordonnées et plannings du personnel</p>
         </div>
         <CrudPrimaryButton
-          onClick={() => { setEditingStaff(null); setFormData({ name: '', email: '', password: '', role: 'CASHIER' }); setShowModal(true); }}
+          onClick={() => { 
+            setEditingStaff(null); 
+            setFormData({ name: '', email: '', password: '', role: 'CASHIER', salary: '', contractType: 'CDI', hireDate: '', phone: '', status: 'ACTIVE' }); 
+            setShowModal(true); 
+          }}
         >
-          Ajouter un membre
+          Ajouter un collaborateur
         </CrudPrimaryButton>
       </div>
 
@@ -164,18 +206,42 @@ export default function StaffManagement() {
         <>
           <div className="space-y-4 md:hidden">
             {visibleStaff.map((member) => (
-              <div key={member.id} className="rounded-[2rem] border border-[#dee2e6] bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
+              <div key={member.id} className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f1f3f5] font-black uppercase text-[#212529]">{member.name[0]}</div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black uppercase text-[#212529]">{member.name}</p>
-                      <p className="truncate text-xs font-bold text-[#495057]">{member.email}</p>
+                      <p className="truncate text-xs font-bold text-[#adb5bd]">{member.email}</p>
                     </div>
                   </div>
-                  <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getRoleMeta(member.role).badgeClassName}`}>
-                    {getRoleMeta(member.role).label}
-                  </span>
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${getRoleMeta(member.role).badgeClassName}`}>
+                      {getRoleMeta(member.role).label}
+                    </span>
+                    <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest ${getStatusMeta(member.status || 'ACTIVE').badgeClassName}`}>
+                      {getStatusMeta(member.status || 'ACTIVE').label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#f1f3f5] grid grid-cols-2 gap-4 text-xs font-bold text-[#495057] mb-4">
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-widest text-[#adb5bd] mb-1">Téléphone</span>
+                    <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-[#adb5bd]" /> {member.phone || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-widest text-[#adb5bd] mb-1">Contrat</span>
+                    <span className="flex items-center gap-1 uppercase"><Briefcase className="w-3 h-3 text-[#adb5bd]" /> {member.contractType || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-widest text-[#adb5bd] mb-1">Salaire</span>
+                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-[#adb5bd]" /> {member.salary ? `${member.salary.toLocaleString('fr-FR')} F` : '-'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase tracking-widest text-[#adb5bd] mb-1">Embauché le</span>
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-[#adb5bd]" /> {member.hireDate ? new Date(member.hireDate).toLocaleDateString('fr-FR') : '-'}</span>
+                  </div>
                 </div>
 
                 {member.id !== session?.user?.id && (
@@ -196,38 +262,64 @@ export default function StaffManagement() {
 
           <div className="hidden md:block">
             <CrudTable
-              title="Liste du personnel"
+              title="Registre Unique du Personnel"
               rows={visibleStaff}
-              emptyLabel="Aucun membre trouvé"
+              emptyLabel="Aucun collaborateur trouvé"
               columns={[
-                { key: 'serial', label: 'N° de série' },
-                { key: 'name', label: 'Nom' },
-                { key: 'email', label: 'Email' },
-                { key: 'role', label: 'Statut' },
+                { key: 'serial', label: 'N°' },
+                { key: 'name', label: 'Collaborateur' },
+                { key: 'phone', label: 'Téléphone' },
+                { key: 'contract', label: 'Contrat / Salaire' },
+                { key: 'hireDate', label: 'Date d\'embauche' },
+                { key: 'role', label: 'Rôle / Statut' },
                 { key: 'actions', label: 'Actes', className: 'text-right' },
               ]}
               footerLabel={`Page 1 sur 1, affichant ${visibleStaff.length} membre${visibleStaff.length > 1 ? 's' : ''} sur ${staff.length} au total.`}
-              renderRow={(member, index) => (
-                <tr key={member.id} className="transition hover:bg-[#fafbfc]">
-                  <td className="px-6 py-4 text-sm font-bold text-[#72788f]">{index + 1}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eef1ff] text-xs font-black uppercase text-[var(--parabellum-primary)]">{member.name[0]}</div>
-                      <span className="text-sm font-bold text-[#495057]">{member.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-[#72788f]">{member.email}</td>
-                  <td className="px-6 py-4"><CrudStatus tone="info">{getRoleMeta(member.role).label}</CrudStatus></td>
-                  <td className="px-6 py-4">
-                    {member.id !== session?.user?.id && (
-                      <div className="flex justify-end gap-2">
-                        <CrudActionButton label="Modifier le membre" tone="edit" onClick={() => handleEdit(member)} />
-                        <CrudActionButton label="Supprimer le membre" tone="delete" onClick={() => handleDeleteClick(member.id)} />
+              renderRow={(member, index) => {
+                const statusMeta = getStatusMeta(member.status || 'ACTIVE')
+                return (
+                  <tr key={member.id} className="transition hover:bg-[#fafbfc]">
+                    <td className="px-6 py-4 text-sm font-bold text-[#72788f]">{index + 1}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eef1ff] text-xs font-black uppercase text-[var(--parabellum-primary)]">{member.name[0]}</div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-bold text-[#495057]">{member.name}</span>
+                          <span className="text-xs text-[#adb5bd] font-medium truncate">{member.email}</span>
+                        </div>
                       </div>
-                    )}
-                  </td>
-                </tr>
-              )}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-[#72788f]">{member.phone || '-'}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-[#495057] uppercase">{member.contractType || '-'}</span>
+                        <span className="text-xs text-[#adb5bd] font-medium">{member.salary ? `${member.salary.toLocaleString('fr-FR')} F` : '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-[#72788f]">
+                      {member.hireDate ? new Date(member.hireDate).toLocaleDateString('fr-FR') : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest ${getRoleMeta(member.role).badgeClassName}`}>
+                          {getRoleMeta(member.role).label}
+                        </span>
+                        <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest ${statusMeta.badgeClassName}`}>
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {member.id !== session?.user?.id && (
+                        <div className="flex justify-end gap-2">
+                          <CrudActionButton label="Modifier" tone="edit" onClick={() => handleEdit(member)} />
+                          <CrudActionButton label="Supprimer" tone="delete" onClick={() => handleDeleteClick(member.id)} />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              }}
             />
           </div>
         </>
@@ -240,8 +332,8 @@ export default function StaffManagement() {
             <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 p-2 text-[#adb5bd] hover:text-[#212529] sm:top-6 sm:right-6"><X className="w-6 h-6" /></button>
             
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">{editingStaff ? 'Modifier Personnel' : 'Nouveau Personnel'}</h2>
-              <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Gérez les informations du collaborateur</p>
+              <h2 className="text-2xl font-black text-[#212529] uppercase tracking-tight">{editingStaff ? 'Modifier Collaborateur' : 'Nouveau Collaborateur'}</h2>
+              <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest mt-1">Renseignez les données RH et administratives</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -257,15 +349,54 @@ export default function StaffManagement() {
                 <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">{editingStaff ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe provisoire'}</label>
                 <input required={!editingStaff} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="••••••••" />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Rôle attribué</label>
-                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as RestaurantStaffRole })} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529]">
-                  {STAFF_ROLE_OPTIONS.map((roleOption) => (
-                    <option key={roleOption.value} value={roleOption.value}>
-                      {roleOption.label.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Rôle attribué</label>
+                  <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as RestaurantStaffRole })} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529]">
+                    {STAFF_ROLE_OPTIONS.map((roleOption) => (
+                      <option key={roleOption.value} value={roleOption.value}>
+                        {roleOption.label.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Statut RH</label>
+                  <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529]">
+                    <option value="ACTIVE">ACTIF</option>
+                    <option value="LEAVE">EN CONGÉ</option>
+                    <option value="SUSPENDED">SUSPENDU</option>
+                    <option value="INACTIVE">INACTIF</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Contrat</label>
+                  <select value={formData.contractType} onChange={(e) => setFormData({ ...formData, contractType: e.target.value })} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529]">
+                    <option value="CDI">CDI</option>
+                    <option value="CDD">CDD</option>
+                    <option value="STAGE">STAGE</option>
+                    <option value="FREELANCE">FREELANCE</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Salaire (Mensuel)</label>
+                  <input type="number" value={formData.salary} onChange={(e) => setFormData({...formData, salary: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="Ex: 150000" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Date d'embauche</label>
+                  <input type="date" value={formData.hireDate} onChange={(e) => setFormData({...formData, hireDate: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Téléphone</label>
+                  <input type="text" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="Ex: +221 77 123 4567" />
+                </div>
               </div>
 
               <button disabled={isSubmitting} type="submit" className="w-full bg-[#212529] text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:bg-[#adb5bd]">

@@ -8,13 +8,16 @@ export type RateLimitResult = {
 
 export async function checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
   const redisKey = `rate-limit:${key}`
+  
+  // FIXED: Fixer la logique Redis (gérer ttl = -1) et s'assurer que expire est appelé après incr
   const count = await redis.incr(redisKey)
+  let ttl = await redis.ttl(redisKey)
 
-  if (count === 1) {
+  if (count === 1 || ttl === -1) {
     await redis.expire(redisKey, windowSeconds)
+    ttl = windowSeconds
   }
 
-  const ttl = await redis.ttl(redisKey)
   return {
     allowed: count <= limit,
     remaining: Math.max(limit - count, 0),

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { createCsv, createExcelHtml, createSimplePdf } from '@/lib/exports'
 import { format } from 'date-fns'
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
     include: {
       store: { select: { name: true } },
-      payments: { select: { method: true, amount: true, status: true } },
+      payments: { select: { paymentMethod: { select: { name: true } }, amount: true, status: true } },
       items: {
         select: {
           quantity: true,
@@ -63,8 +63,8 @@ export async function GET(req: NextRequest) {
     order.type,
     order.status,
     order.total,
-    order.payments[0]?.method || 'N/A',
-    order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' | '),
+    order.payments[0]?.paymentMethod?.name || 'N/A',
+    order.items.map((i: any) => `${i.quantity}x ${i.product.name}`).join(' | '),
   ])
 
   if (exportFormat === 'pdf') {
@@ -89,8 +89,8 @@ export async function GET(req: NextRequest) {
       status: o.status,
       type: o.type,
       total: o.total,
-      payment: o.payments[0]?.method,
-      items: o.items.map((i) => ({ name: i.product.name, qty: i.quantity, price: i.price })),
+      payment: o.payments[0]?.paymentMethod?.name,
+      items: o.items.map((i: any) => ({ name: i.product.name, qty: i.quantity, price: i.price })),
     })), null, 2)
     return fileResponse(json, 'application/json', `${fileBase}.json`)
   }

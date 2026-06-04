@@ -9,7 +9,6 @@ import { markOrderServed } from '@/app/actions/orders'
 import type { CachedCategory, CachedProduct } from '@/lib/idb'
 import { useCart } from '@/store/useCart'
 
-import ReservationModal from './ReservationModal'
 import { usePOSCheckout } from './hooks/usePOSCheckout'
 import { usePOSRealtime } from './hooks/usePOSRealtime'
 import { usePOSSyncState } from './hooks/usePOSSyncState'
@@ -21,16 +20,12 @@ import {
   type OrderFlowMode,
   type POSViewMode,
 } from './lib/pos-helpers'
-import { AlertModal } from './subcomponents/AlertModal'
-import { CashierStatsModal } from './subcomponents/CashierStatsModal'
-import { OptionsModal } from './subcomponents/OptionsModal'
-import { PaymentModal } from './subcomponents/PaymentModal'
 import { POSHeader } from './subcomponents/POSHeader'
 import { POSOrderSidebar } from './subcomponents/POSOrderSidebar'
 import { POSWorkspace } from './subcomponents/POSWorkspace'
-import { ReceiptModal } from './subcomponents/ReceiptModal'
 import { Sidebar } from './subcomponents/Sidebar'
-import { TableStatusModal } from './subcomponents/TableStatusModal'
+import { POSModals } from './subcomponents/POSModals'
+import { BarcodeScannerModal } from './subcomponents/BarcodeScannerModal'
 
 type LiveOrder = {
   id: string
@@ -103,6 +98,76 @@ export default function POSClient({
   const [alertState, setAlertState] = useState<POSAlertState>(null)
   const [showSidebar, setShowSidebar] = useState(false)
   const [showCart, setShowCart] = useState(false)
+  const [showCameraScanner, setShowCameraScanner] = useState(false)
+
+  const handleBarcodeScanned = (barcode: string) => {
+    const product = products.find(p => p.barcode === barcode)
+    if (product) {
+      addItem({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        options: '',
+        image: product.image,
+      })
+      setAlertState({
+        title: 'Produit Scanné',
+        message: `${product.name} ajouté au panier.`,
+        type: 'success',
+      })
+      setTimeout(() => {
+        setAlertState(current => {
+          if (current?.title === 'Produit Scanné') return null
+          return current
+        })
+      }, 2000)
+    } else {
+      setAlertState({
+        title: 'Code-barres Inconnu',
+        message: `Aucun produit correspondant au code ${barcode}.`,
+        type: 'error',
+      })
+    }
+  }
+
+  useEffect(() => {
+    let buffer = ''
+    let lastKeyTime = Date.now()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      const currentTime = Date.now()
+
+      if (currentTime - lastKeyTime > 50) {
+        buffer = ''
+      }
+
+      lastKeyTime = currentTime
+
+      if (e.key === 'Enter') {
+        if (buffer.length >= 3) {
+          handleBarcodeScanned(buffer)
+          buffer = ''
+        }
+      } else if (e.key.length === 1) {
+        buffer += e.key
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [products])
 
   const {
     items,
@@ -288,6 +353,7 @@ export default function POSClient({
           cartCount={items.length}
           onOpenSidebar={() => setShowSidebar(true)}
           onOpenCart={() => setShowCart(true)}
+          onScanClick={() => setShowCameraScanner(true)}
           onViewPlan={() => {
             setViewMode('FLOOR_PLAN')
             setSelectedTable(null)
@@ -324,6 +390,7 @@ export default function POSClient({
                 name: product.name,
                 price: product.price,
                 quantity: 1,
+                image: product.image,
               })
             }}
             onChooseTable={() => setViewMode('FLOOR_PLAN')}
@@ -392,6 +459,7 @@ export default function POSClient({
             price: item.price,
             quantity: 1,
             options: item.options,
+            image: item.image,
           })
         }
         onSubItem={(item) => {
@@ -404,91 +472,45 @@ export default function POSClient({
         }}
       />
 
-      {showSessionStats && (
-        <CashierStatsModal
-          total={sessionTotal}
-          cashierName={session?.user?.name || 'Caissier'}
-          onClose={() => setShowSessionStats(false)}
-        />
-      )}
+      <POSModals
+        showSessionStats={showSessionStats}
+        setShowSessionStats={setShowSessionStats}
+        sessionTotal={sessionTotal}
+        checkout={checkout}
+        showReservationModal={showReservationModal}
+        setShowReservationModal={setShowReservationModal}
+        tableForReservation={tableForReservation}
+        storeId={storeId}
+        reservations={reservations}
+        editingOptionsId={editingOptionsId}
+        setEditingOptionsId={setEditingOptionsId}
+        items={items}
+        updateOptions={updateOptions}
+        showTableStatusModal={showTableStatusModal}
+        setShowTableStatusModal={setShowTableStatusModal}
+        activeTableOrder={activeTableOrder}
+        operatorRole={operatorRole}
+        handleMarkOrderServed={() => void handleMarkOrderServed()}
+        alertState={alertState}
+        setAlertState={setAlertState}
+        onAddItems={(table) => {
+          setOrderFlowMode('TABLE_SERVICE')
+          setSelectedTable(table)
+          setViewMode('POS')
+          setShowTableStatusModal(null)
+        }}
+        onSettlePayment={(table, order) => {
+          if (!order) return
+          setSelectedTable(table)
+          setShowTableStatusModal(null)
+          checkout.openSettlementForOrder(order)
+        }}
+      />
 
-      {checkout.showReceipt && checkout.lastOrder && (
-        <ReceiptModal order={checkout.lastOrder} onClose={() => checkout.setShowReceipt(false)} />
-      )}
-
-      {checkout.showPaymentModal && (
-        <PaymentModal
-          total={checkout.paymentTotal}
-          title={checkout.paymentModalTitle}
-          showCustomerSection={!checkout.isSettlementFlow}
-          showPromoSection={!checkout.isSettlementFlow}
-          amountReceived={checkout.amountReceived}
-          changeAmount={checkout.changeAmount}
-          onKey={(key) => checkout.calculateChange(checkout.amountReceived + key)}
-          onDelete={() => checkout.calculateChange(checkout.amountReceived.slice(0, -1))}
-          onClear={() => checkout.calculateChange('')}
-          onClose={checkout.closePaymentModal}
-          onFinalize={checkout.handleCheckout}
-          isProcessing={checkout.isProcessing}
-          promoCode={checkout.promoCode}
-          onPromoChange={checkout.setPromoCode}
-          onApplyPromo={checkout.handleApplyPromo}
-          discount={checkout.discount}
-          selectedCustomer={checkout.selectedCustomer}
-          onCustomerSearch={checkout.handleCustomerSearch}
-          customerResults={checkout.customerResults}
-          onSelectCustomer={(customer) => checkout.setSelectedCustomer(customer)}
-        />
-      )}
-
-      {showReservationModal && tableForReservation && (
-        <ReservationModal
-          table={tableForReservation}
-          storeId={storeId}
-          onClose={() => setShowReservationModal(false)}
-          existingReservations={reservations.filter((reservation) => reservation.tableId === tableForReservation.id)}
-        />
-      )}
-
-      {editingOptionsId && (
-        <OptionsModal
-          item={items.find((item) => item.id === editingOptionsId)!}
-          onSave={(options) => {
-            updateOptions(editingOptionsId, options)
-            setEditingOptionsId(null)
-          }}
-          onClose={() => setEditingOptionsId(null)}
-        />
-      )}
-
-      {showTableStatusModal && (
-        <TableStatusModal
-          table={showTableStatusModal}
-          order={activeTableOrder}
-          operatorRole={operatorRole}
-          onClose={() => setShowTableStatusModal(null)}
-          onAddItems={() => {
-            setOrderFlowMode('TABLE_SERVICE')
-            setSelectedTable(showTableStatusModal)
-            setViewMode('POS')
-            setShowTableStatusModal(null)
-          }}
-          onSettlePayment={() => {
-            if (!activeTableOrder) return
-            setSelectedTable(showTableStatusModal)
-            setShowTableStatusModal(null)
-            checkout.openSettlementForOrder(activeTableOrder)
-          }}
-          onMarkServed={() => void handleMarkOrderServed()}
-        />
-      )}
-
-      {alertState && (
-        <AlertModal
-          type={alertState.type || 'error'}
-          title={alertState.title}
-          message={alertState.message}
-          onClose={() => setAlertState(null)}
+      {showCameraScanner && (
+        <BarcodeScannerModal
+          onScan={handleBarcodeScanned}
+          onClose={() => setShowCameraScanner(false)}
         />
       )}
     </div>

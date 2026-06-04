@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pos-postgres
+  namespace: pos-app
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: pos-postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pos-postgres
+  namespace: pos-app
+spec:
+  selector:
+    matchLabels:
+      app: pos-postgres
+  serviceName: pos-postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pos-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pos-app-env
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: pos_restaurant
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi

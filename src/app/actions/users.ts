@@ -1,8 +1,9 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function createUser(data: {
   name: string
@@ -11,6 +12,9 @@ export async function createUser(data: {
   role: 'RESTAURATEUR' | 'CASHIER' | 'KITCHEN' | 'SERVER'
   storeId: string
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
     if (!data.name || !data.email) {
       return { success: false, error: 'Nom et Email sont requis.' }
@@ -32,7 +36,7 @@ export async function createUser(data: {
         email: data.email.trim().toLowerCase(),
         password: hashedPassword,
         role: data.role,
-        storeId: data.storeId
+        storeId: finalStoreId
       }
     })
 

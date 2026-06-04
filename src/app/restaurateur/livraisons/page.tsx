@@ -25,6 +25,11 @@ type DeliveryOrder = {
   status: string
   items: DeliveryItem[]
   deliveryPerson?: DeliveryPerson | null
+  sourcePlatform?: string | null
+  customerName?: string | null
+  customerPhone?: string | null
+  deliveryAddress?: string | null
+  customerNotes?: string | null
 }
 
 export default function DeliveryManagementPage() {
@@ -167,7 +172,14 @@ export default function DeliveryManagementPage() {
                   <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <span className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest block mb-1">Commande #{order.id.slice(-6).toUpperCase()}</span>
-                      <h3 className="text-xl font-black text-[#1a1d24] tracking-tight">Client à distance</h3>
+                      <h3 className="text-xl font-black text-[#1a1d24] tracking-tight">
+                        {order.customerName || "Client à distance"}
+                      </h3>
+                      {order.sourcePlatform && (
+                        <span className="inline-flex items-center gap-1 bg-[#e7f5ff] text-[#1c7ed6] text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg mt-1.5 border border-[#a5d8ff]">
+                          Plateforme : {order.sourcePlatform}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col sm:items-end">
                       <span className="text-lg font-black text-[#1a1d24]">{order.total.toLocaleString()} F</span>
@@ -176,14 +188,43 @@ export default function DeliveryManagementPage() {
                   </div>
 
                   <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Contenu</p>
-                      <div className="text-xs font-bold text-[#495057]">
-                        {order.items.map((item) => (
-                          <div key={item.id}>{item.quantity}x {item.product.name}</div>
-                        ))}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest mb-1.5">Contenu</p>
+                        <div className="text-xs font-bold text-[#495057] space-y-1">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="bg-[#f8f9fa] px-3 py-1.5 rounded-xl border border-[#dee2e6] flex justify-between items-center">
+                              <span>{item.product.name}</span>
+                              <span className="bg-[#e9ecef] px-2 py-0.5 rounded font-black text-xs font-mono">x{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+
+                      {(order.customerPhone || order.deliveryAddress || order.customerNotes) && (
+                        <div className="pt-3 border-t border-[#dee2e6] space-y-2.5">
+                          {order.customerPhone && (
+                            <div>
+                              <p className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Téléphone</p>
+                              <p className="text-xs font-bold text-[#495057] mt-0.5">{order.customerPhone}</p>
+                            </div>
+                          )}
+                          {order.deliveryAddress && (
+                            <div>
+                              <p className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Adresse de Livraison</p>
+                              <p className="text-xs font-bold text-[#495057] mt-0.5">{order.deliveryAddress}</p>
+                            </div>
+                          )}
+                          {order.customerNotes && (
+                            <div>
+                              <p className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Note Client</p>
+                              <p className="text-xs italic font-semibold text-[#f08c00] bg-[#fff9db] px-2.5 py-1.5 rounded-lg border border-[#ffe066] mt-1">{order.customerNotes}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+
                     <div className="space-y-4">
                       <p className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Assignation</p>
                       {order.deliveryPerson ? (

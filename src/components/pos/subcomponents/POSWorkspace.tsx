@@ -9,6 +9,8 @@ import { ProductCard } from './ProductCard'
 import { ServerMenuView } from './ServerMenuView'
 import type { OrderFlowMode, POSViewMode } from '../lib/pos-helpers'
 
+import { ProductGrid } from './ProductGrid'
+
 type POSWorkspaceProps = {
   viewMode: POSViewMode
   operatorRole?: 'CASHIER' | 'SERVER'
@@ -98,35 +100,12 @@ export function POSWorkspace({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-pos-bg custom-scrollbar">
-      <div className="flex gap-3 mb-8 overflow-x-auto pb-4 no-scrollbar">
-        <button
-          onClick={() => onCategoryChange(null)}
-          className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${!activeCategory ? 'bg-brand-500 text-white shadow-md' : 'bg-pos-surface text-pos-text-muted hover:bg-brand-50 border border-pos-border'}`}
-        >
-          Tous les produits
-        </button>
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => onCategoryChange(category.id)}
-            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${activeCategory === category.id ? 'bg-brand-500 text-white shadow-md' : 'bg-pos-surface text-pos-text-muted hover:bg-brand-50 border border-pos-border'}`}
-          >
-            {category.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            categoryName={categories.find((category) => category.id === product.categoryId)?.name || 'General'}
-            onAdd={() => onProductAdd(product)}
-          />
-        ))}
-      </div>
-    </div>
+    <ProductGrid
+      categories={categories}
+      filteredProducts={filteredProducts}
+      activeCategory={activeCategory}
+      onCategoryChange={onCategoryChange}
+      onProductAdd={onProductAdd}
+    />
   )
 }

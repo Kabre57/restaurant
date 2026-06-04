@@ -7,7 +7,16 @@ analyse/
 dist/
 suivi/
 build/
+# Environment variables
 .env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Docker secrets (ne jamais commit)
+docker-compose.override.yml
+.secrets/
 template/
 
 .codex/
@@ -25,6 +34,9 @@ temp_*
 # Artefacts PWA generes au build
 public/sw.js
 public/workbox-*.js
+# Fichiers de debug
+reset_pass.js
+test_pass.js
 
-
-read_docx.pyTemplate/
+# Dossiers tiers
+Template/

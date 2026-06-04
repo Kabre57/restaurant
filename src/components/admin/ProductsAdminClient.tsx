@@ -3,12 +3,12 @@
 import React, { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, Package, ToggleLeft, ToggleRight, Pencil, Check, X, Search, Plus, MoreVertical, Filter } from 'lucide-react'
-import { toggleProductAvailability, updateProductPrice } from '@/app/actions/admin'
+import { toggleProductAvailability, updateProductPrice, updateProductBarcode } from '@/app/actions/admin'
 import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import { AddProductModal } from './subcomponents/AddProductModal'
 
-type Category = { id: string; name: string; icon: string | null }
+type Category = { id: string; name: string; imageUrl?: string | null }
 
 type Product = {
   id: string
@@ -18,6 +18,7 @@ type Product = {
   image: string | null
   category: Category
   categoryId: string
+  barcode?: string | null
 }
 
 interface Props {
@@ -30,6 +31,8 @@ export default function ProductsAdminClient({ products: initialProducts, categor
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPrice, setEditPrice]  = useState<string>("")
+  const [editingBarcodeId, setEditingBarcodeId] = useState<string | null>(null)
+  const [editBarcode, setEditBarcode] = useState<string>("")
   const [searchQuery, setSearchQuery] = useState("")
   const [isPending, startTransition] = useTransition()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -70,9 +73,34 @@ export default function ProductsAdminClient({ products: initialProducts, categor
     })
   }
 
+  const startEditBarcode = (product: Product) => {
+    setEditingBarcodeId(product.id)
+    setEditBarcode(product.barcode || "")
+  }
+
+  const cancelEditBarcode = () => {
+    setEditingBarcodeId(null)
+    setEditBarcode("")
+  }
+
+  const saveEditBarcode = (productId: string) => {
+    const newBarcode = editBarcode.trim()
+    const oldBarcode = products.find(p => p.id === productId)?.barcode ?? null
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, barcode: newBarcode || null } : p))
+    setEditingBarcodeId(null)
+    startTransition(async () => {
+      const res = await updateProductBarcode(productId, newBarcode || null)
+      if (!res.success) {
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, barcode: oldBarcode } : p))
+        alert(res.error)
+      }
+    })
+  }
+
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.category.name.toLowerCase().includes(searchQuery.toLowerCase())
+    p.category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const available = products.filter(p => p.isAvailable).length
@@ -157,6 +185,11 @@ export default function ProductsAdminClient({ products: initialProducts, categor
                       <div className="min-w-0">
                         <p className="truncate text-sm font-black uppercase tracking-tight text-[#212529]">{product.name}</p>
                         <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-[#adb5bd]">{product.category.name}</p>
+                        {product.barcode && (
+                          <p className="mt-1 text-[9px] font-mono font-bold text-[#868e96] bg-[#f1f3f5] px-1.5 py-0.5 rounded w-max">
+                            █ {product.barcode}
+                          </p>
+                        )}
                       </div>
                       <AdminStockBadge isAvailable={product.isAvailable} />
                     </div>
@@ -219,6 +252,7 @@ export default function ProductsAdminClient({ products: initialProducts, categor
               <tr className="bg-[#f8f9fa] border-b border-[#dee2e6]">
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-left p-6">Détails du Produit</th>
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-left p-6">Catégorie</th>
+                <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-center p-6">Code-barres</th>
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-right p-6">Prix</th>
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-center p-6">État du Stock</th>
                 <th className="text-[10px] font-black uppercase tracking-widest text-[#868e96] text-center p-6">Action</th>
@@ -252,6 +286,38 @@ export default function ProductsAdminClient({ products: initialProducts, categor
                       <span className="px-3 py-1 bg-[#f1f3f5] rounded-full text-[10px] font-black text-[#495057] uppercase tracking-widest border border-[#dee2e6]">
                         {product.category.name}
                       </span>
+                    </td>
+
+                    <td className="p-6 text-center">
+                      {editingBarcodeId === product.id ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="text"
+                            value={editBarcode}
+                            onChange={e => setEditBarcode(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEditBarcode(product.id); if (e.key === 'Escape') cancelEditBarcode() }}
+                            autoFocus
+                            placeholder="Scanner..."
+                            className="w-36 bg-white border-2 border-[#212529] rounded-lg px-2 py-1 text-center text-xs font-bold focus:outline-none"
+                          />
+                          <button onClick={() => saveEditBarcode(product.id)} className="p-1 bg-[#212529] text-white rounded-lg hover:bg-black transition-colors"><Check className="w-3.5 h-3.5" /></button>
+                          <button onClick={cancelEditBarcode} className="p-1 bg-[#f1f3f5] text-[#495057] rounded-lg hover:bg-[#dee2e6] transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startEditBarcode(product)} className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#f8f9fa] hover:bg-[#f1f3f5] rounded-full text-[10px] font-black text-[#495057] uppercase tracking-widest border border-[#dee2e6] group/barcode transition-all">
+                          {product.barcode ? (
+                            <>
+                              <span className="font-mono text-[9px] font-bold text-[#868e96]">{product.barcode}</span>
+                              <Pencil className="w-2.5 h-2.5 text-[#adb5bd] opacity-0 group-hover/barcode:opacity-100 transition-opacity" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[#adb5bd] font-normal italic">Aucun</span>
+                              <Plus className="w-2.5 h-2.5 text-amber-500" />
+                            </>
+                          )}
+                        </button>
+                      )}
                     </td>
 
                     <td className="p-6 text-right">

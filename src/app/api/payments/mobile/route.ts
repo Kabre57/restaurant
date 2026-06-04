@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import { PaymentStatus, PaymentType, Prisma } from '@prisma/client';
+import { prisma } from '@/lib/db'
 import { checkRateLimit, rateLimitKey, rateLimitResponse } from '@/lib/rate-limit';
 import { formatZodError, mobilePaymentSchema } from '@/lib/validation/schemas';
 
@@ -49,11 +49,29 @@ function getCinetPayConfig(req: NextRequest) {
   };
 }
 
-async function upsertPendingMobilePayment(orderId: string, amount: number, externalRef: string) {
+async function resolveMobileMoneyMethodId(storeId: string): Promise<string> {
+  let pm = await prisma.paymentMethod.findFirst({
+    where: { storeId, type: 'MOBILE_MONEY' }
+  });
+  if (!pm) {
+    pm = await prisma.paymentMethod.findFirst({
+      where: { storeId: null, type: 'MOBILE_MONEY' }
+    });
+  }
+  if (!pm) {
+    pm = await prisma.paymentMethod.create({
+      data: { name: 'Mobile Money', type: 'MOBILE_MONEY', storeId, isDefault: true }
+    });
+  }
+  return pm.id;
+}
+
+async function upsertPendingMobilePayment(orderId: string, storeId: string, amount: number, externalRef: string) {
+  const paymentMethodId = await resolveMobileMoneyMethodId(storeId);
   const existingPayment = await prisma.payment.findFirst({
     where: {
       orderId,
-      method: PaymentMethod.MOBILE_MONEY,
+      paymentMethodId,
       status: PaymentStatus.EN_ATTENTE,
     },
   });
@@ -71,7 +89,7 @@ async function upsertPendingMobilePayment(orderId: string, amount: number, exter
   return prisma.payment.create({
     data: {
       orderId,
-      method: PaymentMethod.MOBILE_MONEY,
+      paymentMethodId,
       status: PaymentStatus.EN_ATTENTE,
       amount,
       externalRef,
@@ -124,7 +142,7 @@ export async function POST(req: NextRequest) {
       transactionId,
     });
 
-    const payment = await upsertPendingMobilePayment(order.id, numericAmount, externalRef);
+    const payment = await upsertPendingMobilePayment(order.id, order.storeId, numericAmount, externalRef);
 
     const payload = {
       apikey: config.apikey,

@@ -1,5 +1,5 @@
 import React from 'react';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation';
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient';
 import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products';

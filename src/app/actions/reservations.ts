@@ -2,8 +2,9 @@
 
 import { ReservationStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { redis } from '@/lib/redis'
+import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 async function publishReservationAlert(storeId: string, payload: unknown) {
   try {
@@ -14,9 +15,12 @@ async function publishReservationAlert(storeId: string, payload: unknown) {
 }
 
 export async function getReservationsByStore(storeId: string) {
+  const { storeId: authStoreId, role } = await requireAuth()
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+
   try {
     return await prisma.reservation.findMany({
-      where: { storeId },
+      where: { storeId: targetStoreId },
       include: { table: true },
       orderBy: { date: 'asc' }
     })
@@ -34,17 +38,25 @@ export async function createReservation(data: {
   date: Date;
   guests: number;
 }) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+  const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
+
   try {
+    const targetTable = await prisma.table.findUnique({ where: { id: data.tableId } })
+    if (!targetTable) return { success: false, error: "Table introuvable" }
+    assertSameStore(targetTable.storeId, finalStoreId)
+
     const reservation = await prisma.reservation.create({
       data: {
         ...data,
+        storeId: finalStoreId,
         status: 'EN_ATTENTE'
       },
       include: { table: true }
     })
-    await publishReservationAlert(data.storeId, {
+    await publishReservationAlert(finalStoreId, {
       type: 'TABLE_RESERVED',
-      storeId: data.storeId,
+      storeId: finalStoreId,
       tableId: data.tableId,
       tableNumber: reservation.table.number,
       customerName: data.customerName,
@@ -61,7 +73,15 @@ export async function createReservation(data: {
 }
 
 export async function updateReservationStatus(id: string, status: ReservationStatus) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+
   try {
+    const existing = await prisma.reservation.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Réservation introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     const reservation = await prisma.reservation.update({
       where: { id },
       data: { status },
@@ -89,7 +109,15 @@ export async function updateReservationStatus(id: string, status: ReservationSta
 }
 
 export async function deleteReservation(id: string) {
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const existing = await prisma.reservation.findUnique({ where: { id } })
+    if (!existing) return { success: false, error: "Réservation introuvable" }
+    if (role !== "ADMIN") {
+      assertSameStore(existing.storeId, authStoreId)
+    }
+
     await prisma.reservation.delete({ where: { id } })
     revalidatePath('/')
     return { success: true }

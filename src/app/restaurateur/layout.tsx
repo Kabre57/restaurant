@@ -23,6 +23,22 @@ import {
   X,
   Compass,
   LifeBuoy,
+  ChevronDown,
+  ChevronRight,
+  Briefcase,
+  FileText,
+  DollarSign,
+  Calendar,
+  CreditCard,
+  Star,
+  PlusSquare,
+  Coins,
+  Key,
+  SlidersHorizontal,
+  History,
+  ChefHat,
+  Building,
+  Tag,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -31,17 +47,72 @@ type StoreSummary = {
 }
 
 const menuItems = [
-  { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats' },
-  { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits' },
-  { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks' },
-  { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories' },
-  { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables' },
-  { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes' },
-  { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons' },
-  { name: 'Personnel', icon: <Users />, href: '/restaurateur/staff' },
-  { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support' },
-  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config' },
-  { name: 'Espaces', icon: <Compass />, href: '/espaces' },
+  { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats', roles: ['RESTAURATEUR', 'MANAGER'] },
+  {
+    name: 'Menu',
+    icon: <UtensilsCrossed />,
+    href: '/restaurateur/menu',
+    roles: ['RESTAURATEUR', 'MANAGER'],
+    subItems: [
+      { name: 'Articles', href: '/restaurateur/produits', icon: <UtensilsCrossed />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Catégories', href: '/restaurateur/categories', icon: <Layers />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Suppléments', href: '/restaurateur/supplements', icon: <PlusSquare />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Modificateurs', href: '/restaurateur/modificateurs', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Réductions', href: '/restaurateur/reductions', icon: <Tag />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
+  {
+    name: 'Stocks',
+    icon: <Package />,
+    href: '/restaurateur/stocks',
+    roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'],
+    subItems: [
+      { name: 'Les bons de commande', href: '/restaurateur/stocks/purchase-orders', icon: <ClipboardList />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Ordres de transfert', href: '/restaurateur/stocks/transfers', icon: <Truck />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Ajustements des stocks', href: '/restaurateur/stocks/adjustments', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Inventaires des stocks', href: '/restaurateur/stocks/physical-inventory', icon: <LayoutGrid />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Les productions', href: '/restaurateur/stocks/productions', icon: <ChefHat />, roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'] },
+      { name: 'Fournisseurs', href: '/restaurateur/stocks/suppliers', icon: <Building />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Historique des stocks', href: '/restaurateur/stocks/history', icon: <History />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Évaluation des stocks', href: '/restaurateur/stocks/valuation', icon: <TrendingUp />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
+  { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables', roles: ['RESTAURATEUR', 'MANAGER'] },
+  { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes', roles: ['RESTAURATEUR', 'MANAGER', 'WAITER', 'CASHIER'] },
+  { name: 'Rotation Caisse', icon: <Coins />, href: '/restaurateur/caisse/rotation', roles: ['RESTAURATEUR', 'MANAGER', 'CASHIER'] },
+  { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons', roles: ['RESTAURATEUR', 'MANAGER'] },
+  {
+    name: 'Personnel',
+    icon: <Users />,
+    href: '/restaurateur/staff',
+    roles: ['RESTAURATEUR', 'MANAGER'],
+    subItems: [
+      { name: 'Liste des employés', href: '/restaurateur/staff', icon: <Users />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Droits d\'accès', href: '/restaurateur/staff/rights', icon: <Key />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Fiches de présence', href: '/restaurateur/staff/presence', icon: <FileText />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Heures totales travaillées', href: '/restaurateur/staff/hours', icon: <TrendingUp />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
+  {
+    name: 'Ressources Humaines',
+    icon: <Users />,
+    href: '/restaurateur/rh',
+    roles: ['ALL'], // Accessible to everyone, but sub-items filtered
+    subItems: [
+      { name: 'Dashboard RH', href: '/restaurateur/rh/dashboard', icon: <LayoutGrid />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Effectifs', href: '/restaurateur/rh/effectifs', icon: <Briefcase />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Mes Contrats', href: '/restaurateur/rh/contrats', icon: <FileText />, roles: ['ALL'] },
+      { name: 'Mes Bulletins', href: '/restaurateur/rh/paie', icon: <DollarSign />, roles: ['ALL'] },
+      { name: 'Mes Congés', href: '/restaurateur/rh/conges', icon: <Calendar />, roles: ['ALL'] },
+      { name: 'Avances & Prêts', href: '/restaurateur/rh/avances-prets', icon: <CreditCard />, roles: ['ALL'] },
+      { name: 'Évaluations', href: '/restaurateur/rh/evaluations', icon: <Star />, roles: ['ALL'] },
+      { name: 'Configuration', href: '/restaurateur/rh/configuration', icon: <Settings />, roles: ['RESTAURATEUR', 'MANAGER'] },
+    ],
+  },
+  { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support', roles: ['ALL'] },
+  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config', roles: ['RESTAURATEUR'] },
+  { name: 'Clés API', icon: <Key />, href: '/restaurateur/integrations/api-tokens', roles: ['RESTAURATEUR'] },
+  { name: 'Espaces', icon: <Compass />, href: '/espaces', roles: ['ALL'] },
 ]
 
 export default function RestaurateurLayout({ children }: { children: React.ReactNode }) {
@@ -50,14 +121,30 @@ export default function RestaurateurLayout({ children }: { children: React.React
   const { data: session } = useSession()
   const [store, setStore] = useState<StoreSummary | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    '/restaurateur/rh': pathname.startsWith('/restaurateur/rh'),
+    '/restaurateur/stocks': pathname.startsWith('/restaurateur/stocks'),
+    '/restaurateur/staff': pathname.startsWith('/restaurateur/staff'),
+    '/restaurateur/menu': pathname.startsWith('/restaurateur/produits') || 
+                         pathname.startsWith('/restaurateur/categories') || 
+                         pathname.startsWith('/restaurateur/supplements') || 
+                         pathname.startsWith('/restaurateur/modificateurs') || 
+                         pathname.startsWith('/restaurateur/reductions')
+  })
 
   useEffect(() => {
+    console.log("[RestaurateurLayout Session Client]", session)
     if (!session?.user?.storeId) return
 
     let isCancelled = false
 
     getStoreDetails(session.user.storeId).then((data) => {
-      if (isCancelled || !data) return
+      if (isCancelled) return
+      if (!data) {
+        // Session obsolète après réinitialisation de la BDD
+        void signOut({ callbackUrl: '/login' })
+        return
+      }
       setStore(data as StoreSummary)
     })
 
@@ -105,23 +192,77 @@ export default function RestaurateurLayout({ children }: { children: React.React
           </button>
         </div>
 
-        <nav className="flex-1 space-y-3 px-4 py-6 lg:items-center lg:px-3 xl:px-4">
+        <nav className="flex-1 overflow-y-auto space-y-1.5 px-4 py-6 lg:px-3 xl:px-4">
           {menuItems.map((item) => {
-            const active = pathname.startsWith(item.href)
+            const userRole = session?.user?.role || 'RESTAURATEUR'
+            let filteredSubItems = item.subItems
+
+            if (filteredSubItems) {
+              // Si c'est un compte manager/restaurateur, on renomme pour un style plus professionnel
+              if (userRole === 'RESTAURATEUR' || userRole === 'MANAGER' || userRole === 'ADMIN') {
+                filteredSubItems = filteredSubItems.map(sub => {
+                  if (sub.name === 'Mes Contrats') return { ...sub, name: 'Contrats' }
+                  if (sub.name === 'Mes Bulletins') return { ...sub, name: 'Paie & Salaires' }
+                  if (sub.name === 'Mes Congés') return { ...sub, name: 'Gestion des Congés' }
+                  return sub
+                })
+              }
+            }
+
+            const isActive = pathname.startsWith(item.href) && (!filteredSubItems || pathname === item.href)
+            const isExpanded = expandedMenus[item.href] || false
+
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-4 rounded-2xl px-4 py-3 transition-all ${
-                  active
-                    ? 'bg-white text-[var(--parabellum-primary)] shadow-xl shadow-black/20'
-                    : 'text-white/55 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
-                <span className="text-[10px] font-black uppercase tracking-widest lg:hidden xl:block">{item.name}</span>
-              </Link>
+              <div key={item.href}>
+                <div
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-white text-[var(--parabellum-primary)] shadow-md shadow-black/10 font-bold'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  }`}
+                  onClick={() => {
+                    if (filteredSubItems) {
+                      setExpandedMenus((prev) => ({ ...prev, [item.href]: !prev[item.href] }))
+                    } else {
+                      router.push(item.href)
+                      setIsSidebarOpen(false)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-4 w-4 shrink-0' })}
+                    <span className="text-[11px] font-bold uppercase tracking-wider lg:hidden xl:block">{item.name}</span>
+                  </div>
+                  {filteredSubItems && (
+                    <div className="lg:hidden xl:block">
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </div>
+                  )}
+                </div>
+
+                {filteredSubItems && isExpanded && (
+                  <div className="mt-1 ml-4 space-y-1 lg:hidden xl:block">
+                    {filteredSubItems.map((subItem) => {
+                      const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/')
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={() => setIsSidebarOpen(false)}
+                          className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+                            isSubActive
+                              ? 'bg-white/15 text-white font-bold'
+                              : 'text-white/50 hover:bg-white/10 hover:text-white/90'
+                          }`}
+                        >
+                          {React.cloneElement(subItem.icon as React.ReactElement<{ className?: string }>, { className: 'h-3.5 w-3.5 shrink-0 opacity-70' })}
+                          <span className="text-[10px] font-semibold uppercase tracking-wider">{subItem.name}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
         </nav>
