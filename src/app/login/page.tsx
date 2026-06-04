@@ -191,6 +191,17 @@ function LoginForm() {
             </button>
           </form>
 
+          {/* Lien d'inscription */}
+          <p className="text-center text-xs font-bold text-[#6B7280] pt-6">
+            Vous n'avez pas de compte ?{" "}
+            <a
+              href="/register"
+              className="text-[#FF6D00] hover:text-[#E66200] hover:underline transition-colors"
+            >
+              Créez gratuitement votre compte
+            </a>
+          </p>
+
         </div>
       </div>
       

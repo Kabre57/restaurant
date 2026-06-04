@@ -34,6 +34,11 @@ import {
   PlusSquare,
   Coins,
   Key,
+  SlidersHorizontal,
+  History,
+  ChefHat,
+  Building,
+  Tag,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -43,14 +48,51 @@ type StoreSummary = {
 
 const menuItems = [
   { name: 'Performance', icon: <TrendingUp />, href: '/restaurateur/stats', roles: ['RESTAURATEUR', 'MANAGER'] },
-  { name: 'Menu', icon: <UtensilsCrossed />, href: '/restaurateur/produits', roles: ['RESTAURATEUR', 'MANAGER'] },
-  { name: 'Stocks', icon: <Package />, href: '/restaurateur/stocks', roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'] },
-  { name: 'Catégories', icon: <Layers />, href: '/restaurateur/categories', roles: ['RESTAURATEUR', 'MANAGER'] },
-  { name: 'Suppléments', icon: <PlusSquare />, href: '/restaurateur/supplements', roles: ['RESTAURATEUR', 'MANAGER'] },
+  {
+    name: 'Menu',
+    icon: <UtensilsCrossed />,
+    href: '/restaurateur/menu',
+    roles: ['RESTAURATEUR', 'MANAGER'],
+    subItems: [
+      { name: 'Articles', href: '/restaurateur/produits', icon: <UtensilsCrossed />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Catégories', href: '/restaurateur/categories', icon: <Layers />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Suppléments', href: '/restaurateur/supplements', icon: <PlusSquare />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Modificateurs', href: '/restaurateur/modificateurs', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Réductions', href: '/restaurateur/reductions', icon: <Tag />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
+  {
+    name: 'Stocks',
+    icon: <Package />,
+    href: '/restaurateur/stocks',
+    roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'],
+    subItems: [
+      { name: 'Les bons de commande', href: '/restaurateur/stocks/purchase-orders', icon: <ClipboardList />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Ordres de transfert', href: '/restaurateur/stocks/transfers', icon: <Truck />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Ajustements des stocks', href: '/restaurateur/stocks/adjustments', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Inventaires des stocks', href: '/restaurateur/stocks/physical-inventory', icon: <LayoutGrid />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Les productions', href: '/restaurateur/stocks/productions', icon: <ChefHat />, roles: ['RESTAURATEUR', 'MANAGER', 'CHEF'] },
+      { name: 'Fournisseurs', href: '/restaurateur/stocks/suppliers', icon: <Building />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Historique des stocks', href: '/restaurateur/stocks/history', icon: <History />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Évaluation des stocks', href: '/restaurateur/stocks/valuation', icon: <TrendingUp />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
   { name: 'Plan de Salle', icon: <LayoutGrid />, href: '/restaurateur/tables', roles: ['RESTAURATEUR', 'MANAGER'] },
   { name: 'Commandes', icon: <ClipboardList />, href: '/restaurateur/commandes', roles: ['RESTAURATEUR', 'MANAGER', 'WAITER', 'CASHIER'] },
   { name: 'Rotation Caisse', icon: <Coins />, href: '/restaurateur/caisse/rotation', roles: ['RESTAURATEUR', 'MANAGER', 'CASHIER'] },
   { name: 'Livraisons', icon: <Truck />, href: '/restaurateur/livraisons', roles: ['RESTAURATEUR', 'MANAGER'] },
+  {
+    name: 'Personnel',
+    icon: <Users />,
+    href: '/restaurateur/staff',
+    roles: ['RESTAURATEUR', 'MANAGER'],
+    subItems: [
+      { name: 'Liste des employés', href: '/restaurateur/staff', icon: <Users />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Droits d\'accès', href: '/restaurateur/staff/rights', icon: <Key />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Fiches de présence', href: '/restaurateur/staff/presence', icon: <FileText />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Heures totales travaillées', href: '/restaurateur/staff/hours', icon: <TrendingUp />, roles: ['RESTAURATEUR', 'MANAGER'] }
+    ]
+  },
   {
     name: 'Ressources Humaines',
     icon: <Users />,
@@ -80,7 +122,14 @@ export default function RestaurateurLayout({ children }: { children: React.React
   const [store, setStore] = useState<StoreSummary | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    '/restaurateur/rh': pathname.startsWith('/restaurateur/rh')
+    '/restaurateur/rh': pathname.startsWith('/restaurateur/rh'),
+    '/restaurateur/stocks': pathname.startsWith('/restaurateur/stocks'),
+    '/restaurateur/staff': pathname.startsWith('/restaurateur/staff'),
+    '/restaurateur/menu': pathname.startsWith('/restaurateur/produits') || 
+                         pathname.startsWith('/restaurateur/categories') || 
+                         pathname.startsWith('/restaurateur/supplements') || 
+                         pathname.startsWith('/restaurateur/modificateurs') || 
+                         pathname.startsWith('/restaurateur/reductions')
   })
 
   useEffect(() => {

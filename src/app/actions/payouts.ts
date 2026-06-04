@@ -2,13 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 import { PaymentStatus } from '@prisma/client'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
+
+import { requireAuth } from '@/lib/auth-guard'
 
 /**
  * Calcule le montant dû à chaque restaurateur.
  * Net = CA encaissé - commissions plateforme - versements déjà réalisés.
  */
 export async function getPayoutSummary() {
+  await requireAuth(["ADMIN"])
   try {
     const stores = await prisma.store.findMany({
       select: {
@@ -62,6 +65,7 @@ export async function getPayoutSummary() {
  * Vérifie que le montant ne dépasse pas le net dû.
  */
 export async function createPayout(storeId: string, amount: number, note?: string) {
+  await requireAuth(["ADMIN"])
   if (amount <= 0) return { success: false, error: 'Montant invalide' }
 
   try {
@@ -97,6 +101,7 @@ export async function createPayout(storeId: string, amount: number, note?: strin
  * Historique des N derniers versements (tous restaurants confondus).
  */
 export async function getPayoutHistory(limit = 20) {
+  await requireAuth(["ADMIN"])
   try {
     return await prisma.payout.findMany({
       take: limit,

@@ -26,6 +26,7 @@ const withPWA = withPWAInit({
           cacheName: "next-static",
           expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
         },
+        method: "GET",
       },
       {
         // Images produits et assets
@@ -35,6 +36,7 @@ const withPWA = withPWAInit({
           cacheName: "images",
           expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
         },
+        method: "GET",
       },
       {
         // Routes Next.js (pages HTML) — NetworkFirst pour offline fallback
@@ -45,6 +47,7 @@ const withPWA = withPWAInit({
           expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 },
           networkTimeoutSeconds: 5,
         },
+        method: "GET",
       },
     ],
   },

@@ -19,7 +19,15 @@ export default async function AdminCustomersPage() {
       orderBy: { createdAt: 'desc' },
       include: {
         loyalty: true,
-        orders: { select: { id: true, total: true } }
+        orders: {
+          select: {
+            id: true,
+            total: true,
+            createdAt: true,
+            status: true
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     })
   ])

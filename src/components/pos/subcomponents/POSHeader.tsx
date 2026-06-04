@@ -3,7 +3,7 @@
 import React from 'react'
 import { useSession } from 'next-auth/react'
 import type { Table } from '@prisma/client'
-import { Search, Map as MapIcon, Menu, ShoppingBag } from 'lucide-react'
+import { Search, Map as MapIcon, Menu, ShoppingBag, Camera } from 'lucide-react'
 import { ConnectionStatus } from './ConnectionStatus'
 import type { OrderFlowMode, POSViewMode } from '../lib/pos-helpers'
 
@@ -25,6 +25,7 @@ interface POSHeaderProps {
   onOpenSidebar?: () => void
   onOpenCart?: () => void
   cartCount?: number
+  onScanClick?: () => void
 }
 
 export function POSHeader({
@@ -45,6 +46,7 @@ export function POSHeader({
   onOpenSidebar,
   onOpenCart,
   cartCount = 0,
+  onScanClick,
 }: POSHeaderProps) {
   const { data: session } = useSession()
   const isCashier = session?.user?.role === 'CASHIER' || operatorRole === 'CASHIER'
@@ -132,10 +134,20 @@ export function POSHeader({
             <input
               type="text"
               placeholder="RECHERCHER UN PRODUIT..."
-              className="w-full rounded-2xl border border-[#e9ecef] bg-[#f8f9fa] py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6D00]"
+              className="w-full rounded-2xl border border-[#e9ecef] bg-[#f8f9fa] py-3 pl-12 pr-12 text-[10px] font-black uppercase tracking-widest transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6D00]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {onScanClick && (
+              <button
+                type="button"
+                onClick={onScanClick}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-[#e9ecef] rounded-lg transition-colors text-gray-500 hover:text-gray-900"
+                title="Scanner un code-barres"
+              >
+                <Camera className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between gap-4 xl:justify-end">

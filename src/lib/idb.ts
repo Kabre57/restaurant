@@ -11,6 +11,7 @@ export type CachedProduct = {
   isAvailable?: boolean;
   stockQuantity?: number | null;
   trackStock?: boolean | null;
+  barcode?: string | null;
 };
 export type QueuedOrder = {
   id?: number;

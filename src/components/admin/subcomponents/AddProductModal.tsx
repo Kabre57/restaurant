@@ -29,6 +29,7 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
   const [price, setPrice] = useState('')
   const [prepTime, setPrepTime] = useState('')
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '')
+  const [barcode, setBarcode] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -58,7 +59,8 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
       categoryId,
       image,
       storeId,
-      averagePrepTimeMins: prepTime ? parseInt(prepTime) : undefined
+      averagePrepTimeMins: prepTime ? parseInt(prepTime) : undefined,
+      barcode: barcode || null
     })
 
     if (res.success && res.product) {
@@ -131,6 +133,16 @@ export function AddProductModal({ categories, onClose, onSuccess, storeId }: Pro
                 ))}
               </select>
             </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Code-barres (facultatif)</label>
+            <input 
+              value={barcode}
+              onChange={e => setBarcode(e.target.value)}
+              className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
+              placeholder="Ex: 3017620422003"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Image du Produit</label>

@@ -25,6 +25,7 @@ import { POSOrderSidebar } from './subcomponents/POSOrderSidebar'
 import { POSWorkspace } from './subcomponents/POSWorkspace'
 import { Sidebar } from './subcomponents/Sidebar'
 import { POSModals } from './subcomponents/POSModals'
+import { BarcodeScannerModal } from './subcomponents/BarcodeScannerModal'
 
 type LiveOrder = {
   id: string
@@ -97,6 +98,76 @@ export default function POSClient({
   const [alertState, setAlertState] = useState<POSAlertState>(null)
   const [showSidebar, setShowSidebar] = useState(false)
   const [showCart, setShowCart] = useState(false)
+  const [showCameraScanner, setShowCameraScanner] = useState(false)
+
+  const handleBarcodeScanned = (barcode: string) => {
+    const product = products.find(p => p.barcode === barcode)
+    if (product) {
+      addItem({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        options: '',
+        image: product.image,
+      })
+      setAlertState({
+        title: 'Produit Scanné',
+        message: `${product.name} ajouté au panier.`,
+        type: 'success',
+      })
+      setTimeout(() => {
+        setAlertState(current => {
+          if (current?.title === 'Produit Scanné') return null
+          return current
+        })
+      }, 2000)
+    } else {
+      setAlertState({
+        title: 'Code-barres Inconnu',
+        message: `Aucun produit correspondant au code ${barcode}.`,
+        type: 'error',
+      })
+    }
+  }
+
+  useEffect(() => {
+    let buffer = ''
+    let lastKeyTime = Date.now()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      const currentTime = Date.now()
+
+      if (currentTime - lastKeyTime > 50) {
+        buffer = ''
+      }
+
+      lastKeyTime = currentTime
+
+      if (e.key === 'Enter') {
+        if (buffer.length >= 3) {
+          handleBarcodeScanned(buffer)
+          buffer = ''
+        }
+      } else if (e.key.length === 1) {
+        buffer += e.key
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [products])
 
   const {
     items,
@@ -282,6 +353,7 @@ export default function POSClient({
           cartCount={items.length}
           onOpenSidebar={() => setShowSidebar(true)}
           onOpenCart={() => setShowCart(true)}
+          onScanClick={() => setShowCameraScanner(true)}
           onViewPlan={() => {
             setViewMode('FLOOR_PLAN')
             setSelectedTable(null)
@@ -434,6 +506,13 @@ export default function POSClient({
           checkout.openSettlementForOrder(order)
         }}
       />
+
+      {showCameraScanner && (
+        <BarcodeScannerModal
+          onScan={handleBarcodeScanned}
+          onClose={() => setShowCameraScanner(false)}
+        />
+      )}
     </div>
   )
 }
