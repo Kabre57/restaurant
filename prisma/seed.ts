@@ -190,11 +190,11 @@ async function main() {
 
   // ── Ingrédients ─────────────────────────────────────────────
   const ingredients = [
-    { id: "ing-buns",    name: "Pains Burger",        unit: "unités", costPrice: 150,  sellPrice: 300 },
-    { id: "ing-beef",    name: "Viande Hachée Bœuf",  unit: "kg",     costPrice: 3500, sellPrice: 6000 },
-    { id: "ing-cheese",  name: "Fromage Cheddar",     unit: "kg",     costPrice: 4000, sellPrice: 7000 },
-    { id: "ing-lettuce", name: "Salade Iceberg",      unit: "kg",     costPrice: 800,  sellPrice: 1500 },
-    { id: "ing-tomato",  name: "Tomates",             unit: "kg",     costPrice: 600,  sellPrice: 1200 },
+    { id: "ing-buns",    name: "Pains Burger",        unit: "unités", costPrice: 150,  sellPrice: 300, storeId: store.id },
+    { id: "ing-beef",    name: "Viande Hachée Bœuf",  unit: "kg",     costPrice: 3500, sellPrice: 6000, storeId: store.id },
+    { id: "ing-cheese",  name: "Fromage Cheddar",     unit: "kg",     costPrice: 4000, sellPrice: 7000, storeId: store.id },
+    { id: "ing-lettuce", name: "Salade Iceberg",      unit: "kg",     costPrice: 800,  sellPrice: 1500, storeId: store.id },
+    { id: "ing-tomato",  name: "Tomates",             unit: "kg",     costPrice: 600,  sellPrice: 1200, storeId: store.id },
   ];
 
   for (const ing of ingredients) {
