@@ -288,8 +288,14 @@ export function IngredientsTab({ storeId, inventoryList, onRefresh }: Ingredient
                     className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#212529]"
                   >
                     <option value="u">Unités (u)</option>
+                    <option value="kg">Kilogrammes (kg)</option>
                     <option value="g">Grammes (g)</option>
+                    <option value="l">Litres (l)</option>
+                    <option value="cl">Centilitres (cl)</option>
                     <option value="ml">Millilitres (ml)</option>
+                    <option value="btl">Bouteilles (btl)</option>
+                    <option value="box">Boîtes (box)</option>
+                    <option value="pack">Paquets (pack)</option>
                   </select>
                 </div>
 

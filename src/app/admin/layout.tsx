@@ -23,9 +23,8 @@ import {
   ChevronDown,
   MessageSquare,
   Users,
-  Layers,
-  Archive,
-  PlusSquare,
+  Sun,
+  Moon,
   ShieldCheck,
 } from 'lucide-react'
 
@@ -58,6 +57,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [selectedStore, setSelectedStore] = useState<string>('')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // theme init and sync
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('admin_theme')
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === 'dark')
+      } else {
+        const savedRestaurateur = localStorage.getItem('restaurateur_theme')
+        const initialDark = savedRestaurateur === 'dark'
+        setIsDarkMode(initialDark)
+        localStorage.setItem('admin_theme', initialDark ? 'dark' : 'light')
+      }
+    }
+  }, [])
+
+  // Sync theme switch across tabs/namespaces
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedTheme = localStorage.getItem('admin_theme') || localStorage.getItem('restaurateur_theme')
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === 'dark')
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  const toggleTheme = () => {
+    const nextVal = !isDarkMode
+    setIsDarkMode(nextVal)
+    localStorage.setItem('admin_theme', nextVal ? 'dark' : 'light')
+    localStorage.setItem('restaurateur_theme', nextVal ? 'dark' : 'light')
+    
+    // Dispatch storage event to sync other pages/tabs
+    window.dispatchEvent(new Event('storage'))
+  }
 
   // Helpers pour les cookies
   const setStoreCookie = (storeId: string) => {
@@ -101,7 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const activeStoreName = stores.find(s => s.id === selectedStore)?.name || 'Chargement...'
 
   return (
-    <div className="flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden">
+    <div className={`flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden ${isDarkMode ? 'dark bg-[#0f1115] text-[#eceff4]' : ''}`}>
       {/* Mobile Sidebar overlay */}
       {isSidebarOpen && (
         <button
@@ -114,34 +151,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[#E5E7EB] bg-white text-[#495057] shadow-lg transition-transform duration-300 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[#E5E7EB] bg-white text-[#495057] shadow-lg transition-transform duration-300 dark:border-[#2e3440] dark:bg-[#181a20] dark:text-white/60 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         {/* Brand */}
-        <div className="flex h-20 items-center justify-between px-6 border-b border-[#F0F1F6]">
+        <div className="flex h-20 items-center justify-between px-6 border-b border-[#F0F1F6] dark:border-[#2e3440]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6D00] text-white">
               <Package className="h-5.5 w-5.5" />
             </div>
-            <span className="text-xl font-black tracking-tight text-[#171717]">Administrateur</span>
+            <span className="text-xl font-black tracking-tight text-[#171717] dark:text-white">Administrateur</span>
           </div>
           <button
             type="button"
             onClick={() => setIsSidebarOpen(false)}
-            className="rounded-xl p-2 text-[#868e96] transition-all hover:bg-[#FF6D00]/10 hover:text-[#FF6D00] lg:hidden"
+            className="rounded-xl p-2 text-[#868e96] transition-all hover:bg-[#FF6D00]/10 hover:text-[#FF6D00] dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Restaurant selector dropdown */}
-        <div className="px-5 py-4 border-b border-[#F0F1F6] bg-[#F8F9FA]/50">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#868e96] mb-2">RESTAURANT ACTIF</p>
+        <div className="px-5 py-4 border-b border-[#F0F1F6] dark:border-[#2e3440] bg-[#F8F9FA]/50 dark:bg-[#181a20]/50">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#868e96] dark:text-[#8c96a5] mb-2">RESTAURANT ACTIF</p>
           <div className="relative">
             <select
               value={selectedStore}
               onChange={(e) => handleStoreChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-[#E5E7EB] bg-white py-3 pl-4 pr-10 text-xs font-bold text-[#171717] outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
+              className="w-full appearance-none rounded-xl border border-[#E5E7EB] bg-white py-3 pl-4 pr-10 text-xs font-bold text-[#171717] dark:border-[#2e3440] dark:bg-[#181a20] dark:text-white outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
             >
               {stores.length === 0 ? (
                 <option>Le Burger Doré - Paris 1er</option>
@@ -151,7 +188,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 ))
               )}
             </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-[#868e96]" />
+            <ChevronDown className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-[#868e96] dark:text-[#8c96a5]" />
           </div>
         </div>
 
@@ -159,7 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 custom-scrollbar">
           {/* VUE GENERALE */}
           <div>
-            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] mb-2">VUE GÉNÉRALE</p>
+            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] dark:text-[#8c96a5] mb-2">VUE GÉNÉRALE</p>
             <nav className="space-y-1">
               {generalItems.map((item) => {
                 const active = pathname === item.href
@@ -170,7 +207,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
                       ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
-                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717]'
+                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
                       }`}
                   >
                     {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
@@ -183,7 +220,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* GESTION */}
           <div>
-            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] mb-2">GESTION</p>
+            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] dark:text-[#8c96a5] mb-2">GESTION</p>
             <nav className="space-y-1">
               {gestionItems.map((item) => {
                 const active = pathname === item.href
@@ -194,7 +231,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
                       ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
-                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717]'
+                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
                       }`}
                   >
                     {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
@@ -207,10 +244,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Logout at bottom */}
-        <div className="p-4 border-t border-[#F0F1F6]">
+        <div className="p-4 border-t border-[#F0F1F6] dark:border-[#2e3440]">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#e03131] transition-all hover:bg-[#fff5f5]"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#e03131] transition-all hover:bg-[#fff5f5] dark:hover:bg-white/5"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             Déconnexion
@@ -221,42 +258,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Panel */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex h-20 items-center justify-between gap-4 bg-white px-8 shadow-sm border-b border-[#E5E7EB] shrink-0">
+        <header className="flex h-20 items-center justify-between gap-4 bg-white dark:bg-[#181a20] px-8 shadow-sm border-b border-[#E5E7EB] dark:border-[#2e3440] shrink-0">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               aria-label="Ouvrir le menu"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#171717] transition-all hover:bg-[#FF6D00]/10 lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#171717] dark:border-[#2e3440] dark:bg-[#181a20] dark:text-[#eceff4] transition-all hover:bg-[#FF6D00]/10 lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden min-w-0 items-center gap-3 rounded-xl bg-[#F8F9FA] border border-[#E5E7EB] px-4 py-2.5 md:flex md:w-[20rem] lg:w-[24rem]">
-              <Search className="h-4.5 w-4.5 text-[#adb5bd]" />
+            <div className="hidden min-w-0 items-center gap-3 rounded-xl bg-[#F8F9FA] dark:bg-[#0f1115] border border-[#E5E7EB] dark:border-[#2e3440] px-4 py-2.5 md:flex md:w-[20rem] lg:w-[24rem]">
+              <Search className="h-4.5 w-4.5 text-[#adb5bd] dark:text-[#8c96a5]" />
               <input
                 type="text"
                 placeholder="Recherche..."
-                className="w-full bg-transparent text-xs font-semibold text-[#171717] outline-none placeholder-[#adb5bd]"
+                className="w-full bg-transparent text-xs font-semibold text-[#171717] dark:text-white outline-none placeholder-[#adb5bd]"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-5">
-            <button className="relative rounded-xl p-2 text-[#868e96] hover:bg-[#F8F9FA] transition-all">
+            <button
+              onClick={toggleTheme}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#171717] dark:border-[#2e3440] dark:bg-[#181a20] dark:text-[#eceff4] transition-all hover:bg-[#F8F9FA]"
+              title={isDarkMode ? 'Passer au Mode Clair' : 'Passer au Mode Sombre'}
+            >
+              {isDarkMode ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-gray-400" />}
+            </button>
+
+            <button className="relative rounded-xl p-2 text-[#868e96] dark:text-white/60 hover:bg-[#F8F9FA] dark:hover:bg-white/10 transition-all">
               <MessageSquare className="h-5 w-5" />
             </button>
 
-            <button className="relative rounded-xl p-2 text-[#868e96] hover:bg-[#F8F9FA] transition-all">
+            <button className="relative rounded-xl p-2 text-[#868e96] dark:text-white/60 hover:bg-[#F8F9FA] dark:hover:bg-white/10 transition-all">
               <Bell className="h-5 w-5" />
               <div className="absolute right-2 top-2 h-2 w-2 rounded-full border border-white bg-[#e03131]" />
             </button>
 
-            <div className="h-8 w-[1px] bg-[#E5E7EB]" />
+            <div className="h-8 w-[1px] bg-[#E5E7EB] dark:bg-[#2e3440]" />
 
             <div className="flex items-center gap-3">
               <div className="hidden flex-col items-end sm:flex">
-                <span className="text-xs font-black text-[#171717]">Utilisateur administrateur</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#868e96]">Superadministrateur</span>
+                <span className="text-xs font-black text-[#171717] dark:text-white">Utilisateur administrateur</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#868e96] dark:text-[#8c96a5]">Superadministrateur</span>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FF6D00] text-xs font-black text-white shadow-md shadow-orange-500/10">
                 AU
@@ -266,7 +311,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto bg-[#F5F6F8] p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-[#F5F6F8] dark:bg-[#0f1115] p-8 custom-scrollbar">
           {children}
         </main>
       </div>

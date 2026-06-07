@@ -26,6 +26,8 @@ import { RecipesTab } from './RecipesTab'
 type StockProduct = {
   id: string
   name: string
+  price: number
+  costPrice: number
   image: string | null
   trackStock: boolean
   stockQuantity: number

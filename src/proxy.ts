@@ -145,7 +145,8 @@ export default async function proxy(req: NextRequest, event: any) {
       pathname.startsWith("/api/auth/") ||
       pathname.startsWith("/api/glovo-webhook") ||
       pathname.startsWith("/api/payments/mobile") ||
-      pathname.startsWith("/api/remote-order");
+      pathname.startsWith("/api/remote-order") ||
+      pathname.startsWith("/api/health");
 
     if (!isPublicApi) {
       const jwtToken = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });

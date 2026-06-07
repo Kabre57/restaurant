@@ -34,7 +34,17 @@ export function PaymentSummaryPanel({
   const activeMethod = paymentMethods.find(m => m.name === mode)
   const activeMethodType = activeMethod?.type || 'OTHER'
   const netTotal = Math.max(0, total - discount)
-  const cashDisabled = activeMethodType === 'CASH' && (changeAmount === null || changeAmount < 0)
+  
+  // Le bouton de validation est désactivé si :
+  // - En cours de traitement (isProcessing)
+  // - Le total net est de 0 ou moins (commande vide ou gratuite invalide)
+  // - Un montant insuffisant a été reçu (changeAmount < 0)
+  // - Le mode est ESPECES mais aucun montant n'a été saisi (changeAmount === null)
+  const isFinalizeDisabled =
+    isProcessing ||
+    netTotal <= 0 ||
+    (changeAmount !== null && changeAmount < 0) ||
+    (activeMethodType === 'CASH' && changeAmount === null)
 
   return (
     <div className="bg-[#1a1d24] text-white p-8 md:p-9 flex flex-col justify-between md:w-1/2 overflow-y-auto custom-scrollbar max-h-[90vh]">
@@ -79,7 +89,7 @@ export function PaymentSummaryPanel({
 
         <button
           onClick={onFinalize}
-          disabled={isProcessing || cashDisabled}
+          disabled={isFinalizeDisabled}
           className={`w-full ${getButtonClassName(activeMethodType)} disabled:bg-white/10 text-white py-4.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95`}
         >
           {isProcessing ? 'Encaissement...' : 'Confirmer le Paiement'}

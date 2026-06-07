@@ -34,6 +34,8 @@ interface POSModalsProps {
   setAlertState: (val: any) => void
   onAddItems: (table: any) => void
   onSettlePayment: (table: any, order: any) => void
+  activeShift?: any | null
+  onCloseShift?: (endAmount: number) => Promise<any>
 }
 
 export function POSModals({
@@ -59,6 +61,8 @@ export function POSModals({
   setAlertState,
   onAddItems,
   onSettlePayment,
+  activeShift,
+  onCloseShift,
 }: POSModalsProps) {
   const { data: session } = useSession()
 
@@ -69,6 +73,8 @@ export function POSModals({
           total={sessionTotal}
           cashierName={session?.user?.name || 'Caissier'}
           onClose={() => setShowSessionStats(false)}
+          activeShift={activeShift}
+          onCloseShift={onCloseShift}
         />
       )}
 
@@ -105,6 +111,9 @@ export function POSModals({
           onCustomerSearch={checkout.handleCustomerSearch}
           customerResults={checkout.customerResults}
           onSelectCustomer={(customer) => checkout.setSelectedCustomer(customer)}
+          loyaltyPointsRedeemed={checkout.loyaltyPointsRedeemed}
+          onLoyaltyPointsRedeemedChange={checkout.setLoyaltyPointsRedeemed}
+          loyaltyDiscount={checkout.loyaltyDiscount}
           selectedBills={checkout.selectedBills}
           onAddBill={checkout.onAddBill}
           onRemoveBill={checkout.onRemoveBill}

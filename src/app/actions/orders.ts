@@ -10,6 +10,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { headers } from 'next/headers'
 import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
+import { creditLoyaltyPointsForOrder } from './loyalty'
 import { decrementIngredientInventory } from './inventory'
 import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
 
@@ -23,7 +24,11 @@ const orderInclude = {
       }
     }
   },
-  payments: true,
+  payments: {
+    include: {
+      paymentMethod: true
+    }
+  },
   table: true
 }
 
@@ -47,6 +52,7 @@ type OrderInput = {
   promotionId?: string
   discount?: number
   customerId?: string
+  loyaltyPointsRedeemed?: number
   externalPayload?: Prisma.InputJsonValue
 }
 
@@ -156,6 +162,17 @@ export async function createOrder(data: OrderInput) {
       return { success: false, error: "Accès refusé : ce store ne vous appartient pas" }
     }
 
+    const settings = await prisma.storeSettings.findUnique({
+      where: { storeId: data.storeId }
+    })
+
+    if (settings?.workflowType === 'CASHIER_ONLY') {
+      const isPaid = data.paymentStatus === 'REUSSIE' || data.paymentStatus === 'REUSSI';
+      if (!isPaid) {
+        return { success: false, error: "Paiement échoué ou Payer" }
+      }
+    }
+
     if (!data.items.length) {
       return { success: false, error: "La commande ne contient aucun article" }
     }
@@ -250,6 +267,7 @@ export async function createOrder(data: OrderInput) {
               discount: data.discount || 0,
               promotionId: data.promotionId || null,
               customerId: data.customerId || null,
+              loyaltyPointsRedeemed: data.loyaltyPointsRedeemed || 0,
             },
             include: orderInclude
           })
@@ -308,6 +326,16 @@ export async function createOrder(data: OrderInput) {
           where: { id: data.promotionId },
           data: { usedCount: { increment: 1 } }
         })
+      }
+
+      if (paymentStatus === PaymentStatus.REUSSIE && data.customerId) {
+        await creditLoyaltyPointsForOrder(newOrder.id, tx)
+        if (data.loyaltyPointsRedeemed && data.loyaltyPointsRedeemed > 0) {
+          await tx.loyalty.update({
+            where: { customerId: data.customerId },
+            data: { points: { decrement: data.loyaltyPointsRedeemed } }
+          })
+        }
       }
 
       return newOrder

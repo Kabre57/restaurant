@@ -86,6 +86,7 @@ export function usePOSCheckout({
   const [selectedBills, setSelectedBills] = useState<{ id: string; value: number }[]>([])
   const [promoCode, setPromoCode] = useState('')
   const [discount, setDiscount] = useState(0)
+  const [loyaltyPointsRedeemed, setLoyaltyPointsRedeemed] = useState(0)
   const [appliedPromoId, setAppliedPromoId] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<PaymentCustomer | null>(null)
   const [customerResults, setCustomerResults] = useState<PaymentCustomer[]>([])
@@ -95,7 +96,9 @@ export function usePOSCheckout({
 
   const isSettlementFlow = paymentContext.kind === 'SETTLEMENT'
   const grossTotal = getTotal()
-  const newOrderNetTotal = Math.max(0, grossTotal - discount)
+  const loyaltyDiscount = loyaltyPointsRedeemed * 10
+  const totalDiscount = discount + loyaltyDiscount
+  const newOrderNetTotal = Math.max(0, grossTotal - totalDiscount)
   const paymentTotal = isSettlementFlow
     ? Number(paymentContext.order.total || 0)
     : newOrderNetTotal
@@ -146,6 +149,7 @@ export function usePOSCheckout({
     setSelectedBills([])
     setPromoCode('')
     setDiscount(0)
+    setLoyaltyPointsRedeemed(0)
     setAppliedPromoId(null)
     setSelectedCustomer(null)
     setCustomerResults([])
@@ -199,13 +203,14 @@ export function usePOSCheckout({
     const received = parseFloat(value)
     // Utiliser le total arrondi pour le calcul du rendu de monnaie si disponible
     const effectiveTotal = roundedTotal ?? paymentTotal
-    setChangeAmount(Math.max(0, received - effectiveTotal))
+    // On conserve la valeur négative éventuelle pour bloquer la validation si le montant est insuffisant
+    setChangeAmount(received - effectiveTotal)
   }
 
   const handleApplyPromo = async () => {
     if (!promoCode || isSettlementFlow) return
 
-    const result = await validatePromotion(promoCode, storeId, grossTotal)
+    const result = await validatePromotion(promoCode, storeId, grossTotal, items)
     if (result.success) {
       setDiscount(result.discount || 0)
       setAppliedPromoId(result.promoId || null)
@@ -413,9 +418,10 @@ export function usePOSCheckout({
         storeId,
         cashierId,
         total: cashTotal,
-        discount,
+        discount: discount + loyaltyDiscount,
         promotionId: appliedPromoId || undefined,
         customerId: selectedCustomer?.id || undefined,
+        loyaltyPointsRedeemed: loyaltyPointsRedeemed,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -424,6 +430,7 @@ export function usePOSCheckout({
         })),
         type: 'DINE_IN' as const,
         paymentMode,
+        paymentStatus: 'REUSSIE' as const,
         tableId: selectedTable?.id || undefined,
         externalPayload: {
           selectedBills: selectedBills.map(b => b.value)
@@ -486,9 +493,10 @@ export function usePOSCheckout({
         storeId,
         cashierId,
         total: currentTotal,
-        discount,
+        discount: discount + loyaltyDiscount,
         promotionId: appliedPromoId || undefined,
         customerId: selectedCustomer?.id || undefined,
+        loyaltyPointsRedeemed: loyaltyPointsRedeemed,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -497,6 +505,7 @@ export function usePOSCheckout({
         })),
         type: 'DINE_IN' as const,
         paymentMode,
+        paymentStatus: 'REUSSIE' as const,
         tableId: selectedTable?.id || undefined,
         externalPayload: {
           selectedBills: selectedBills.map(b => b.value)
@@ -528,6 +537,42 @@ export function usePOSCheckout({
   }
 
   const handleCheckout = async (mode: PaymentMode) => {
+    const activeMethod = paymentMethods.find(m => m.name === mode)
+    const activeMethodType = activeMethod?.type || 'OTHER'
+    const effectiveTotal = roundedTotal ?? paymentTotal
+
+    // 1. Empêcher la validation d'une commande de 0 FCFA ou moins
+    if (effectiveTotal <= 0) {
+      onAlert({
+        title: 'Montant Invalide',
+        message: 'Le montant total de la commande ne peut pas être inférieur ou égal à 0 FCFA.',
+        type: 'error',
+      })
+      return
+    }
+
+    // 2. Empêcher la validation si le montant reçu est insuffisant ou égal à 0 en espèces ou billets
+    const isCashOrFallback = activeMethodType === 'CASH' || selectedBills.length > 0 || parseFloat(amountReceived) > 0
+    if (isCashOrFallback) {
+      const received = parseFloat(amountReceived) || 0
+      if (received <= 0) {
+        onAlert({
+          title: 'Montant Reçu Requis',
+          message: 'Veuillez saisir un montant reçu supérieur à 0 FCFA.',
+          type: 'error',
+        })
+        return
+      }
+      if (received < effectiveTotal) {
+        onAlert({
+          title: 'Paiement Insuffisant',
+          message: `Le montant reçu (${received.toLocaleString()} FCFA) est inférieur au total de la commande (${effectiveTotal.toLocaleString()} FCFA).`,
+          type: 'error',
+        })
+        return
+      }
+    }
+
     if (isSettlementFlow) {
       await finalizeSettlement(mode)
       return
@@ -552,6 +597,9 @@ export function usePOSCheckout({
     promoCode,
     setPromoCode,
     discount,
+    loyaltyPointsRedeemed,
+    setLoyaltyPointsRedeemed,
+    loyaltyDiscount,
     selectedCustomer,
     setSelectedCustomer,
     customerResults,

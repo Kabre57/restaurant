@@ -311,7 +311,7 @@ export default function PhysicalInventoryPage() {
                   >
                     <option value="">Sélectionner un produit pour l&apos;ajouter</option>
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} (Stock actuel: {p.stockQuantity})</option>
+                      <option key={p.id} value={p.id}>{p.name} (Stock actuel: {p.stockQuantity} u)</option>
                     ))}
                   </select>
                 </div>
@@ -324,7 +324,7 @@ export default function PhysicalInventoryPage() {
                       <div key={item.productId} className="flex justify-between items-center py-2 px-3 text-xs font-bold text-[#495057]">
                         <span>{prod?.name}</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[#adb5bd]">Stock système: {item.expectedQuantity}</span>
+                          <span className="text-[#adb5bd]">Stock système: {item.expectedQuantity} u</span>
                           <button 
                             type="button" 
                             onClick={() => handleRemoveProductItem(item.productId)}
@@ -379,10 +379,10 @@ export default function PhysicalInventoryPage() {
                 {activeInventory.items.map((item) => (
                   <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_1.5fr] gap-3 items-center py-3 text-xs font-bold text-[#495057]">
                     <span>{item.product.name}</span>
-                    <span className="text-center text-[#72788f]">{item.expectedQuantity}</span>
+                    <span className="text-center text-[#72788f]">{item.expectedQuantity} u</span>
                     <div>
                       {activeInventory.status === 'COMPLETED' ? (
-                        <span className="block text-center font-black text-[#212529]">{item.countedQuantity}</span>
+                        <span className="block text-center font-black text-[#212529]">{item.countedQuantity} u</span>
                       ) : (
                         <input
                           type="number"

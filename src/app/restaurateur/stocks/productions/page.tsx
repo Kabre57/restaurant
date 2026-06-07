@@ -71,7 +71,7 @@ export default function ProductionsPage() {
         setSelectedProductId('')
         await loadData()
       } else {
-        setError(res.error || "Erreur lors de la production.")
+        setError((res as any).error || "Erreur lors de la production.")
       }
     } catch (err) {
       console.error(err)

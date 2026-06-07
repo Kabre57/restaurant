@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Utensils, Navigation, Clock, CheckCircle2, LayoutList, ChefHat, BellRing, LogOut, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Utensils, Navigation, Clock, CheckCircle2, LayoutList, ChefHat, BellRing, LogOut, RefreshCw, AlertTriangle, ShoppingCart } from 'lucide-react'
 import { ServerColumn } from './ServerColumn'
 import { markOrderServed } from '@/app/actions/orderLifecycle'
 import { signOut } from 'next-auth/react'
@@ -143,6 +143,13 @@ export default function ServerTicketsClient({
               <div className="absolute right-4 top-2 h-2.5 w-2.5 rounded-full bg-[#FF6D00] animate-pulse"></div>
             )}
           </button>
+          <button 
+            onClick={() => router.push('/cashier')}
+            className="group flex flex-col items-center gap-1.5 rounded-2xl py-3.5 bg-[#FF6D00] text-white shadow-lg shadow-orange-500/20 transition-all w-full hover:bg-orange-600"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Commande</span>
+          </button>
         </nav>
 
         <button 
@@ -181,6 +188,13 @@ export default function ServerTicketsClient({
               </div>
             </div>
 
+            <button 
+              onClick={() => router.push('/cashier')}
+              className="flex items-center gap-2 rounded-xl bg-[#FF6D00] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Prendre Commande
+            </button>
             <button 
               onClick={() => window.location.reload()}
               className="flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#212529] hover:bg-[#F8F9FA] transition-all shadow-sm"

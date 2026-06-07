@@ -67,7 +67,7 @@ export function PaymentCashPanel({
     }
   }
 
-  const isPaymentValid = selectedBills.length > 0 && changeAmount !== null && changeAmount >= 0
+  const isPaymentValid = selectedBills.length > 0 && changeAmount !== null && changeAmount >= 0 && (roundedTotal ?? total) > 0
 
   return (
     <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e9ecef] shadow-md space-y-3.5 animate-in fade-in duration-300">

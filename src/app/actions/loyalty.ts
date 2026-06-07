@@ -3,10 +3,12 @@
 import { prisma } from '@/lib/db'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
-/**
- * Valide un code promo et retourne le montant de la remise.
- */
-export async function validatePromotion(code: string, storeId: string, currentTotal: number) {
+export async function validatePromotion(
+  code: string,
+  storeId: string,
+  currentTotal: number,
+  items?: { productId: string; price: number; quantity: number }[]
+) {
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
   if (role !== "ADMIN") {
     assertSameStore(storeId, authStoreId)
@@ -14,7 +16,7 @@ export async function validatePromotion(code: string, storeId: string, currentTo
 
   try {
     const promo = await prisma.promotion.findFirst({
-      where: { code, storeId, isActive: true },
+      where: { code: code.trim().toUpperCase(), storeId, isActive: true },
     })
 
     if (!promo) {
@@ -28,12 +30,75 @@ export async function validatePromotion(code: string, storeId: string, currentTo
       return { success: false, error: "Limite d'utilisation atteinte" }
     }
 
+    // 1. Validation de la plage horaire (Happy Hour)
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    if (promo.startTime && promo.endTime) {
+      if (currentTimeStr < promo.startTime || currentTimeStr > promo.endTime) {
+        return { success: false, error: `Ce code promo est uniquement valide de ${promo.startTime} à ${promo.endTime}` }
+      }
+    }
+
+    // 2. Validation des jours de la semaine
+    const currentDay = now.getDay()
+    if (promo.daysOfWeek && promo.daysOfWeek.length > 0) {
+      if (!promo.daysOfWeek.includes(currentDay)) {
+        const daysNames = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
+        const validDays = promo.daysOfWeek.map(d => daysNames[d]).join(', ')
+        return { success: false, error: `Ce code promo est uniquement valide les jours suivants : ${validDays}` }
+      }
+    }
+
+    // 3. Montant d'achat minimum
+    if (promo.minOrderAmount > 0 && currentTotal < promo.minOrderAmount) {
+      return { success: false, error: `Ce code nécessite un montant minimum de ${promo.minOrderAmount} FCFA` }
+    }
+
+    // 4. Ciblage spécifique (produit ou catégorie)
+    let baseAmountForDiscount = currentTotal
+    if (promo.applicableTo === "PRODUCT") {
+      if (!items || items.length === 0) {
+        return { success: false, error: "Les articles du panier sont requis pour appliquer cette promotion ciblée." }
+      }
+      baseAmountForDiscount = items
+        .filter(i => i.productId === promo.applicableId)
+        .reduce((sum, i) => sum + i.price * i.quantity, 0)
+      
+      if (baseAmountForDiscount <= 0) {
+        return { success: false, error: "Ce code promo n'est pas applicable aux produits de votre panier." }
+      }
+    } else if (promo.applicableTo === "CATEGORY") {
+      if (!items || items.length === 0) {
+        return { success: false, error: "Les articles du panier sont requis pour appliquer cette promotion ciblée." }
+      }
+      const productIds = items.map(i => i.productId)
+      const productsInCart = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, categoryId: true }
+      })
+      const matchingProductIds = productsInCart
+        .filter(p => p.categoryId === promo.applicableId)
+        .map(p => p.id)
+      baseAmountForDiscount = items
+        .filter(i => matchingProductIds.includes(i.productId))
+        .reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+      if (baseAmountForDiscount <= 0) {
+        return { success: false, error: "Ce code promo n'est pas applicable aux catégories de produits dans votre panier." }
+      }
+    }
+
     let discount = 0
     if (promo.discountType === 'PERCENTAGE') {
-      discount = (currentTotal * promo.value) / 100
+      discount = (baseAmountForDiscount * promo.value) / 100
     } else {
-      discount = Math.min(promo.value, currentTotal)
+      discount = promo.value
     }
+
+    if (promo.maxDiscount !== null && promo.maxDiscount !== undefined && discount > promo.maxDiscount) {
+      discount = promo.maxDiscount
+    }
+
+    discount = Math.min(Math.max(Math.round(discount), 0), currentTotal)
 
     return { success: true, discount, promoId: promo.id }
   } catch (error) {
@@ -121,13 +186,17 @@ export async function creditLoyaltyPoints(customerId: string, orderTotal: number
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
 
   try {
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { loyalty: true }
+    })
     if (!customer) return { success: false, pointsAdded: 0 }
     if (role !== "ADMIN") {
       assertSameStore(customer.storeId, authStoreId)
     }
 
-    const pointsToAdd = Math.floor(orderTotal / 100)
+    const multiplier = customer.loyalty?.pointsMultiplier ?? 1.0
+    const pointsToAdd = Math.floor((orderTotal / 100) * multiplier)
     if (pointsToAdd <= 0) return { success: true, pointsAdded: 0 }
 
     const loyalty = await prisma.loyalty.upsert({
@@ -144,6 +213,52 @@ export async function creditLoyaltyPoints(customerId: string, orderTotal: number
   } catch (error) {
     console.error('[Loyalty] creditLoyaltyPoints failed:', error)
     return { success: false, pointsAdded: 0 }
+  }
+}
+
+/**
+ * Crédite les points de fidélité pour une commande spécifique en vérifiant que les points ne sont pas déjà crédités.
+ */
+export async function creditLoyaltyPointsForOrder(orderId: string, tx?: any) {
+  const client = tx || prisma
+
+  try {
+    const order = await client.order.findUnique({
+      where: { id: orderId },
+      include: { customer: { include: { loyalty: true } } }
+    })
+
+    if (!order || !order.customerId || !order.customer) {
+      return { success: false, reason: "Aucun client associé à la commande" }
+    }
+
+    if (order.loyaltyPointsEarned > 0) {
+      return { success: false, reason: "Points déjà crédités pour cette commande" }
+    }
+
+    const loyalty = order.customer.loyalty
+    const multiplier = loyalty?.pointsMultiplier ?? 1.0
+    const pointsToAdd = Math.floor((order.total / 100) * multiplier)
+
+    if (pointsToAdd <= 0) {
+      return { success: true, pointsAdded: 0 }
+    }
+
+    await client.loyalty.upsert({
+      where: { customerId: order.customerId },
+      update: { points: { increment: pointsToAdd } },
+      create: { customerId: order.customerId, points: pointsToAdd, pointsMultiplier: multiplier },
+    })
+
+    await client.order.update({
+      where: { id: orderId },
+      data: { loyaltyPointsEarned: pointsToAdd }
+    })
+
+    return { success: true, pointsAdded: pointsToAdd }
+  } catch (error) {
+    console.error('[Loyalty] creditLoyaltyPointsForOrder failed:', error)
+    return { success: false, error: "Impossible de créditer les points" }
   }
 }
 

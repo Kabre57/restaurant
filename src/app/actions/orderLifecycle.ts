@@ -4,6 +4,7 @@ import { OrderStatus, PaymentStatus, PaymentType } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { publishOrderEvent } from './orderNotifications'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+import { creditLoyaltyPointsForOrder } from './loyalty'
 
 const orderInclude = {
   items: {
@@ -80,6 +81,16 @@ export async function settleOrderPayment(orderId: string, paymentMode: string, s
         await tx.payment.create({
           data: { orderId, paymentMethodId: paymentMethodId, status: PaymentStatus.REUSSIE, amount: existingOrder.total },
         })
+      }
+
+      if (existingOrder.customerId) {
+        await creditLoyaltyPointsForOrder(orderId, tx)
+        if (existingOrder.loyaltyPointsRedeemed > 0) {
+          await tx.loyalty.update({
+            where: { customerId: existingOrder.customerId },
+            data: { points: { decrement: existingOrder.loyaltyPointsRedeemed } }
+          })
+        }
       }
 
       return tx.order.findUnique({ where: { id: orderId }, include: orderInclude })

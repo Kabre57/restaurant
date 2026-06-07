@@ -201,7 +201,12 @@ export default function CustomerOrderClient({
     let promotionId: string | undefined
 
     if (paymentData.promoCode) {
-      const promo = await verifyPromoCode(paymentData.promoCode, storeId, cartTotal)
+      const mappedItems = cart.map((item) => ({
+        productId: item.product.id,
+        price: item.product.price + (item.customization?.priceAdjustment || 0),
+        quantity: item.quantity,
+      }))
+      const promo = await verifyPromoCode(paymentData.promoCode, storeId, cartTotal, mappedItems)
       if (!promo.success) {
         alert(promo.error || 'Code promotionnel invalide')
         setIsSubmitting(false)

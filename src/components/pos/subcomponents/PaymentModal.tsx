@@ -30,6 +30,9 @@ export function PaymentModal({
   onPromoChange,
   onApplyPromo,
   discount,
+  loyaltyPointsRedeemed = 0,
+  onLoyaltyPointsRedeemedChange,
+  loyaltyDiscount = 0,
   selectedCustomer,
   onCustomerSearch,
   customerResults,
@@ -52,7 +55,7 @@ export function PaymentModal({
       <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
         <PaymentSummaryPanel
           total={total}
-          discount={discount}
+          discount={discount + loyaltyDiscount}
           changeAmount={changeAmount}
           mode={mode}
           paymentMethods={paymentMethods}
@@ -78,6 +81,9 @@ export function PaymentModal({
               customerResults={customerResults}
               onCustomerSearch={onCustomerSearch}
               onSelectCustomer={onSelectCustomer}
+              loyaltyPointsRedeemed={loyaltyPointsRedeemed}
+              onLoyaltyPointsRedeemedChange={onLoyaltyPointsRedeemedChange}
+              loyaltyDiscount={loyaltyDiscount}
             />
           )}
 

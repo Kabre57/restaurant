@@ -15,6 +15,11 @@ enum RoundingType {
   ROUND_NEAREST
 }
 
+enum WorkflowType {
+  CASHIER_ONLY
+  SERVER_FIRST
+}
+
 model Store {
   id                  String                    @id @default(cuid())
   name                String
@@ -183,7 +188,8 @@ model Product {
   category            Category                 @relation(fields: [categoryId], references: [id])
   externalMappings    ProductPlatformMapping[]
   store               Store                    @relation(fields: [storeId], references: [id])
-  ingredients         ProductIngredient[]
+  ingredients         ProductIngredient[]      @relation("RecipeIngredients")
+  subRecipeFor        ProductIngredient[]      @relation("SubRecipe")
   stockMovements      StockMovement[]
   purchaseOrderItems  PurchaseOrderItem[]
   transferOrderItems  TransferOrderItem[]
@@ -222,6 +228,8 @@ model Order {
   externalPayload      Json?
   discount             Float             @default(0)
   promotionId          String?
+  loyaltyPointsEarned   Int               @default(0)
+  loyaltyPointsRedeemed Int               @default(0)
   cashier              User?             @relation("CashierOrders", fields: [cashierId], references: [id])
   customer             Customer?         @relation(fields: [customerId], references: [id])
   deliveryPerson       DeliveryPerson?   @relation(fields: [deliveryPersonId], references: [id])
@@ -266,21 +274,28 @@ model ProductPlatformMapping {
 }
 
 model Promotion {
-  id           String       @id @default(cuid())
-  storeId      String
-  code         String
-  description  String?
-  discountType DiscountType @default(PERCENTAGE)
-  value        Float
-  isActive     Boolean      @default(true)
-  startDate    DateTime?
-  endDate      DateTime?
-  usageLimit   Int?
-  usedCount    Int          @default(0)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  orders       Order[]
-  store        Store        @relation(fields: [storeId], references: [id])
+  id             String       @id @default(cuid())
+  storeId        String
+  code           String
+  description    String?
+  discountType   DiscountType @default(PERCENTAGE)
+  value          Float
+  isActive       Boolean      @default(true)
+  startDate      DateTime?
+  endDate        DateTime?
+  usageLimit     Int?
+  usedCount      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  minOrderAmount Float        @default(0.0)
+  maxDiscount    Float?
+  applicableTo   String       @default("ALL") // ALL, CATEGORY, PRODUCT
+  applicableId   String?      // CategoryId or ProductId if applicableTo is CATEGORY or PRODUCT
+  startTime      String?      // HH:MM format
+  endTime        String?      // HH:MM format
+  daysOfWeek     Int[]        @default([0, 1, 2, 3, 4, 5, 6])
+  orders         Order[]
+  store          Store        @relation(fields: [storeId], references: [id])
 
   @@unique([storeId, code])
 }
@@ -337,12 +352,13 @@ model Customer {
 }
 
 model Loyalty {
-  id         String   @id @default(cuid())
-  customerId String   @unique
-  points     Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  customer   Customer @relation(fields: [customerId], references: [id])
+  id               String   @id @default(cuid())
+  customerId       String   @unique
+  points           Int      @default(0)
+  pointsMultiplier Float    @default(1.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  customer         Customer @relation(fields: [customerId], references: [id])
 
   @@index([points])
 }
@@ -389,13 +405,13 @@ model Reservation {
 model Ingredient {
   id        String              @id @default(cuid())
   name      String
-  unit      String
+  unit      String              @default("unité")
   costPrice Float               @default(0.0)
   sellPrice Float               @default(0.0)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   inventory Inventory[]
-  products  ProductIngredient[]
+  products  ProductIngredient[] @relation("BaseIngredient")
   movements IngredientMovement[]
   storeId   String
   store     Store               @relation(fields: [storeId], references: [id])
@@ -405,14 +421,23 @@ model Ingredient {
 }
 
 model ProductIngredient {
-  id           String     @id @default(cuid())
-  productId    String
-  ingredientId String
-  quantity     Float
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-  product      Product    @relation(fields: [productId], references: [id])
+  id                String      @id @default(cuid())
+  productId         String      // recette parente
+  ingredientId      String      // ingrédient simple (Ingredient) ou sous‑recette (Product)
+  quantity          Float
+  unit              String      // g, kg, ml, cuillère, etc.
+  sectionGroup      String?     // ex: "Pour la pâte", "Pour la farce"
+  preparationNote   String?     // ex: "mélanger dans un bol", "laisser reposer 30 min"
+  isSubRecipe       Boolean     @default(false) // si true, ingredientId pointe vers une autre recette (Product)
+  displayOrder      Int         @default(0)     // ordre d’affichage dans le groupe
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  @@unique([productId, ingredientId])
+  product           Product     @relation("RecipeIngredients", fields: [productId], references: [id])
+  ingredientProduct Product?    @relation("SubRecipe", fields: [ingredientId], references: [id], map: "ProductIngredient_subRecipe_fkey")
+  ingredientBase    Ingredient? @relation("BaseIngredient", fields: [ingredientId], references: [id], map: "ProductIngredient_baseIngredient_fkey")
+
+  @@unique([productId, ingredientId, sectionGroup])
 }
 
 model Inventory {
@@ -756,6 +781,7 @@ model StoreSettings {
   receiptLogo   String?      @db.Text // Base64 du logo pour impression ESC/POS
   receiptHeader String? // Texte personnalisé en-tête de reçu
   receiptFooter String? // Texte personnalisé pied de reçu
+  workflowType  WorkflowType @default(SERVER_FIRST)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   store         Store        @relation(fields: [storeId], references: [id])

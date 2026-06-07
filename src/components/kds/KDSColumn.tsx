@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Clock, PackageCheck, ChefHat, MessageSquare, CheckSquare, Square } from 'lucide-react'
+import { Clock, PackageCheck, ChefHat, MessageSquare, CheckSquare, Square, RotateCcw } from 'lucide-react'
 
 export type OrderStatus = 'EN_ATTENTE' | 'PREPARATION' | 'PRET' | 'COMPLETED' | 'CANCELLED'
 
@@ -75,12 +75,14 @@ export function KDSColumn({
   completedItems,
   toggleItemCompletion,
   warningThreshold,
-  criticalThreshold
+  criticalThreshold,
+  onBackAction,
 }: {
   title: string
   color: string
   orders: KDSColumnOrder[]
   onAction?: (id: string, status: OrderStatus) => void
+  onBackAction?: (id: string, status: OrderStatus) => void
   icon?: React.ReactNode
   actionLabel?: string
   isDarkMode: boolean
@@ -147,6 +149,7 @@ export function KDSColumn({
                 toggleItemCompletion={toggleItemCompletion}
                 warningThreshold={warningThreshold}
                 criticalThreshold={criticalThreshold}
+                onBackAction={onBackAction}
               />
             ))}
           </div>
@@ -166,11 +169,13 @@ function OrderCard({
   completedItems,
   toggleItemCompletion,
   warningThreshold,
-  criticalThreshold
+  criticalThreshold,
+  onBackAction,
 }: {
   order: KDSColumnOrder
   color: string
   onAction?: (id: string, status: OrderStatus) => void
+  onBackAction?: (id: string, status: OrderStatus) => void
   icon?: React.ReactNode
   actionLabel?: string
   isDarkMode: boolean
@@ -233,7 +238,19 @@ function OrderCard({
             </span>
           )}
         </div>
-        <Timer elapsed={elapsed} isWarning={isWarning} isCritical={isCritical} />
+        <div className="flex items-center gap-2">
+          <Timer elapsed={elapsed} isWarning={isWarning} isCritical={isCritical} />
+          {onBackAction && (order.status === 'PREPARATION' || order.status === 'PRET') && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onBackAction(order.id, order.status) }}
+              title="Revenir à l'étape précédente"
+              className="rounded-lg p-1 opacity-70 hover:opacity-100 hover:bg-white/20 transition-all"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-4 flex flex-col gap-3">

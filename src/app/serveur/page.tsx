@@ -1,5 +1,6 @@
 import { getActiveOrders } from '@/app/actions/orders'
 import { getStoreDetails } from '@/app/actions/stores'
+import { getStoreSettings } from '@/app/actions/storeSettings'
 import { authOptions } from '@/lib/auth'
 import { getServerSession } from 'next-auth/next'
 import { redirect } from 'next/navigation'
@@ -16,10 +17,15 @@ export default async function ServeurPage() {
     redirect('/')
   }
 
-  const [activeOrders, store] = await Promise.all([
+  const [activeOrders, store, settingsRes] = await Promise.all([
     getActiveOrders(session.user.storeId),
-    getStoreDetails(session.user.storeId)
+    getStoreDetails(session.user.storeId),
+    getStoreSettings(session.user.storeId)
   ])
+
+  if (settingsRes.success && settingsRes.settings?.workflowType === 'CASHIER_ONLY') {
+    redirect('/cashier')
+  }
 
   return (
     <ServerTicketsClient

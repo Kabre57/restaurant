@@ -28,6 +28,13 @@ export async function createPromotion(data: {
   startDate?: Date
   endDate?: Date
   usageLimit?: number
+  minOrderAmount?: number
+  maxDiscount?: number
+  applicableTo?: string
+  applicableId?: string
+  startTime?: string
+  endTime?: string
+  daysOfWeek?: number[]
 }) {
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
   const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
@@ -42,6 +49,13 @@ export async function createPromotion(data: {
         startDate: data.startDate,
         endDate: data.endDate,
         usageLimit: data.usageLimit,
+        minOrderAmount: data.minOrderAmount || 0,
+        maxDiscount: data.maxDiscount,
+        applicableTo: data.applicableTo || "ALL",
+        applicableId: data.applicableId,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        daysOfWeek: data.daysOfWeek || [],
       }
     })
     return { success: true, promotion }
@@ -92,7 +106,12 @@ export async function togglePromotionStatus(id: string, isActive: boolean) {
   }
 }
 
-export async function verifyPromoCode(code: string, storeId: string, subtotal: number) {
+export async function verifyPromoCode(
+  code: string,
+  storeId: string,
+  subtotal: number,
+  items?: { productId: string; price: number; quantity: number }[]
+) {
   const { storeId: authStoreId, role } = await requireAuth()
   const targetStoreId = role === "ADMIN" ? storeId : authStoreId
 
@@ -120,9 +139,72 @@ export async function verifyPromoCode(code: string, storeId: string, subtotal: n
       return { success: false, error: 'La limite d’utilisation de ce code est atteinte' }
     }
 
-    const rawDiscount = promotion.discountType === DiscountType.PERCENTAGE
-      ? subtotal * (promotion.value / 100)
+    // 1. Validation de la plage horaire (Happy Hour)
+    const now = new Date()
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    if (promotion.startTime && promotion.endTime) {
+      if (currentTimeStr < promotion.startTime || currentTimeStr > promotion.endTime) {
+        return { success: false, error: `Ce code promo est uniquement valide de ${promotion.startTime} à ${promotion.endTime}` }
+      }
+    }
+
+    // 2. Validation des jours de la semaine
+    const currentDay = now.getDay()
+    if (promotion.daysOfWeek && promotion.daysOfWeek.length > 0) {
+      if (!promotion.daysOfWeek.includes(currentDay)) {
+        const daysNames = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]
+        const validDays = promotion.daysOfWeek.map(d => daysNames[d]).join(', ')
+        return { success: false, error: `Ce code promo est uniquement valide les jours suivants : ${validDays}` }
+      }
+    }
+
+    // 3. Montant d'achat minimum
+    if (promotion.minOrderAmount > 0 && subtotal < promotion.minOrderAmount) {
+      return { success: false, error: `Ce code nécessite un montant minimum de ${promotion.minOrderAmount} FCFA` }
+    }
+
+    // 4. Ciblage spécifique (produit ou catégorie)
+    let baseAmountForDiscount = subtotal
+    if (promotion.applicableTo === "PRODUCT") {
+      if (!items || items.length === 0) {
+        return { success: false, error: "Les articles du panier sont requis pour appliquer cette promotion ciblée." }
+      }
+      baseAmountForDiscount = items
+        .filter(i => i.productId === promotion.applicableId)
+        .reduce((sum, i) => sum + i.price * i.quantity, 0)
+      
+      if (baseAmountForDiscount <= 0) {
+        return { success: false, error: "Ce code promo n'est pas applicable aux produits de votre panier." }
+      }
+    } else if (promotion.applicableTo === "CATEGORY") {
+      if (!items || items.length === 0) {
+        return { success: false, error: "Les articles du panier sont requis pour appliquer cette promotion ciblée." }
+      }
+      const productIds = items.map(i => i.productId)
+      const productsInCart = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, categoryId: true }
+      })
+      const matchingProductIds = productsInCart
+        .filter(p => p.categoryId === promotion.applicableId)
+        .map(p => p.id)
+      baseAmountForDiscount = items
+        .filter(i => matchingProductIds.includes(i.productId))
+        .reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+      if (baseAmountForDiscount <= 0) {
+        return { success: false, error: "Ce code promo n'est pas applicable aux catégories de produits dans votre panier." }
+      }
+    }
+
+    let rawDiscount = promotion.discountType === DiscountType.PERCENTAGE
+      ? baseAmountForDiscount * (promotion.value / 100)
       : promotion.value
+
+    if (promotion.maxDiscount !== null && promotion.maxDiscount !== undefined && rawDiscount > promotion.maxDiscount) {
+      rawDiscount = promotion.maxDiscount
+    }
+
     const discount = Math.min(Math.max(Math.round(rawDiscount), 0), subtotal)
 
     return {

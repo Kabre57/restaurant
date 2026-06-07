@@ -28,6 +28,9 @@ export type PaymentModalProps = {
   onPromoChange: (value: string) => void
   onApplyPromo: () => void
   discount: number
+  loyaltyPointsRedeemed?: number
+  onLoyaltyPointsRedeemedChange?: (points: number) => void
+  loyaltyDiscount?: number
   selectedCustomer: PaymentCustomer | null
   onCustomerSearch: (query: string) => void
   customerResults: PaymentCustomer[]

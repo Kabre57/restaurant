@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Save, Store, MapPin, Phone, Loader2, CheckCircle2, QrCode, UtensilsCrossed, Coins, FileText, Printer } from 'lucide-react'
+import { Save, Store, MapPin, Phone, Loader2, CheckCircle2, QrCode, UtensilsCrossed, Coins, FileText, Printer, Sliders } from 'lucide-react'
 import { getStoreDetails } from '@/app/actions/stores'
 import { updateStoreConfig } from '@/app/actions/storeConfig'
 import { useSession } from 'next-auth/react'
@@ -201,7 +201,7 @@ export default function RestaurateurConfig() {
                 </p>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Link
                 href="/restaurateur/config/arrondis"
                 className="flex items-center gap-3 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
@@ -215,6 +215,13 @@ export default function RestaurateurConfig() {
               >
                 <FileText className="h-5 w-5 text-brand-600" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Personnaliser les reçus (Logo & Textes)</span>
+              </Link>
+              <Link
+                href="/restaurateur/config/workflow"
+                className="flex items-center gap-3 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
+              >
+                <Sliders className="h-5 w-5 text-brand-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Workflow de Commande (Standard vs Direct)</span>
               </Link>
               <Link
                 href="/restaurateur/config/materiel"

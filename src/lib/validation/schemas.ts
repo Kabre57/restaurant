@@ -68,10 +68,12 @@ export const orderCreateSchema = z.object({
   storeId: z.string().min(1, 'storeId requis'),
   type: z.nativeEnum(OrderType),
   paymentMode: z.string().optional(),
+  paymentStatus: z.string().optional(),
   tableId: z.string().optional(),
   promotionId: z.string().optional(),
   discount: z.number().min(0).optional(),
   customerId: z.string().optional(),
+  loyaltyPointsRedeemed: z.number().int().min(0).optional(),
   items: z.array(z.object({
     productId: z.string().min(1),
     quantity: z.number().int().positive('Quantité doit être ≥ 1'),

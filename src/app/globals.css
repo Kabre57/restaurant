@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 @import "../components/ui/tokens.css";
 
 @theme {
@@ -32,6 +33,8 @@
 }
 
 :root {
+  --font-geist-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-geist-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --background: #f8fafc;
   --foreground: #0f172a;
   --parabellum-primary: #ff6d00;
@@ -164,3 +167,106 @@ body {
     display: none !important;
   }
 }
+
+/* --- Global Dark Mode Overrides for Restaurateur --- */
+.dark {
+  --background: #0f1115;
+  --foreground: #eceff4;
+  --parabellum-body: #0f1115;
+  --parabellum-card: #181a20;
+  --parabellum-border: #2e3440;
+  --parabellum-text: #eceff4;
+  --parabellum-muted: #8c96a5;
+  color-scheme: dark;
+}
+
+.dark .parabellum-shell {
+  background: var(--parabellum-body);
+  color: var(--parabellum-text);
+}
+
+.dark .bg-white,
+.dark .bg-\[white\],
+.dark .bg-\[\#ffffff\],
+.dark .bg-\[\#fff\] {
+  background-color: var(--parabellum-card) !important;
+}
+
+.dark .bg-\[\#f8f9fa\],
+.dark .bg-gray-50,
+.dark .bg-gray-50\/50,
+.dark .bg-gray-100,
+.dark .bg-\[\#fafbfc\],
+.dark .bg-\[\#f1f3f5\] {
+  background-color: var(--parabellum-body) !important;
+}
+
+.dark .text-\[\#212529\],
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-\[\#495057\] {
+  color: var(--parabellum-text) !important;
+}
+
+.dark .text-\#72788f,
+.dark .text-\[\#72788f\],
+.dark .text-[#72788f],
+.dark .text-gray-500,
+.dark .text-gray-600,
+.dark .text-\[\#adb5bd\],
+.dark .text-slate-500 {
+  color: var(--parabellum-muted) !important;
+}
+
+.dark .border-\[\#dee2e6\],
+.dark .border-\[\#e5e7ef\],
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: var(--parabellum-border) !important;
+}
+
+/* Topbar background in dark mode */
+.dark header.parabellum-topbar {
+  background: var(--parabellum-card) !important;
+  border-bottom-color: var(--parabellum-border) !important;
+}
+
+/* Layout content panel custom background */
+.dark main {
+  background-color: var(--parabellum-body) !important;
+}
+
+/* Modals and panels dark background */
+.dark div[class*="shadow-2xl"].bg-white,
+.dark div[class*="shadow-xl"].bg-white {
+  background-color: var(--parabellum-card) !important;
+  border-color: var(--parabellum-border) !important;
+}
+
+/* Tables, headers, inputs dark theme overrides */
+.dark table thead tr {
+  border-bottom-color: var(--parabellum-border) !important;
+}
+
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: var(--parabellum-body) !important;
+  border-color: var(--parabellum-border) !important;
+  color: var(--parabellum-text) !important;
+}
+
+/* Force buttons background overrides in dark mode */
+.dark button.bg-white,
+.dark a.bg-white {
+  background-color: var(--parabellum-card) !important;
+  border-color: var(--parabellum-border) !important;
+  color: var(--parabellum-text) !important;
+}
+
+.dark button.bg-white:hover,
+.dark a.bg-white:hover {
+  background-color: var(--parabellum-body) !important;
+}
+

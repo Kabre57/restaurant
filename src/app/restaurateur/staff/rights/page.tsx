@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Shield, Check, X, ShieldAlert, Key, Users, Settings, Sliders, ShoppingBag, Eye, RefreshCw, Loader2, Save } from 'lucide-react'
+import { Shield, ShieldAlert, RefreshCw, Loader2, Sun, Moon } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getRolePermissions, updateRolePermission, resetRolePermissions, PERMISSIONS_LIST } from '@/app/actions/permissions'
+import { getRolePermissions, updateRolePermission, resetRolePermissions } from '@/app/actions/permissions'
+import { PERMISSIONS_LIST } from '@/app/utils/permissions-config'
 import { Role } from '@prisma/client'
 
 export default function AccessRightsDashboard() {
@@ -15,6 +16,35 @@ export default function AccessRightsDashboard() {
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [isResetting, setIsResetting] = useState(false)
+  
+  // Theme state
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // Load theme preference from localStorage on mount and sync on storage events
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const updateTheme = () => {
+        const savedTheme = localStorage.getItem('restaurateur_theme')
+        if (savedTheme) {
+          setIsDarkMode(savedTheme === 'dark')
+        } else {
+          setIsDarkMode(false)
+        }
+      }
+      updateTheme()
+      window.addEventListener('storage', updateTheme)
+      return () => window.removeEventListener('storage', updateTheme)
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const nextVal = !isDarkMode
+    setIsDarkMode(nextVal)
+    localStorage.setItem('restaurateur_theme', nextVal ? 'dark' : 'light')
+    
+    // Dispatch a storage event so layout or other elements hear it
+    window.dispatchEvent(new Event('storage'))
+  }
 
   const roleMeta: Record<Role, { title: string; desc: string }> = {
     RESTAURATEUR: { title: 'Manager / Propriétaire', desc: 'Accès complet à la gestion du personnel, des stocks, des statistiques et de la configuration.' },
@@ -78,132 +108,185 @@ export default function AccessRightsDashboard() {
     }
   }
 
+  // Theme-specific styles
+  const bgTheme = isDarkMode ? 'bg-[#0f1115] text-[#eceff4]' : 'bg-[#f8f9fa] text-[#212529]'
+  const cardTheme = isDarkMode ? 'bg-[#181a20] border-[#2e3440]' : 'bg-white border-[#dee2e6]'
+  const titleTheme = isDarkMode ? 'text-white' : 'text-[#212529]'
+  const descTheme = isDarkMode ? 'text-[#8c96a5]' : 'text-[#495057]'
+  const tableHeadTheme = isDarkMode ? 'text-[#8c96a5] border-[#2e3440]' : 'text-[#adb5bd] border-[#dee2e6]'
+  const tableRowHover = isDarkMode ? 'hover:bg-[#1e222b]' : 'hover:bg-[#fafbfc]'
+  const borderTheme = isDarkMode ? 'border-[#2e3440]' : 'border-[#dee2e6]'
+
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Droits d'accès</h1>
-          <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">Personnalisez les permissions par rôle (cochez/décochez les accès ci-dessous)</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            disabled={loading || isResetting}
-            onClick={handleResetToDefaults}
-            className="inline-flex items-center gap-2 bg-[#f8f9fa] border border-[#dee2e6] hover:bg-[#e9ecef] text-[#212529] text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl transition-all shadow-sm"
-          >
-            {isResetting ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[#adb5bd]" />
-            ) : (
-              <RefreshCw className="h-4 w-4 text-[#adb5bd]" />
-            )}
-            Restaurer les configurations par défaut
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Left Column: Role Selector */}
-        <div className="space-y-4 lg:col-span-1">
-          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm">
-            <h2 className="text-xs font-black uppercase tracking-widest text-[#adb5bd] mb-4">Sélectionner un Rôle</h2>
-            <div className="space-y-3">
-              {(['CASHIER', 'SERVER', 'KITCHEN', 'DELIVERY', 'MANAGER', 'RESTAURATEUR'] as Role[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setSelectedRole(r)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                    selectedRole === r
-                      ? 'border-[#212529] bg-[#212529] text-white shadow-lg'
-                      : 'border-[#dee2e6] bg-white text-[#495057] hover:bg-[#f8f9fa]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wider">{roleMeta[r]?.title || r}</p>
-                      <p className={`text-[10px] mt-0.5 ${selectedRole === r ? 'text-white/70' : 'text-[#adb5bd]'}`}>
-                        Loyverse POS Standard
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Role Details Card */}
-          <div className="rounded-[2rem] border border-[#dee2e6] bg-[#212529] p-6 text-white shadow-xl">
-            <ShieldAlert className="h-8 w-8 text-[#FF6D00] mb-4" />
-            <h3 className="text-sm font-black uppercase tracking-wider mb-2">Description du Rôle</h3>
-            <p className="text-xs text-white/80 leading-relaxed font-semibold">
-              {roleMeta[selectedRole]?.desc || 'Aucune description disponible'}
+    <div className={`min-h-screen transition-all duration-300 p-4 sm:p-6 lg:p-8 ${bgTheme}`}>
+      <div className="mx-auto max-w-7xl space-y-8">
+        
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className={`text-2xl font-black tracking-tight uppercase sm:text-3xl ${titleTheme}`}>
+              Droits d'accès
+            </h1>
+            <p className="text-[#adb5bd] text-xs font-bold uppercase tracking-widest mt-1">
+              Personnalisez les permissions par rôle (cochez/décochez les accès)
             </p>
-            <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#FF6D00]">Niveau de sécurité</span>
-              <span className="text-xs font-bold bg-white/10 px-2.5 py-1 rounded-lg">
-                {selectedRole === 'RESTAURATEUR' || selectedRole === 'ADMIN' ? 'ADMINISTRATEUR' : 'RESTREINT'}
-              </span>
-            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Dark/Light mode toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`p-3 rounded-2xl transition-all shadow-sm border ${
+                isDarkMode 
+                  ? 'bg-[#2b303c] border-[#2e3440] text-yellow-400' 
+                  : 'bg-white border-[#dee2e6] text-[#212529] hover:bg-[#f8f9fa]'
+              }`}
+              title={isDarkMode ? 'Passer au Mode Clair' : 'Passer au Mode Sombre'}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <button
+              disabled={loading || isResetting}
+              onClick={handleResetToDefaults}
+              className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl transition-all shadow-sm border ${
+                isDarkMode 
+                  ? 'bg-[#181a20] border-[#2e3440] text-[#eceff4] hover:bg-[#2b303c]' 
+                  : 'bg-white border-[#dee2e6] text-[#212529] hover:bg-[#f8f9fa]'
+              }`}
+            >
+              {isResetting ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#adb5bd]" />
+              ) : (
+                <RefreshCw className="h-4 w-4 text-[#adb5bd]" />
+              )}
+              Défaut
+            </button>
           </div>
         </div>
 
-        {/* Right Column: Privileges Table with Checkboxes */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#212529]">Configuration des accès</h2>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">Filtre : {roleMeta[selectedRole]?.title || selectedRole}</span>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Left Column: Role Selector */}
+          <div className="space-y-4 lg:col-span-1">
+            <div className={`rounded-[2rem] border p-6 shadow-sm ${cardTheme}`}>
+              <h2 className="text-xs font-black uppercase tracking-widest text-[#adb5bd] mb-4">
+                Sélectionner un Rôle
+              </h2>
+              <div className="space-y-3">
+                {(['CASHIER', 'SERVER', 'KITCHEN', 'DELIVERY', 'MANAGER', 'RESTAURATEUR'] as Role[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setSelectedRole(r)}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all ${
+                      selectedRole === r
+                        ? isDarkMode 
+                          ? 'border-amber-400 bg-[#2b303c] text-amber-400 shadow-lg'
+                          : 'border-[#212529] bg-[#212529] text-white shadow-lg'
+                        : isDarkMode
+                          ? 'border-[#2e3440] bg-[#12141c] text-[#eceff4] hover:bg-[#1e222b]'
+                          : 'border-[#dee2e6] bg-white text-[#495057] hover:bg-[#f8f9fa]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider">{roleMeta[r]?.title || r}</p>
+                        <p className={`text-[10px] mt-0.5 ${selectedRole === r ? 'opacity-80' : 'text-[#adb5bd]'}`}>
+                          Loyverse POS Standard
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {loading ? (
-              <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-[#dee2e6] text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
-                      <th className="pb-4">Module / Fonctionnalité</th>
-                      <th className="pb-4">Description</th>
-                      <th className="pb-4 text-center">Autorisé</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#f1f3f5]">
-                    {PERMISSIONS_LIST.map((perm) => {
-                      const hasAccess = !!permissions[perm.key]
-                      const isSaving = savingKey === perm.key
-                      return (
-                        <tr key={perm.key} className="transition hover:bg-[#fafbfc]">
-                          <td className="py-4 pr-4">
-                            <p className="text-xs font-black text-[#212529] uppercase tracking-wider">{perm.name}</p>
-                          </td>
-                          <td className="py-4 pr-4 text-xs font-bold text-[#72788f] max-w-[250px] leading-relaxed">
-                            {perm.desc}
-                          </td>
-                          <td className="py-4 text-center">
-                            <div className="inline-flex items-center justify-center">
-                              {isSaving ? (
-                                <Loader2 className="h-6 w-6 animate-spin text-[#FF6D00]" />
-                              ) : (
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={hasAccess}
-                                    onChange={() => handleTogglePermission(perm.key, hasAccess)}
-                                    className="sr-only peer"
-                                  />
-                                  <div className="w-11 h-6 bg-[#dee2e6] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#212529]"></div>
-                                </label>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+            {/* Role Details Card */}
+            <div className={`rounded-[2rem] border p-6 shadow-xl ${
+              isDarkMode ? 'bg-[#1e222b] border-[#2e3440] text-[#eceff4]' : 'bg-[#212529] border-[#212529] text-white'
+            }`}>
+              <ShieldAlert className="h-8 w-8 text-[#FF6D00] mb-4" />
+              <h3 className="text-sm font-black uppercase tracking-wider mb-2">Description du Rôle</h3>
+              <p className={`text-xs leading-relaxed font-semibold ${isDarkMode ? 'text-white/80' : 'text-white/90'}`}>
+                {roleMeta[selectedRole]?.desc || 'Aucune description disponible'}
+              </p>
+              <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#FF6D00]">Niveau de sécurité</span>
+                <span className="text-xs font-bold bg-white/10 px-2.5 py-1 rounded-lg">
+                  {selectedRole === 'RESTAURATEUR' || selectedRole === 'ADMIN' ? 'ADMINISTRATEUR' : 'RESTREINT'}
+                </span>
               </div>
-            )}
+            </div>
+          </div>
+
+          {/* Right Column: Privileges Table with Checkboxes */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className={`rounded-[2rem] border p-6 shadow-sm overflow-hidden ${cardTheme}`}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className={`text-sm font-black uppercase tracking-widest ${titleTheme}`}>
+                  Configuration des accès
+                </h2>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#adb5bd]">
+                  Filtre : {roleMeta[selectedRole]?.title || selectedRole}
+                </span>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-20">
+                  <Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className={`border-b text-[10px] font-black uppercase tracking-widest ${tableHeadTheme}`}>
+                        <th className="pb-4">Module / Fonctionnalité</th>
+                        <th className="pb-4">Description</th>
+                        <th className="pb-4 text-center">Autorisé</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? 'divide-[#2e3440]' : 'divide-[#f1f3f5]'}`}>
+                      {PERMISSIONS_LIST.map((perm) => {
+                        const hasAccess = !!permissions[perm.key]
+                        const isSaving = savingKey === perm.key
+                        return (
+                          <tr key={perm.key} className={`transition ${tableRowHover}`}>
+                            <td className="py-4 pr-4">
+                              <p className={`text-xs font-black uppercase tracking-wider ${titleTheme}`}>
+                                {perm.name}
+                              </p>
+                            </td>
+                            <td className={`py-4 pr-4 text-xs font-bold max-w-[250px] leading-relaxed ${descTheme}`}>
+                              {perm.desc}
+                            </td>
+                            <td className="py-4 text-center">
+                              <div className="inline-flex items-center justify-center">
+                                {isSaving ? (
+                                  <Loader2 className="h-6 w-6 animate-spin text-[#FF6D00]" />
+                                ) : (
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={hasAccess}
+                                      onChange={() => handleTogglePermission(perm.key, hasAccess)}
+                                      className="sr-only peer"
+                                    />
+                                    <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                                      isDarkMode
+                                        ? 'bg-[#2b303c] peer-checked:bg-amber-400'
+                                        : 'bg-[#dee2e6] peer-checked:bg-[#212529]'
+                                    }`}></div>
+                                  </label>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

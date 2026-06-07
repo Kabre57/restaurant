@@ -3,8 +3,8 @@
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
-import { IngMvtReason } from '@prisma/client'
 import { redis, REDIS_KEYS } from '@/lib/redis'
+import { checkRecipeAvailability, deductRecipeIngredients } from './inventory'
 
 export async function getProductsWithRecipes(storeId: string) {
   const { storeId: authStoreId, role } = await requireAuth()
@@ -21,7 +21,8 @@ export async function getProductsWithRecipes(storeId: string) {
       include: {
         ingredients: {
           include: {
-            ingredient: true
+            ingredientBase: true,
+            ingredientProduct: true
           }
         }
       },
@@ -81,11 +82,7 @@ export async function produceProductAction(data: {
       const product = await tx.product.findUnique({
         where: { id: productId },
         include: {
-          ingredients: {
-            include: {
-              ingredient: true
-            }
-          }
+          ingredients: true
         }
       })
 
@@ -99,56 +96,14 @@ export async function produceProductAction(data: {
         return { success: false, error: "Ce produit n'a pas de fiche technique (recette) configurée." }
       }
 
-      // 2. Check ingredient inventory availability
-      for (const recipeItem of product.ingredients) {
-        const requiredQty = recipeItem.quantity * quantity
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            storeId_ingredientId: {
-              storeId: targetStoreId,
-              ingredientId: recipeItem.ingredientId
-            }
-          }
-        })
-
-        if (!inventory || inventory.quantity < requiredQty) {
-          const currentQty = inventory ? inventory.quantity : 0
-          return {
-            success: false,
-            error: `Stock insuffisant pour l'ingrédient '${recipeItem.ingredient.name}'. Requis: ${requiredQty} ${recipeItem.ingredient.unit}, Disponible: ${currentQty} ${recipeItem.ingredient.unit}.`
-          }
-        }
+      // 2. Check ingredient inventory availability recursively
+      const availability = await checkRecipeAvailability(tx, targetStoreId, productId, quantity)
+      if (!availability.success) {
+        return availability
       }
 
-      // 3. Decrement ingredients and log movements
-      for (const recipeItem of product.ingredients) {
-        const requiredQty = recipeItem.quantity * quantity
-
-        await tx.inventory.update({
-          where: {
-            storeId_ingredientId: {
-              storeId: targetStoreId,
-              ingredientId: recipeItem.ingredientId
-            }
-          },
-          data: {
-            quantity: {
-              decrement: requiredQty
-            },
-            lastUpdated: new Date()
-          }
-        })
-
-        await tx.ingredientMovement.create({
-          data: {
-            storeId: targetStoreId,
-            ingredientId: recipeItem.ingredientId,
-            quantity: -requiredQty,
-            reason: IngMvtReason.ADJUSTMENT_CORRECTION,
-            note: `Consommé pour la production de ${quantity}x ${product.name}`
-          }
-        })
-      }
+      // 3. Decrement ingredients recursively and log movements
+      await deductRecipeIngredients(tx, targetStoreId, productId, quantity, `Consommé pour la production de ${quantity}x ${product.name}`)
 
       // 4. Increment product stock
       const updatedProduct = await tx.product.update({

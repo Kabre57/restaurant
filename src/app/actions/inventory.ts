@@ -131,15 +131,48 @@ export async function deleteInventory(id: string) {
   }
 }
 
-export async function decrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
-  try {
-    const mappings = await tx.productIngredient.findMany({
-      where: { productId },
-      include: { ingredient: true }
-    })
+export async function checkRecipeAvailability(
+  tx: any,
+  storeId: string,
+  productId: string,
+  quantityNeeded: number,
+  visited = new Set<string>()
+): Promise<{ success: boolean; error?: string }> {
+  if (visited.has(productId)) {
+    return { success: true };
+  }
+  visited.add(productId);
 
-    for (const mapping of mappings) {
-      const totalNeeded = mapping.quantity * itemQuantity
+  const mappings = await tx.productIngredient.findMany({
+    where: { productId },
+    include: {
+      ingredientBase: true,
+      ingredientProduct: true
+    }
+  });
+
+  for (const mapping of mappings) {
+    const totalNeeded = mapping.quantity * quantityNeeded;
+    if (mapping.isSubRecipe) {
+      const subProd = await tx.product.findUnique({
+        where: { id: mapping.ingredientId }
+      });
+      if (!subProd) {
+        return { success: false, error: `Sous-recette introuvable pour ${mapping.ingredientId}` };
+      }
+
+      let remainingNeeded = totalNeeded;
+      if (subProd.trackStock && subProd.stockQuantity > 0) {
+        remainingNeeded = Math.max(0, totalNeeded - subProd.stockQuantity);
+      }
+
+      if (remainingNeeded > 0) {
+        const subRes = await checkRecipeAvailability(tx, storeId, mapping.ingredientId, remainingNeeded, new Set(visited));
+        if (!subRes.success) {
+          return subRes;
+        }
+      }
+    } else {
       const inventory = await tx.inventory.findUnique({
         where: {
           storeId_ingredientId: {
@@ -147,32 +180,133 @@ export async function decrementIngredientInventory(tx: any, storeId: string, pro
             ingredientId: mapping.ingredientId
           }
         }
-      })
+      });
+      if (!inventory || inventory.quantity < totalNeeded) {
+        const currentQty = inventory ? inventory.quantity : 0;
+        const ingName = mapping.ingredientBase?.name || "Ingrédient inconnu";
+        const ingUnit = mapping.ingredientBase?.unit || "";
+        return {
+          success: false,
+          error: `Stock insuffisant pour l'ingrédient '${ingName}'. Requis: ${totalNeeded} ${ingUnit}, Disponible: ${currentQty} ${ingUnit}.`
+        };
+      }
+    }
+  }
+
+  return { success: true };
+}
+
+export async function deductRecipeIngredients(
+  tx: any,
+  storeId: string,
+  productId: string,
+  quantityNeeded: number,
+  note?: string,
+  visited = new Set<string>()
+) {
+  if (visited.has(productId)) return;
+  visited.add(productId);
+
+  const mappings = await tx.productIngredient.findMany({
+    where: { productId }
+  });
+
+  for (const mapping of mappings) {
+    const totalNeeded = mapping.quantity * quantityNeeded;
+    if (mapping.isSubRecipe) {
+      const subProd = await tx.product.findUnique({
+        where: { id: mapping.ingredientId }
+      });
+
+      let remainingNeeded = totalNeeded;
+      if (subProd && subProd.trackStock && subProd.stockQuantity > 0) {
+        const available = Math.min(subProd.stockQuantity, totalNeeded);
+        await tx.product.update({
+          where: { id: mapping.ingredientId },
+          data: {
+            stockQuantity: {
+              decrement: available
+            }
+          }
+        });
+        remainingNeeded = totalNeeded - available;
+      }
+
+      if (remainingNeeded > 0) {
+        await deductRecipeIngredients(tx, storeId, mapping.ingredientId, remainingNeeded, note, new Set(visited));
+      }
+    } else {
+      const inventory = await tx.inventory.findUnique({
+        where: {
+          storeId_ingredientId: {
+            storeId,
+            ingredientId: mapping.ingredientId
+          }
+        }
+      });
 
       if (inventory) {
-        const newQuantity = Math.max(0, inventory.quantity - totalNeeded)
+        const newQuantity = Math.max(0, inventory.quantity - totalNeeded);
         await tx.inventory.update({
           where: { id: inventory.id },
           data: {
             quantity: newQuantity,
             lastUpdated: new Date()
           }
-        })
+        });
+
+        // Log ingredient movement for audit
+        await tx.ingredientMovement.create({
+          data: {
+            storeId,
+            ingredientId: mapping.ingredientId,
+            quantity: -totalNeeded,
+            reason: IngMvtReason.ADJUSTMENT_CORRECTION,
+            note: note || `Consommé pour la recette du produit (ID: ${productId})`
+          }
+        });
       }
     }
-  } catch (error) {
-    console.error(`Failed to decrement ingredients for product ${productId}:`, error)
   }
 }
 
-export async function incrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
-  try {
-    const mappings = await tx.productIngredient.findMany({
-      where: { productId }
-    })
+export async function decrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
+  await deductRecipeIngredients(tx, storeId, productId, itemQuantity);
+}
 
-    for (const mapping of mappings) {
-      const totalReturned = mapping.quantity * itemQuantity
+export async function incrementRecipeIngredients(
+  tx: any,
+  storeId: string,
+  productId: string,
+  quantityToRestore: number,
+  visited = new Set<string>()
+) {
+  if (visited.has(productId)) return;
+  visited.add(productId);
+
+  const mappings = await tx.productIngredient.findMany({
+    where: { productId }
+  });
+
+  for (const mapping of mappings) {
+    const totalToRestore = mapping.quantity * quantityToRestore;
+    if (mapping.isSubRecipe) {
+      const subProd = await tx.product.findUnique({
+        where: { id: mapping.ingredientId }
+      });
+      if (subProd && subProd.trackStock) {
+        await tx.product.update({
+          where: { id: mapping.ingredientId },
+          data: {
+            stockQuantity: {
+              increment: totalToRestore
+            }
+          }
+        });
+      } else {
+        await incrementRecipeIngredients(tx, storeId, mapping.ingredientId, totalToRestore, new Set(visited));
+      }
+    } else {
       const inventory = await tx.inventory.findUnique({
         where: {
           storeId_ingredientId: {
@@ -180,21 +314,23 @@ export async function incrementIngredientInventory(tx: any, storeId: string, pro
             ingredientId: mapping.ingredientId
           }
         }
-      })
+      });
 
       if (inventory) {
         await tx.inventory.update({
           where: { id: inventory.id },
           data: {
-            quantity: inventory.quantity + totalReturned,
+            quantity: inventory.quantity + totalToRestore,
             lastUpdated: new Date()
           }
-        })
+        });
       }
     }
-  } catch (error) {
-    console.error(`Failed to increment ingredients for product ${productId}:`, error)
   }
+}
+
+export async function incrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
+  await incrementRecipeIngredients(tx, storeId, productId, itemQuantity);
 }
 
 export async function getInventoryByStore(storeId: string) {
@@ -232,7 +368,11 @@ export async function getProductRecipe(productId: string) {
     return await prisma.productIngredient.findMany({
       where: { productId },
       include: {
-        ingredient: true
+        ingredientBase: true,
+        ingredientProduct: true
+      },
+      orderBy: {
+        displayOrder: 'asc'
       }
     })
   } catch (error) {
@@ -241,7 +381,18 @@ export async function getProductRecipe(productId: string) {
   }
 }
 
-export async function saveProductRecipe(productId: string, recipeItems: { ingredientId: string; quantity: number }[]) {
+export async function saveProductRecipe(
+  productId: string,
+  recipeItems: {
+    ingredientId: string;
+    quantity: number;
+    unit: string;
+    sectionGroup?: string | null;
+    preparationNote?: string | null;
+    isSubRecipe: boolean;
+    displayOrder?: number;
+  }[]
+) {
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
@@ -263,7 +414,12 @@ export async function saveProductRecipe(productId: string, recipeItems: { ingred
           data: recipeItems.map((item) => ({
             productId,
             ingredientId: item.ingredientId,
-            quantity: item.quantity
+            quantity: item.quantity,
+            unit: item.unit,
+            sectionGroup: item.sectionGroup || null,
+            preparationNote: item.preparationNote || null,
+            isSubRecipe: item.isSubRecipe,
+            displayOrder: item.displayOrder || 0
           }))
         })
       }

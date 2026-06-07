@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 export async function getStoreDetails(storeId: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth()
   if (role !== "ADMIN") {
     assertSameStore(storeId, authStoreId)
   }

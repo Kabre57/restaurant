@@ -59,6 +59,7 @@ describe('Loyalty Points Calculation & Operations', () => {
         id: 'loy-1',
         customerId,
         points: 15,
+        pointsMultiplier: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -90,6 +91,7 @@ describe('Loyalty Points Calculation & Operations', () => {
         id: 'loy-1',
         customerId,
         points: 150,
+        pointsMultiplier: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -98,6 +100,7 @@ describe('Loyalty Points Calculation & Operations', () => {
         id: 'loy-1',
         customerId,
         points: 50,
+        pointsMultiplier: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -119,6 +122,7 @@ describe('Loyalty Points Calculation & Operations', () => {
         id: 'loy-1',
         customerId,
         points: 20,
+        pointsMultiplier: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -148,6 +152,13 @@ describe('Loyalty Points Calculation & Operations', () => {
         description: null,
         createdAt: now,
         updatedAt: now,
+        minOrderAmount: 0,
+        maxDiscount: null,
+        applicableTo: 'ALL',
+        applicableId: null,
+        startTime: null,
+        endTime: null,
+        daysOfWeek: [],
       })
 
       const res = await validatePromotion('WELCOME500', 'store-1', 1500)
@@ -171,6 +182,13 @@ describe('Loyalty Points Calculation & Operations', () => {
         description: null,
         createdAt: now,
         updatedAt: now,
+        minOrderAmount: 0,
+        maxDiscount: null,
+        applicableTo: 'ALL',
+        applicableId: null,
+        startTime: null,
+        endTime: null,
+        daysOfWeek: [],
       })
 
       const res = await validatePromotion('10PERCENT', 'store-1', 2000)
@@ -195,6 +213,13 @@ describe('Loyalty Points Calculation & Operations', () => {
         description: null,
         createdAt: now,
         updatedAt: now,
+        minOrderAmount: 0,
+        maxDiscount: null,
+        applicableTo: 'ALL',
+        applicableId: null,
+        startTime: null,
+        endTime: null,
+        daysOfWeek: [],
       })
 
       const res = await validatePromotion('FUTURE', 'store-1', 1000)
@@ -219,6 +244,13 @@ describe('Loyalty Points Calculation & Operations', () => {
         description: null,
         createdAt: now,
         updatedAt: now,
+        minOrderAmount: 0,
+        maxDiscount: null,
+        applicableTo: 'ALL',
+        applicableId: null,
+        startTime: null,
+        endTime: null,
+        daysOfWeek: [],
       })
 
       const res = await validatePromotion('EXPIRED', 'store-1', 1000)

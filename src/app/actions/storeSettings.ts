@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db'
-import { RoundingType } from '@prisma/client'
+import { RoundingType, WorkflowType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { applyRounding } from '@/lib/roundingUtils'
 
@@ -15,6 +15,7 @@ export type StoreSettingsData = {
   receiptLogo?: string | null
   receiptHeader?: string | null
   receiptFooter?: string | null
+  workflowType?: WorkflowType
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
         receiptLogo: data.receiptLogo,
         receiptHeader: data.receiptHeader,
         receiptFooter: data.receiptFooter,
+        workflowType: data.workflowType ?? 'SERVER_FIRST',
       },
       update: {
         ...(data.rounding !== undefined && { rounding: data.rounding }),
@@ -71,12 +73,14 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
         ...(data.receiptLogo !== undefined && { receiptLogo: data.receiptLogo }),
         ...(data.receiptHeader !== undefined && { receiptHeader: data.receiptHeader }),
         ...(data.receiptFooter !== undefined && { receiptFooter: data.receiptFooter }),
+        ...(data.workflowType !== undefined && { workflowType: data.workflowType }),
       },
     })
 
     try {
       revalidatePath('/restaurateur/config/arrondis')
       revalidatePath('/restaurateur/config/recus')
+      revalidatePath('/restaurateur/config/workflow')
     } catch (e) {
       // Ignorer l'invariant lors de l'exécution hors de Next.js (ex: scripts de test ou tâches CLI)
     }

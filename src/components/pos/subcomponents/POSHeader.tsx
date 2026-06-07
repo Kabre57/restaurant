@@ -119,7 +119,7 @@ export function POSHeader({
             </div>
           )}
 
-          {viewMode === 'POS' && (
+          {viewMode === 'POS' && !flowModeLocked && (
             <button
               onClick={onViewPlan}
               className="flex items-center justify-center gap-2 rounded-xl bg-[#f1f3f5] px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[#e9ecef] xl:justify-start"

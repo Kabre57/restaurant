@@ -27,7 +27,50 @@ export async function getActiveShift(storeId: string) {
       },
     })
 
-    return { success: true, shift: activeShift }
+    if (!activeShift) {
+      return { success: true, shift: null, totalCashSales: 0, expectedAmount: 0 }
+    }
+
+    // 1. Calculer les ventes en espèces depuis l'ouverture du shift
+    const cashPayments = await prisma.payment.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        paymentMethod: { type: 'CASH' },
+        status: 'REUSSIE',
+        createdAt: {
+          gte: activeShift.openedAt,
+        },
+        order: {
+          storeId,
+        },
+      },
+    })
+
+    const totalCashSales = cashPayments._sum.amount || 0
+
+    // 2. Calculer le total des entrées (PAY_IN) et sorties (PAY_OUT)
+    let totalPayIn = 0
+    let totalPayOut = 0
+
+    activeShift.operations.forEach((op) => {
+      if (op.type === 'PAY_IN') {
+        totalPayIn += op.amount
+      } else if (op.type === 'PAY_OUT') {
+        totalPayOut += op.amount
+      }
+    })
+
+    // 3. Montant attendu = Fond initial + Ventes Espèces + PayIn - PayOut
+    const expectedAmount = activeShift.startAmount + totalCashSales + totalPayIn - totalPayOut
+
+    return {
+      success: true,
+      shift: activeShift,
+      totalCashSales: Math.round(totalCashSales),
+      expectedAmount: Math.round(expectedAmount),
+    }
   } catch (error) {
     console.error('Failed to get active shift:', error)
     return { success: false, error: 'Erreur de récupération de la caisse active.' }
