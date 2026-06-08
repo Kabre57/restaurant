@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { X, Loader2, Check } from 'lucide-react'
-import { updateInventory } from '@/app/actions/inventory'
+import { updateInventory } from '@/app/actions/inventory/inventory'
 
 interface Props {
   inventory: {

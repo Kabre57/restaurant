@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { Wallet, ArrowDownRight, DollarSign, Download, Filter, Loader2, Plus, Calendar, FileText, CheckCircle2 } from 'lucide-react'
-import { getFinancialSummary } from '@/app/actions/finances'
-import { getPayoutSummary, createPayout, getPayoutHistory } from '@/app/actions/payouts'
+import { getFinancialSummary } from '@/app/actions/analytics/finances'
+import { getPayoutSummary, createPayout, getPayoutHistory } from '@/app/actions/analytics/payouts'
 import { format } from 'date-fns'
 
 type FinancialSummary = NonNullable<Awaited<ReturnType<typeof getFinancialSummary>>>

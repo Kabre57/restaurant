@@ -10,13 +10,37 @@ export interface SalaryCalculationResult {
   employerCost: number;
 }
 
+type TaxBracket = {
+  min: number;
+  max?: number;
+  rate: number;
+  deduction?: number;
+}
+
+type TaxPartRule = {
+  base: number;
+  withChildrenBase: number;
+  perChild: number;
+}
+
+type TaxPartsConfig = {
+  maxParts?: number;
+  [status: string]: TaxPartRule | number | undefined;
+}
+
+type TaxRatesConfig = {
+  cnBrackets?: TaxBracket[];
+  igrBrackets?: TaxBracket[];
+  partsConfig?: TaxPartsConfig;
+}
+
 /**
  * Calcule le nombre de parts fiscales selon le statut marital et le nombre d'enfants (Côte d'Ivoire)
  */
 export function calculateTaxParts(
   maritalStatus: string | null | undefined, 
   children: number,
-  config?: any
+  config?: TaxPartsConfig
 ): number {
   const status = maritalStatus?.toUpperCase() || 'SINGLE';
   if (!config || Object.keys(config).length === 0) {
@@ -24,7 +48,9 @@ export function calculateTaxParts(
   }
   const rules = config;
 
-  const statusRules = rules[status] || rules['SINGLE'];
+  const statusRules = (rules[status] || rules['SINGLE']) as TaxPartRule | undefined;
+  if (!statusRules) return 1;
+
   let parts = statusRules.base;
   
   if (children > 0) {
@@ -59,7 +85,7 @@ export function calculateIvoryCoastSalary(
     baseImposableRate?: number;
     cnpsCeiling?: number;
     igrBaseRate?: number;
-    taxRates?: any;
+    taxRates?: TaxRatesConfig;
   } = {}
 ): SalaryCalculationResult {
   // Extraction des taux avec valeurs par défaut ivoiriennes
@@ -106,7 +132,7 @@ export function calculateIvoryCoastSalary(
   const sortedIgr = [...igrBrackets].sort((a, b) => b.min - a.min);
   for (const bracket of sortedIgr) {
     if (q > bracket.min) {
-      igrPart = q * bracket.rate - bracket.deduction;
+      igrPart = q * bracket.rate - (bracket.deduction ?? 0);
       break;
     }
   }

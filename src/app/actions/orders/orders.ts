@@ -10,8 +10,8 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { headers } from 'next/headers'
 import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
-import { creditLoyaltyPointsForOrder } from './loyalty'
-import { decrementIngredientInventory } from './inventory'
+import { creditLoyaltyPointsForOrder } from '../clients/loyalty'
+import { decrementIngredientInventory } from '../inventory/inventory'
 import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
 
 const orderInclude = {
@@ -141,7 +141,7 @@ export async function createOrder(data: OrderInput) {
     if (!session?.user) {
       return { success: false, error: "Authentification requise" }
     }
-    const user = session.user as any
+    const user = session.user
 
     // FIXED: Ajouter rate limiting (5 req/minute)
     const headerList = await headers()
@@ -357,6 +357,8 @@ export async function createOrder(data: OrderInput) {
 
 export async function addItemsToOrder(orderId: string, items: OrderInput['items'], _ignoredTotal?: number) {
   // _ignoredTotal est conservé pour compatibilité API mais ignoré — recalculé depuis la BDD
+  void _ignoredTotal
+
   try {
     if (!items.length) {
       return { success: false, error: "Aucun article à ajouter" }

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { getStores } from '@/app/actions/stores'
+import { getStores } from '@/app/actions/store/stores'
 import {
   LayoutDashboard,
   Wallet,
@@ -15,6 +15,9 @@ import {
   Package,
   Building2,
   Bell,
+  ClipboardList,
+  Layers,
+  LayoutGrid,
   Menu,
   X,
   Search,
@@ -23,9 +26,12 @@ import {
   ChevronDown,
   MessageSquare,
   Users,
+  ShoppingBag,
+  SlidersHorizontal,
   Sun,
   Moon,
   ShieldCheck,
+  Ticket,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -38,14 +44,24 @@ const generalItems = [
   { name: 'Supervision Multi-sites', icon: <ShieldCheck />, href: '/admin/supervision' },
   { name: 'Superviseur', icon: <UserCog />, href: '/admin/superviseur' },
   { name: 'Restaurants', icon: <Building2 />, href: '/admin/restaurants' },
-  { name: 'Clients', icon: <Users />, href: '/admin/clients' },
-  { name: 'Utilisateurs', icon: <UserCog />, href: '/admin/utilisateurs' },
   { name: 'Analytique', icon: <BarChart3 />, href: '/admin/analytics' },
   { name: 'Finances', icon: <Wallet />, href: '/admin/finances' },
 ]
 
+const restaurantItems = [
+  { name: 'Commandes', icon: <ClipboardList />, href: '/admin/commandes' },
+  { name: 'Produits', icon: <ShoppingBag />, href: '/admin/produits' },
+  { name: 'Catégories', icon: <Layers />, href: '/admin/categories' },
+  { name: 'Modificateurs', icon: <SlidersHorizontal />, href: '/admin/supplements' },
+  { name: 'Promotions', icon: <Ticket />, href: '/admin/promotions' },
+  { name: 'Tables', icon: <LayoutGrid />, href: '/admin/tables' },
+  { name: 'Inventaire', icon: <Package />, href: '/admin/inventaire' },
+  { name: 'Clients', icon: <Users />, href: '/admin/clients' },
+  { name: 'Utilisateurs', icon: <UserCog />, href: '/admin/utilisateurs' },
+]
+
 const gestionItems = [
-  { name: 'Promotions', icon: <Compass />, href: '/admin/promotions' },
+  { name: 'Notifications', icon: <Bell />, href: '/admin/notifications' },
   { name: 'Configuration', icon: <Settings />, href: '/admin/config' },
   { name: 'Support', icon: <LifeBuoy />, href: '/admin/support' },
   { name: 'Espaces', icon: <Compass />, href: '/espaces' },
@@ -135,8 +151,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.refresh()
   }
 
-  const activeStoreName = stores.find(s => s.id === selectedStore)?.name || 'Chargement...'
-
   return (
     <div className={`flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden ${isDarkMode ? 'dark bg-[#0f1115] text-[#eceff4]' : ''}`}>
       {/* Mobile Sidebar overlay */}
@@ -199,6 +213,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] dark:text-[#8c96a5] mb-2">VUE GÉNÉRALE</p>
             <nav className="space-y-1">
               {generalItems.map((item) => {
+                const active = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
+                      ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
+                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                      }`}
+                  >
+                    {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+
+          {/* RESTAURANT ACTIF */}
+          <div>
+            <p className="px-4 text-[9px] font-black uppercase tracking-widest text-[#adb5bd] dark:text-[#8c96a5] mb-2">RESTAURANT ACTIF</p>
+            <nav className="space-y-1">
+              {restaurantItems.map((item) => {
                 const active = pathname === item.href
                 return (
                   <Link

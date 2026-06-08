@@ -3,6 +3,10 @@
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 export async function clockInUser(storeId: string, userId: string) {
   try {
     // Check if already clocked in
@@ -26,11 +30,12 @@ export async function clockInUser(storeId: string, userId: string) {
       }
     })
 
-    revalidatePath('/restaurateur/staff')
+    revalidatePath('/restaurateur/staff/presence')
+    revalidatePath('/restaurateur/staff/hours')
     return { success: true, data: timecard }
-  } catch (error: any) {
+  } catch (error) {
     console.error('[clockInUser]', error)
-    return { success: false, error: error.message || 'Erreur lors du pointage d\'entrée.' }
+    return { success: false, error: getErrorMessage(error, 'Erreur lors du pointage d\'entrée.') }
   }
 }
 
@@ -60,11 +65,12 @@ export async function clockOutUser(storeId: string, userId: string) {
       }
     })
 
-    revalidatePath('/restaurateur/staff')
+    revalidatePath('/restaurateur/staff/presence')
+    revalidatePath('/restaurateur/staff/hours')
     return { success: true, data: timecard }
-  } catch (error: any) {
+  } catch (error) {
     console.error('[clockOutUser]', error)
-    return { success: false, error: error.message || 'Erreur lors du pointage de sortie.' }
+    return { success: false, error: getErrorMessage(error, 'Erreur lors du pointage de sortie.') }
   }
 }
 
@@ -131,9 +137,9 @@ export async function saveManualTimecard(data: {
       })
       return { success: true, data: created }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('[saveManualTimecard]', error)
-    return { success: false, error: error.message || 'Erreur lors de l\'enregistrement de la fiche.' }
+    return { success: false, error: getErrorMessage(error, 'Erreur lors de l\'enregistrement de la fiche.') }
   }
 }
 
@@ -143,9 +149,9 @@ export async function deleteTimecard(id: string) {
       where: { id }
     })
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error('[deleteTimecard]', error)
-    return { success: false, error: error.message || 'Erreur lors de la suppression.' }
+    return { success: false, error: getErrorMessage(error, 'Erreur lors de la suppression.') }
   }
 }
 

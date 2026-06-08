@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
@@ -219,7 +220,7 @@ export async function creditLoyaltyPoints(customerId: string, orderTotal: number
 /**
  * Crédite les points de fidélité pour une commande spécifique en vérifiant que les points ne sont pas déjà crédités.
  */
-export async function creditLoyaltyPointsForOrder(orderId: string, tx?: any) {
+export async function creditLoyaltyPointsForOrder(orderId: string, tx?: Prisma.TransactionClient) {
   const client = tx || prisma
 
   try {
@@ -335,7 +336,6 @@ export async function getLoyaltyHistory(customerId: string, limit = 10) {
     return []
   }
 }
-
 
 
 

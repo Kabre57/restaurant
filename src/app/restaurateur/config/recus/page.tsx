@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { FileText, Check, Upload, Trash2, Printer, AlertTriangle } from 'lucide-react'
-import { getStoreSettings, updateStoreSettings } from '@/app/actions/storeSettings'
+import { getStoreSettings, updateStoreSettings } from '@/app/actions/store/storeSettings'
 
 export default function ReceiptSettingsPage() {
   const { data: session } = useSession()

@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
@@ -21,7 +22,7 @@ export async function getContracts(userId?: string) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
-    const whereClause: any = { user: { storeId } }
+    const whereClause: Prisma.ContractWhereInput = { user: { storeId } }
     if (userId) {
       whereClause.userId = userId
     }
@@ -110,7 +111,7 @@ export async function updateContract(id: string, data: Partial<ContractData>) {
     })
     
     if (data.type || data.baseSalary || data.maritalStatus || data.numberOfChildren !== undefined) {
-      const updateData: any = {}
+      const updateData: Prisma.UserUpdateInput = {}
       if (data.type) updateData.contractType = data.type
       if (data.baseSalary) updateData.salary = data.baseSalary
       if (data.maritalStatus) updateData.maritalStatus = data.maritalStatus

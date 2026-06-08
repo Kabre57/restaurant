@@ -4,6 +4,10 @@ import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
 import { revalidatePath } from 'next/cache';
 
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
 export async function getStores() {
   const { storeId } = await requireAuth(['ADMIN', 'RESTAURATEUR']);
   // Lister tous les autres stores
@@ -142,7 +146,7 @@ export async function receiveTransferOrder(transferId: string) {
         OR: [
           item.product.barcode ? { barcode: item.product.barcode } : undefined,
           { name: item.product.name }
-        ].filter(Boolean) as any
+        ].filter(isDefined)
       }
     });
     

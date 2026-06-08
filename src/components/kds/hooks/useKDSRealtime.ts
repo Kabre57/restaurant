@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { updateOrderStatus } from '@/app/actions/orders'
+import { updateOrderStatus } from '@/app/actions/orders/orders'
 import { playNotificationSound } from '@/lib/sound'
 
 export type OrderStatus = 'EN_ATTENTE' | 'PREPARATION' | 'PRET' | 'COMPLETED' | 'CANCELLED'

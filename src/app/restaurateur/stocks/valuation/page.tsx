@@ -11,7 +11,7 @@ import {
   Layers, 
   PieChart 
 } from 'lucide-react';
-import { getInventoryValuation } from '@/app/actions/inventoryValuation';
+import { getInventoryValuation } from '@/app/actions/inventory/inventoryValuation';
 import { CrudTable } from '@/components/ui/ParabellumCrudTable';
 
 type ValuationItem = {

@@ -2,7 +2,7 @@ import React from 'react';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { getTablesByStore } from '@/app/actions/tables';
+import { getTablesByStore } from '@/app/actions/store/tables';
 import FloorPlanDesigner from '@/components/admin/FloorPlanDesigner';
 import { QrCode } from 'lucide-react';
 

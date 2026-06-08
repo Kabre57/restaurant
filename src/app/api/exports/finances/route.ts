@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getFinancialSummary } from '@/app/actions/finances'
+import { getFinancialSummary } from '@/app/actions/analytics/finances'
 import { createCsv, createExcelHtml, createSimplePdf } from '@/lib/exports'
 
 export const dynamic = 'force-dynamic'

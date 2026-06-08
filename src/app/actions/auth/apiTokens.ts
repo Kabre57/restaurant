@@ -3,11 +3,15 @@
 import { prisma } from '@/lib/db'
 import crypto from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { assertSameStore, requireAuth } from '@/lib/auth-guard'
 
 // ──────────────────────────────────────────────────────────────────────
 // generateTokenAction — Génère un nouveau jeton d'API sécurisé (SHA256)
 // ──────────────────────────────────────────────────────────────────────
 export async function generateTokenAction(storeId: string, name: string) {
+  const { storeId: authStoreId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  assertSameStore(storeId, authStoreId, "Jeton API")
+
   try {
     if (!name.trim()) {
       return { success: false, error: 'Le nom du jeton est obligatoire.' }
@@ -28,7 +32,7 @@ export async function generateTokenAction(storeId: string, name: string) {
     // 3. Enregistrer en base de données
     const apiToken = await prisma.apiToken.create({
       data: {
-        storeId,
+        storeId: authStoreId,
         name: name.trim(),
         token: hashedToken,
         prefix,
@@ -37,7 +41,7 @@ export async function generateTokenAction(storeId: string, name: string) {
 
     try {
       revalidatePath('/restaurateur/integrations/api-tokens')
-    } catch (e) {
+    } catch {
       // Ignorer l'erreur d'invariant hors du contexte Next.js (ex: scripts de test ou tâches CLI)
     }
 
@@ -61,9 +65,12 @@ export async function generateTokenAction(storeId: string, name: string) {
 // listTokensAction — Liste les jetons d'un restaurant
 // ──────────────────────────────────────────────────────────────────────
 export async function listTokensAction(storeId: string) {
+  const { storeId: authStoreId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  assertSameStore(storeId, authStoreId, "Jeton API")
+
   try {
     const tokens = await prisma.apiToken.findMany({
-      where: { storeId },
+      where: { storeId: authStoreId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -84,14 +91,27 @@ export async function listTokensAction(storeId: string) {
 // revokeTokenAction — Révise / Supprime un jeton d'API active
 // ──────────────────────────────────────────────────────────────────────
 export async function revokeTokenAction(tokenId: string) {
+  const { storeId: authStoreId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+
   try {
+    const token = await prisma.apiToken.findUnique({
+      where: { id: tokenId },
+      select: { storeId: true }
+    })
+
+    if (!token) {
+      return { success: false, error: 'Jeton introuvable.' }
+    }
+
+    assertSameStore(token.storeId, authStoreId, "Jeton API")
+
     await prisma.apiToken.delete({
       where: { id: tokenId },
     })
 
     try {
       revalidatePath('/restaurateur/integrations/api-tokens')
-    } catch (e) {
+    } catch {
       // Ignorer l'erreur d'invariant hors du contexte Next.js (ex: scripts de test ou tâches CLI)
     }
 

@@ -4,8 +4,8 @@ import React, { useState, useMemo } from 'react'
 import { BellRing, ChevronRight, Plus, Search, ShoppingBag, CheckCircle2, X } from 'lucide-react'
 import { Product, Category } from '@prisma/client'
 import Image from 'next/image'
-import { createOrder } from '@/app/actions/orders'
-import { verifyPromoCode } from '@/app/actions/promotions'
+import { createOrder } from '@/app/actions/orders/orders'
+import { verifyPromoCode } from '@/app/actions/catalog/promotions'
 import CustomerCartModal, { CartItem, getItemKey } from './CustomerCartModal'
 
 interface CustomerOrderClientProps {

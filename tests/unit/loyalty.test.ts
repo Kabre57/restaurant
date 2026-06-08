@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { creditLoyaltyPoints, redeemLoyaltyPoints, validatePromotion } from '@/app/actions/loyalty'
+import { creditLoyaltyPoints, redeemLoyaltyPoints, validatePromotion } from '@/app/actions/clients/loyalty'
 import { prisma } from '@/lib/db'
 
 // Mock de Prisma

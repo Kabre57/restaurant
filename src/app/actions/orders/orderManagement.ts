@@ -1,10 +1,10 @@
 'use server'
 
-import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client'
+import { OrderStatus, PaymentStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { publishOrderEvent, publishStockAlert } from './orderNotifications'
-import { decrementIngredientInventory, incrementIngredientInventory } from './inventory'
+import { decrementIngredientInventory, incrementIngredientInventory } from '../inventory/inventory'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
 const orderInclude = {

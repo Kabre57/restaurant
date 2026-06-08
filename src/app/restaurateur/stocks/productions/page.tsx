@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { ChefHat, Loader2, Play, Info } from 'lucide-react'
-import { getProductsWithRecipes, produceProductAction, getProductionHistory } from '@/app/actions/production'
+import { getProductsWithRecipes, produceProductAction, getProductionHistory } from '@/app/actions/inventory/production'
 import { CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 export default function ProductionsPage() {

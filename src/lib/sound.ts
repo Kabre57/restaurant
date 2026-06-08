@@ -2,6 +2,10 @@
 
 import { logger } from '@/lib/logger'
 
+type WindowWithWebkitAudio = Window & {
+  webkitAudioContext?: typeof AudioContext
+}
+
 /**
  * Génère des sons de notification d'interface de manière synthétique avec l'AudioContext du navigateur.
  * Fonctionne parfaitement hors-ligne, sans requérir de fichiers MP3 physiques ou d'actifs distants.
@@ -10,7 +14,7 @@ export function playNotificationSound(type: 'info' | 'success' | 'warning' = 'in
   if (typeof window === 'undefined') return
 
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+    const AudioContextClass = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext
     if (!AudioContextClass) return
 
     const ctx = new AudioContextClass()

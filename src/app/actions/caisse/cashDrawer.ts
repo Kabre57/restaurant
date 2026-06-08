@@ -1,13 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/db'
-import { ShiftStatus, OperationType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 function safeRevalidatePath(path: string) {
   try {
     revalidatePath(path)
-  } catch (e) {
+  } catch {
     // Ignorer l'erreur hors du contexte Next.js (ex: scripts de test ou tâches CLI)
   }
 }

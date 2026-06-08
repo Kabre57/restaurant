@@ -18,8 +18,8 @@ import {
   createPhysicalInventory, 
   updatePhysicalCount, 
   completePhysicalInventory 
-} from '@/app/actions/physicalInventory';
-import { getProductsByStore } from '@/app/actions/products';
+} from '@/app/actions/inventory/physicalInventory';
+import { getProductsByStore } from '@/app/actions/catalog/products';
 import { CrudTable, CrudStatus, CrudPrimaryButton } from '@/components/ui/ParabellumCrudTable';
 
 type Product = {

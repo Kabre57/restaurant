@@ -20,8 +20,11 @@ const BILL_DEFINITIONS = [
   { value: 2000, label: '2 000', color: 'from-[#5F3EA1] to-[#42257A]', textColor: 'text-[#eebefa]', bgLight: 'bg-[#5F3EA1]/10' },
   { value: 5000, label: '5 000', color: 'from-[#1E8A5F] to-[#125A3C]', textColor: 'text-[#b2f2bb]', bgLight: 'bg-[#1E8A5F]/10' },
   { value: 10000, label: '10 000', color: 'from-[#2B6CB0] to-[#1A446C]', textColor: 'text-[#bee3f8]', bgLight: 'bg-[#2B6CB0]/10' },
-  { value: 20000, label: '20 000', color: 'from-[#D69E2E] to-[#976D15]', textColor: 'text-[#fef3c7]', bgLight: 'bg-[#D69E2E]/10' },
 ]
+
+function createBillSelectionId(value: number) {
+  return `${value}-${Date.now()}-${Math.random()}`
+}
 
 export function PaymentPanel({
   total,
@@ -63,7 +66,7 @@ export function PaymentPanel({
   const handleAddBill = (value: number) => {
     if (manualAmount) setManualAmount('') // réinitialise le mode manuel si on clique sur un billet
     const newBill = {
-      id: `${value}-${Date.now()}-${Math.random()}`,
+      id: createBillSelectionId(value),
       value,
     }
     setSelectedBills((prev) => [...prev, newBill])

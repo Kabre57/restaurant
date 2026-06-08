@@ -1,16 +1,22 @@
 import React from 'react'
 import { prisma } from '@/lib/db'
 import { ShoppingBag, Clock, CheckCircle2, AlertCircle, Search } from 'lucide-react'
+import { cookies } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminOrdersPage() {
+  const cookieStore = await cookies()
+  const activeStoreId = cookieStore.get('admin_active_store_id')?.value
+  const where = activeStoreId ? { storeId: activeStoreId } : undefined
+
   // Fetch real order metrics from database
   const [totalOrdersCount, pendingOrdersCount, completedOrdersCount, orders] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.count({ where: { status: 'EN_ATTENTE' } }),
-    prisma.order.count({ where: { status: 'COMPLETED' } }),
+    prisma.order.count({ where }),
+    prisma.order.count({ where: { ...where, status: 'EN_ATTENTE' } }),
+    prisma.order.count({ where: { ...where, status: 'COMPLETED' } }),
     prisma.order.findMany({
+      where,
       take: 20,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -154,7 +160,7 @@ export default async function AdminOrdersPage() {
                       </span>
                     </td>
                     <td className="py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest F CFA {
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                         order.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                         order.status === 'EN_ATTENTE' ? 'bg-amber-100 text-amber-700' :
                         order.status === 'PREPARATION' ? 'bg-blue-100 text-blue-700' :

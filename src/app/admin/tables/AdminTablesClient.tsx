@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import { QrCode, Plus, Trash2, LayoutGrid, CheckCircle, ShieldAlert, X, Users, ExternalLink, Copy } from 'lucide-react'
-import { createTable, deleteTable } from '@/app/actions/tables'
+import { Plus, Trash2, LayoutGrid, CheckCircle, ShieldAlert, X, Users, ExternalLink, Copy } from 'lucide-react'
+import { createTable, deleteTable } from '@/app/actions/store/tables'
 
 interface TableItem {
   id: string
@@ -24,11 +24,12 @@ interface Props {
   totalCount: number
   occupiedCount: number
   storeOptions: { id: string; name: string }[]
+  activeStoreId?: string
 }
 
-export default function AdminTablesClient({ groups, totalCount, occupiedCount, storeOptions }: Props) {
+export default function AdminTablesClient({ groups, totalCount, occupiedCount, storeOptions, activeStoreId }: Props) {
   const [showForm, setShowForm] = useState(false)
-  const [selectedStore, setSelectedStore] = useState(storeOptions[0]?.id || '')
+  const [selectedStore, setSelectedStore] = useState(activeStoreId || storeOptions[0]?.id || '')
   const [tableNumber, setTableNumber] = useState('')
   const [capacity, setCapacity] = useState('4')
   const [error, setError] = useState('')
@@ -63,12 +64,12 @@ export default function AdminTablesClient({ groups, totalCount, occupiedCount, s
   }
 
   const getMenuUrl = (storeId: string, tableNumber: number) =>
-    `F CFA {typeof window !== 'undefined' ? window.location.origin : ''}/menu/F CFA {storeId}/F CFA {tableNumber}`
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/menu/${storeId}/${tableNumber}`
 
   const copyUrl = (storeId: string, tableNumber: number) => {
     const url = getMenuUrl(storeId, tableNumber)
     navigator.clipboard.writeText(url)
-    setCopied(`F CFA {storeId}-F CFA {tableNumber}`)
+    setCopied(`${storeId}-${tableNumber}`)
     setTimeout(() => setCopied(null), 2000)
   }
 
@@ -217,8 +218,8 @@ export default function AdminTablesClient({ groups, totalCount, occupiedCount, s
               <h2 className="text-base font-black text-black mb-6">{group.storeName}</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {group.items.map((table) => {
-                  const menuUrl = `/menu/F CFA {group.storeId}/F CFA {table.number}`
-                  const copyKey = `F CFA {group.storeId}-F CFA {table.number}`
+                  const menuUrl = `/menu/${group.storeId}/${table.number}`
+                  const copyKey = `${group.storeId}-${table.number}`
                   return (
                     <div
                       key={table.id}
@@ -233,7 +234,7 @@ export default function AdminTablesClient({ groups, totalCount, occupiedCount, s
                             <span className="text-[9px] font-bold text-[#868e96]">{table.capacity} pers.</span>
                           </div>
                         </div>
-                        <span className={`flex h-2.5 w-2.5 rounded-full F CFA {table.status === 'OCCUPIED' ? 'bg-[#FF6D00]' : 'bg-green-500'}`} />
+                        <span className={`flex h-2.5 w-2.5 rounded-full ${table.status === 'OCCUPIED' ? 'bg-[#FF6D00]' : 'bg-green-500'}`} />
                       </div>
 
                       {/* QR link */}

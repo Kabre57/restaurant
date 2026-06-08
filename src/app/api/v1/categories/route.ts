@@ -1,30 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db'
-import { validateApiToken } from '@/lib/api-auth';
+import { readApiTokenFromRequest, validateApiToken } from '@/lib/api-auth';
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization") ?? "";
-    const apiKeyHeader = request.headers.get("x-api-key") ?? "";
-    let token = authHeader.replace("Bearer ", "").trim();
-    if (!token && apiKeyHeader) {
-      token = apiKeyHeader.trim();
-    }
-
-    const isValid = await validateApiToken(token);
-    if (!isValid) {
+    const tokenContext = await validateApiToken(readApiTokenFromRequest(request));
+    if (!tokenContext) {
       return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const storeId = searchParams.get('storeId');
-
-    if (!storeId) {
-      return NextResponse.json({ error: 'Store ID is required' }, { status: 400 });
-    }
-
     const categories = await prisma.category.findMany({
-      where: { storeId },
+      where: { storeId: tokenContext.storeId },
       orderBy: { name: 'asc' },
     });
 
@@ -40,7 +26,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function OPTIONS(request: Request) {
+export async function OPTIONS() {
   return new Response(null, {
     status: 204,
     headers: {

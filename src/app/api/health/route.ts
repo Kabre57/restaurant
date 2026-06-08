@@ -4,8 +4,25 @@ import { redis } from '@/lib/redis'
 
 export const dynamic = 'force-dynamic'
 
+type ServiceStatus = 'UP' | 'DOWN'
+
+interface HealthStatus {
+  status: 'UP' | 'DEGRADED'
+  timestamp: string
+  services: {
+    database: ServiceStatus
+    redis: ServiceStatus
+    databaseError?: string
+    redisError?: string
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export async function GET() {
-  const status: Record<string, any> = {
+  const status: HealthStatus = {
     status: 'UP',
     timestamp: new Date().toISOString(),
     services: {
@@ -20,9 +37,9 @@ export async function GET() {
   try {
     await prisma.$executeRawUnsafe('SELECT 1')
     status.services.database = 'UP'
-  } catch (error: any) {
+  } catch (error: unknown) {
     status.services.database = 'DOWN'
-    status.services.databaseError = error.message || String(error)
+    status.services.databaseError = getErrorMessage(error)
     hasError = true
   }
 
@@ -30,9 +47,9 @@ export async function GET() {
   try {
     await redis.get('health_ping')
     status.services.redis = 'UP'
-  } catch (error: any) {
+  } catch (error: unknown) {
     status.services.redis = 'DOWN'
-    status.services.redisError = error.message || String(error)
+    status.services.redisError = getErrorMessage(error)
     hasError = true
   }
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Save, Loader2, CheckCircle2, ArrowLeft, UtensilsCrossed, Monitor } from 'lucide-react'
-import { getStoreSettings, updateStoreSettings } from '@/app/actions/storeSettings'
+import { getStoreSettings, updateStoreSettings } from '@/app/actions/store/storeSettings'
 import { WorkflowType } from '@prisma/client'
 
 export default function WorkflowConfigPage() {

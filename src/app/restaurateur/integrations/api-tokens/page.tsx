@@ -17,7 +17,7 @@ import {
   generateTokenAction,
   listTokensAction,
   revokeTokenAction,
-} from '@/app/actions/apiTokens'
+} from '@/app/actions/auth/apiTokens'
 
 interface ApiTokenItem {
   id: string

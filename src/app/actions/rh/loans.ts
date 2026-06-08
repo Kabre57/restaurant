@@ -1,14 +1,23 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+
+type LoanPayload = {
+  userId: string
+  type: string
+  amount: string | number
+  monthlyDeduction?: string | number
+  reason?: string
+}
 
 export async function getLoans(userId?: string) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
-    const whereClause: any = { user: { storeId } }
+    const whereClause: Prisma.LoanWhereInput = { user: { storeId } }
     if (userId) {
       whereClause.userId = userId
     }
@@ -29,8 +38,8 @@ export async function getLoans(userId?: string) {
   }
 }
 
-export async function createLoan(data: any) {
-  const { storeId, userId: approverUserId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+export async function createLoan(data: LoanPayload) {
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
     // Vérifier que l'employé cible appartient au store
@@ -41,7 +50,7 @@ export async function createLoan(data: any) {
     if (!targetUser) return { success: false, error: 'Employé introuvable.' }
     assertSameStore(targetUser.storeId, storeId, "Employé")
 
-    const amount = parseFloat(data.amount)
+    const amount = parseFloat(String(data.amount))
 
     // Validation du montant : plafond à 3x le salaire mensuel
     if (targetUser.salary && amount > targetUser.salary * 3) {
@@ -53,7 +62,7 @@ export async function createLoan(data: any) {
         userId: data.userId,
         type: data.type,
         amount: amount,
-        monthlyDeduction: parseFloat(data.monthlyDeduction || data.amount),
+        monthlyDeduction: parseFloat(String(data.monthlyDeduction || data.amount)),
         reason: data.reason,
         status: 'PENDING'
       }
@@ -78,7 +87,7 @@ export async function updateLoanStatus(id: string, status: string) {
     if (!existing) return { success: false, error: 'Prêt/avance introuvable.' }
     assertSameStore(existing.user.storeId, storeId, "Prêt/Avance")
 
-    const updateData: any = { status }
+    const updateData: Prisma.LoanUpdateInput = { status }
     if (status === 'APPROVED') {
       updateData.approvedBy = approverUserId
       updateData.approvedAt = new Date()

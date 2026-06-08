@@ -21,8 +21,8 @@ import {
   getPurchaseOrders, 
   createPurchaseOrder, 
   receivePurchaseOrder 
-} from '@/app/actions/purchaseOrders';
-import { getProductsByStore } from '@/app/actions/products';
+} from '@/app/actions/inventory/purchaseOrders';
+import { getProductsByStore } from '@/app/actions/catalog/products';
 import { CrudTable, CrudStatus, CrudPrimaryButton } from '@/components/ui/ParabellumCrudTable';
 
 type Supplier = {

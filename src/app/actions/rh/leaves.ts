@@ -1,14 +1,24 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+
+type LeaveRequestPayload = {
+  userId: string
+  type: string
+  startDate: string | Date
+  endDate: string | Date
+  daysCount: string | number
+  reason?: string
+}
 
 export async function getLeaveRequests(userId?: string) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
-    const whereClause: any = { user: { storeId } }
+    const whereClause: Prisma.LeaveRequestWhereInput = { user: { storeId } }
     if (userId) {
       whereClause.userId = userId
     }
@@ -29,7 +39,7 @@ export async function getLeaveRequests(userId?: string) {
   }
 }
 
-export async function createLeaveRequest(data: any) {
+export async function createLeaveRequest(data: LeaveRequestPayload) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
@@ -47,7 +57,7 @@ export async function createLeaveRequest(data: any) {
         type: data.type,
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
-        daysCount: parseInt(data.daysCount, 10),
+        daysCount: parseInt(String(data.daysCount), 10),
         reason: data.reason,
         status: 'PENDING'
       }
@@ -72,7 +82,7 @@ export async function updateLeaveRequestStatus(id: string, status: string, comme
     if (!existing) return { success: false, error: 'Demande de congé introuvable.' }
     assertSameStore(existing.user.storeId, storeId, "Demande de congé")
 
-    const updateData: any = { status }
+    const updateData: Prisma.LeaveRequestUpdateInput = { status }
     if (status === 'APPROVED') {
       updateData.approvedBy = approverUserId // ✅ Utilise l'ID de session, pas un paramètre client
       updateData.approvedAt = new Date()

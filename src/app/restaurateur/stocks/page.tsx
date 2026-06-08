@@ -11,11 +11,11 @@ import {
   Loader2,
   Package2
 } from 'lucide-react'
-import { getProductsByStore } from '@/app/actions/products'
+import { getProductsByStore } from '@/app/actions/catalog/products'
 import {
   getInventoryByStore,
   getAllIngredients
-} from '@/app/actions/inventory'
+} from '@/app/actions/inventory/inventory'
 import { useSession } from 'next-auth/react'
 
 // Modular Tabs import

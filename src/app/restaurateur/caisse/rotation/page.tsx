@@ -23,7 +23,7 @@ import {
   getActiveShift,
   openShift,
   getShiftHistory,
-} from '@/app/actions/cashDrawer'
+} from '@/app/actions/caisse/cashDrawer'
 import PayInOutModal from '@/components/restaurateur/PayInOutModal'
 import CloseShiftModal from '@/components/restaurateur/CloseShiftModal'
 

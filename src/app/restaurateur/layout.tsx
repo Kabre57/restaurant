@@ -5,8 +5,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { getStoreDetails } from '@/app/actions/stores'
-import { getStoreSettings } from '@/app/actions/storeSettings'
+import { getStoreDetails } from '@/app/actions/store/stores'
+import { getStoreSettings } from '@/app/actions/store/storeSettings'
 import {
   Store,
   UtensilsCrossed,
@@ -26,13 +26,11 @@ import {
   LifeBuoy,
   ChevronDown,
   ChevronRight,
-  Briefcase,
   FileText,
   DollarSign,
   Calendar,
   CreditCard,
   Star,
-  PlusSquare,
   Coins,
   Key,
   SlidersHorizontal,
@@ -62,8 +60,7 @@ const menuItems = [
     subItems: [
       { name: 'Articles', href: '/restaurateur/produits', icon: <UtensilsCrossed />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Catégories', href: '/restaurateur/categories', icon: <Layers />, roles: ['RESTAURATEUR', 'MANAGER'] },
-      { name: 'Suppléments', href: '/restaurateur/supplements', icon: <PlusSquare />, roles: ['RESTAURATEUR', 'MANAGER'] },
-      { name: 'Modificateurs', href: '/restaurateur/modificateurs', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Modificateurs', href: '/restaurateur/supplements', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Réductions', href: '/restaurateur/reductions', icon: <Tag />, roles: ['RESTAURATEUR', 'MANAGER'] }
     ]
   },
@@ -91,15 +88,14 @@ const menuItems = [
   {
     name: 'Personnel & RH',
     icon: <Users />,
-    href: '/restaurateur/staff-rh',
+    href: '/restaurateur/rh/dashboard',
     roles: ['ALL'],
     subItems: [
-      { name: 'Employés', href: '/restaurateur/staff', icon: <Users />, roles: ['RESTAURATEUR', 'MANAGER'] },
+      { name: 'Employés', href: '/restaurateur/rh/effectifs', icon: <Users />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Droits d\'accès', href: '/restaurateur/staff/rights', icon: <Key />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Présences', href: '/restaurateur/staff/presence', icon: <FileText />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Heures de travail', href: '/restaurateur/staff/hours', icon: <Clock />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Dashboard RH', href: '/restaurateur/rh/dashboard', icon: <LayoutGrid />, roles: ['RESTAURATEUR', 'MANAGER'] },
-      { name: 'Effectifs', href: '/restaurateur/rh/effectifs', icon: <Briefcase />, roles: ['RESTAURATEUR', 'MANAGER'] },
       { name: 'Mes Contrats', href: '/restaurateur/rh/contrats', icon: <FileText />, roles: ['ALL'] },
       { name: 'Mes Bulletins', href: '/restaurateur/rh/paie', icon: <DollarSign />, roles: ['ALL'] },
       { name: 'Mes Congés', href: '/restaurateur/rh/conges', icon: <Calendar />, roles: ['ALL'] },

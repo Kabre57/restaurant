@@ -5,28 +5,21 @@ import React from 'react'
 import { LayoutGrid, Trash2, X, ChevronRight } from 'lucide-react'
 import { CartItem } from './CartItem'
 import { Button } from '@/components/ui/Button'
+import type { CartItem as CartItemData } from '@/store/useCart'
 import type { OrderFlowMode } from '../lib/pos-helpers'
 
 interface CartProps {
   orderId: number
   orderFlowMode: OrderFlowMode
   selectedTableNumber?: number | null
-  items: {
-    id: string
-    productId: string
-    name: string
-    price: number
-    quantity: number
-    options?: string
-    image?: string | null
-  }[]
+  items: CartItemData[]
   isProcessing: boolean
   subtotal: number
   tax: number
   total: number
   onClearCart: () => void
-  onAddItem: (item: any) => void
-  onSubItem: (item: any) => void
+  onAddItem: (item: CartItemData) => void
+  onSubItem: (item: CartItemData) => void
   onEditOptions: (itemId: string) => void
   onCheckout: () => void
   onClose?: () => void

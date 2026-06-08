@@ -81,7 +81,7 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
       revalidatePath('/restaurateur/config/arrondis')
       revalidatePath('/restaurateur/config/recus')
       revalidatePath('/restaurateur/config/workflow')
-    } catch (e) {
+    } catch {
       // Ignorer l'invariant lors de l'exécution hors de Next.js (ex: scripts de test ou tâches CLI)
     }
 

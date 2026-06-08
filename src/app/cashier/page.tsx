@@ -1,9 +1,9 @@
-import { getCategories, getProductsByStore } from "@/app/actions/products";
-import { getTablesByStore } from "@/app/actions/tables";
-import { getReservationsByStore } from "@/app/actions/reservations";
-import { getActiveOrders } from "@/app/actions/orders";
-import { getActiveShift } from "@/app/actions/cashDrawer";
-import { getStoreSettings } from "@/app/actions/storeSettings";
+import { getCategories, getProductsByStore } from "@/app/actions/catalog/products";
+import { getTablesByStore } from "@/app/actions/store/tables";
+import { getReservationsByStore } from "@/app/actions/clients/reservations";
+import { getActiveOrders } from "@/app/actions/orders/orders";
+import { getActiveShift } from "@/app/actions/caisse/cashDrawer";
+import { getStoreSettings } from "@/app/actions/store/storeSettings";
 import POSClient from "@/components/pos/POSClient";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";

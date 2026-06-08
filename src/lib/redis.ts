@@ -73,7 +73,7 @@ const memClient: RedisLike = {
   // duplicate() en fallback mémoire retourne soi-même (connexion unique partagée)
   duplicate()                  { return memClient; },
   disconnect()                 { /* no-op en mode mémoire */ },
-  on(_event: string, _listener: (...args: unknown[]) => void): RedisLike { return memClient; },
+  on(): RedisLike { return memClient; },
   async del(key) {
     if (memStore.has(key)) {
       memStore.delete(key);
@@ -103,11 +103,8 @@ function tryLoadRedis(): RedisLike {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __redis: RedisLike | undefined;
-  // eslint-disable-next-line no-var
   var __redisPub: RedisLike | undefined;
-  // eslint-disable-next-line no-var
   var __redisSub: RedisLike | undefined;
 }
 

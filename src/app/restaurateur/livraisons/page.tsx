@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Truck, Clock, Plus, Loader2, User, Phone, Package } from 'lucide-react'
-import { getOrdersForDelivery, getDeliveryPeople, assignDelivery, createDeliveryPerson } from '@/app/actions/delivery'
+import { getOrdersForDelivery, getDeliveryPeople, assignDelivery, createDeliveryPerson } from '@/app/actions/livraisons/delivery'
 import { useSession } from 'next-auth/react'
 import { AlertModal } from '@/components/pos/subcomponents/AlertModal'
 

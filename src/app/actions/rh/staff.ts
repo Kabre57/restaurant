@@ -1,6 +1,6 @@
 'use server'
 
-import { Role } from '@prisma/client'
+import { Prisma, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
@@ -66,9 +66,9 @@ export async function createStaffMember(data: {
     })
     
     return { success: true, user: { id: user.id, name: user.name, email: user.email } }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to create staff:", error)
-    if (error.code === 'P2002') return { success: false, error: "Cet email est déjà utilisé" }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { success: false, error: "Cet email est déjà utilisé" }
     return { success: false, error: "Erreur lors de la création du membre du personnel" }
   }
 }
@@ -87,9 +87,9 @@ export async function deleteStaffMember(userId: string) {
       where: { id: userId }
     })
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to delete staff:", error)
-    if (error.code === 'P2003') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       return { success: false, error: "Impossible: Ce collaborateur est lié à l'historique des commandes et ne peut être supprimé." }
     }
     return { success: false, error: "Erreur lors de la suppression" }
@@ -116,13 +116,19 @@ export async function updateStaffMember(userId: string, data: {
       assertSameStore(existing.storeId, authStoreId)
     }
 
-    const updateData: any = { ...data }
-    delete updateData.storeId
+    const updateData: Prisma.UserUpdateInput = {
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      salary: data.salary,
+      contractType: data.contractType,
+      hireDate: data.hireDate,
+      phone: data.phone,
+      status: data.status,
+    }
     
-    if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, 10)
-    } else {
-      delete updateData.password
+    if (data.password) {
+      updateData.password = await bcrypt.hash(data.password, 10)
     }
 
     const user = await prisma.user.update({
@@ -131,9 +137,9 @@ export async function updateStaffMember(userId: string, data: {
     })
     
     return { success: true, user: { id: user.id, name: user.name, email: user.email } }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to update staff:", error)
-    if (error.code === 'P2002') return { success: false, error: "Cet email est déjà utilisé" }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { success: false, error: "Cet email est déjà utilisé" }
     return { success: false, error: "Erreur lors de la mise à jour" }
   }
 }

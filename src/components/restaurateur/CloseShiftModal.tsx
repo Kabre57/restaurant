@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Lock, X, AlertTriangle, CheckCircle, Scale } from 'lucide-react'
-import { closeShift } from '@/app/actions/cashDrawer'
+import { closeShift } from '@/app/actions/caisse/cashDrawer'
 
 interface ShiftOperation {
   id: string

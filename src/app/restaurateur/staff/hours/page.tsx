@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Loader2, TrendingUp, Calendar, Clock, BarChart2, ShieldAlert, Award } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getHoursWorkedReport } from '@/app/actions/timecards'
+import { getHoursWorkedReport } from '@/app/actions/rh/timecards'
 import { CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 type HoursWorkedItem = {

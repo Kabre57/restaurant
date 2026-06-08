@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   ChevronDown
 } from 'lucide-react'
-import { getSalesReport, getGlobalStats, getPendingValidations } from '@/app/actions/admin'
+import { getSalesReport, getGlobalStats, getPendingValidations } from '@/app/actions/analytics/admin'
 
 type GlobalStats = {
   orderCount: number

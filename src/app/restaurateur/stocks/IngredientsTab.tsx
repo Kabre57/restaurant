@@ -6,7 +6,7 @@ import {
   updateInventory,
   createIngredient,
   deleteInventory
-} from '@/app/actions/inventory'
+} from '@/app/actions/inventory/inventory'
 
 type IngredientInventory = {
   id: string

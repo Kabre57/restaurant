@@ -9,7 +9,7 @@ import { orderCreateSchema, formatZodError } from "@/lib/validation/schemas";
 import { checkRateLimit, rateLimitKey, rateLimitResponse } from "@/lib/rate-limit";
 
 // ─── Helper : récupère et vérifie la session ───────────────
-async function requireSession(req: NextRequest) {
+async function requireSession() {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return {
@@ -43,16 +43,16 @@ function requireStoreAccess(
 // ── GET /api/orders?restaurantId=xxx&status=PENDING ───────
 export async function GET(req: NextRequest) {
   // 1. Auth
-  const { session, error } = await requireSession(req);
+  const { session, error } = await requireSession();
   if (error) return error;
 
   const { searchParams } = req.nextUrl;
-  const restaurantId = searchParams.get("restaurantId") ?? (session!.user as any).storeId;
+  const restaurantId = searchParams.get("restaurantId") ?? session!.user.storeId;
   const status       = searchParams.get("status") as OrderStatus | null;
 
   // 2. Isolation tenant
-  const storeId = (session!.user as any).storeId as string;
-  const role    = (session!.user as any).role as string;
+  const storeId = session!.user.storeId;
+  const role    = session!.user.role;
   const accessError = requireStoreAccess(storeId, restaurantId, role);
   if (accessError) return accessError;
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. Auth
-  const { session, error } = await requireSession(req);
+  const { session, error } = await requireSession();
   if (error) return error;
 
   // 2. Parse + validation Zod
@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
   const data = parsed.data;
 
   // 3. Isolation tenant
-  const sessionStoreId = (session!.user as any).storeId as string;
-  const role           = (session!.user as any).role as string;
+  const sessionStoreId = session!.user.storeId;
+  const role           = session!.user.role;
   const accessError = requireStoreAccess(sessionStoreId, data.storeId, role);
   if (accessError) return accessError;
 
@@ -125,4 +125,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { Search, AlertCircle, Save, Loader2 } from 'lucide-react'
-import { updateProduct } from '@/app/actions/products'
+import { updateProduct } from '@/app/actions/catalog/products'
 
 type StockProduct = {
   id: string

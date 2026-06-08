@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { IngMvtReason } from '@prisma/client'
-import { deleteInventory } from '@/app/actions/inventory'
+import { deleteInventory } from '@/app/actions/inventory/inventory'
 import { 
   transferStockAction, 
   adjustStockAction, 
   getInventoryValuationReport, 
   getIngredientMovements,
   updateIngredientPrices
-} from '@/app/actions/inventory'
+} from '@/app/actions/inventory/inventory'
 
 export type InventoryData = {
   id: string

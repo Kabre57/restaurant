@@ -3,10 +3,12 @@
 import { prisma } from '@/lib/db'
 import { DiscountType } from '@prisma/client'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+import { revalidatePath } from 'next/cache'
 
-export async function getPromotions() {
+export async function getPromotions(storeId?: string) {
   const { storeId: authStoreId, role } = await requireAuth()
-  const where = role === "ADMIN" ? {} : { storeId: authStoreId }
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+  const where = targetStoreId ? { storeId: targetStoreId } : {}
 
   try {
     return await prisma.promotion.findMany({
@@ -39,7 +41,29 @@ export async function createPromotion(data: {
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
   const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
 
+  if (!finalStoreId) {
+    return { success: false, error: "Restaurant cible requis." }
+  }
+
   try {
+    if (data.applicableTo === "CATEGORY" && data.applicableId) {
+      const category = await prisma.category.findUnique({
+        where: { id: data.applicableId },
+        select: { storeId: true },
+      })
+      if (!category) return { success: false, error: "Catégorie cible introuvable." }
+      assertSameStore(category.storeId, finalStoreId, "Catégorie")
+    }
+
+    if (data.applicableTo === "PRODUCT" && data.applicableId) {
+      const product = await prisma.product.findUnique({
+        where: { id: data.applicableId },
+        select: { storeId: true },
+      })
+      if (!product) return { success: false, error: "Produit cible introuvable." }
+      assertSameStore(product.storeId, finalStoreId, "Produit")
+    }
+
     const promotion = await prisma.promotion.create({
       data: {
         code: data.code.toUpperCase(),
@@ -58,6 +82,8 @@ export async function createPromotion(data: {
         daysOfWeek: data.daysOfWeek || [],
       }
     })
+    revalidatePath('/admin/promotions')
+    revalidatePath('/restaurateur/reductions')
     return { success: true, promotion }
   } catch (error) {
     console.error("Failed to create promotion:", error)
@@ -78,6 +104,8 @@ export async function deletePromotion(id: string) {
     await prisma.promotion.delete({
       where: { id }
     })
+    revalidatePath('/admin/promotions')
+    revalidatePath('/restaurateur/reductions')
     return { success: true }
   } catch (error) {
     console.error("Failed to delete promotion:", error)
@@ -99,6 +127,8 @@ export async function togglePromotionStatus(id: string, isActive: boolean) {
       where: { id },
       data: { isActive }
     })
+    revalidatePath('/admin/promotions')
+    revalidatePath('/restaurateur/reductions')
     return { success: true, promotion }
   } catch (error) {
     console.error("Failed to toggle promotion status:", error)

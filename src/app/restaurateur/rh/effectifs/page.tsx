@@ -1,19 +1,23 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit3, Loader2, AlertCircle, Search, Mail, Phone, MapPin, Building, Briefcase } from 'lucide-react'
-import { getEmployees, deleteEmployee, EmployeeData } from '@/app/actions/rh/employees'
+import { Plus, Trash2, Edit3, Loader2, AlertCircle, Mail, Phone, Building, Briefcase } from 'lucide-react'
+import { getEmployees, deleteEmployee } from '@/app/actions/rh/employees'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { EmployeeModal } from '@/components/rh/EmployeeModal'
 
+type EmployeeRecord = Awaited<ReturnType<typeof getEmployees>> extends { employees?: Array<infer Employee> }
+  ? Employee
+  : never
+
 export default function EffectifsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [employees, setEmployees] = useState<any[]>([])
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [editingEmployee, setEditingEmployee] = useState<any | null>(null)
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [errorModal, setErrorModal] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -66,15 +70,15 @@ export default function EffectifsPage() {
     const id = deleteTarget
     setDeleteTarget(null)
     const res = await deleteEmployee(id)
-    if (res.success) loadData()
+    if (res.success) void loadData()
     else setErrorModal(res.error || "Erreur lors de la suppression")
   }
 
   const visibleEmployees = employees.filter((emp) => {
     const query = search.toLowerCase()
     const matchesSearch = 
-      emp.name?.toLowerCase().includes(query) || 
-      emp.email?.toLowerCase().includes(query) ||
+      emp.name.toLowerCase().includes(query) ||
+      emp.email.toLowerCase().includes(query) ||
       emp.matricule?.toLowerCase().includes(query) ||
       emp.role?.toLowerCase().includes(query)
       
@@ -211,7 +215,7 @@ export default function EffectifsPage() {
           onClose={() => setShowModal(false)}
           onSuccess={() => {
             setShowModal(false)
-            loadData()
+            void loadData()
           }}
         />
       )}

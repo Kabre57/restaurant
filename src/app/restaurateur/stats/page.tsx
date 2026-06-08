@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { getStoreOrders } from '@/app/actions/orders'
+import { getStoreOrders } from '@/app/actions/orders/orders'
 import { useSession } from 'next-auth/react'
 import {
   Loader2,

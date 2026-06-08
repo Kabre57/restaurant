@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { X, Loader2, Check } from 'lucide-react'
-import { createCustomer } from '@/app/actions/clients'
+import { createCustomer } from '@/app/actions/clients/clients'
 
 interface Props {
   onClose: () => void

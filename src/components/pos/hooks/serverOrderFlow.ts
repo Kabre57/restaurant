@@ -1,5 +1,5 @@
 import type { Table } from '@prisma/client'
-import { addItemsToOrder, createOrder } from '@/app/actions/orders'
+import { addItemsToOrder, createOrder } from '@/app/actions/orders/orders'
 import { addOrderToSyncQueue } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
 import { createClientRequestId } from '../lib/pos-helpers'

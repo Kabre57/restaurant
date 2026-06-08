@@ -4,10 +4,10 @@
 import { useState } from 'react'
 import type { Table } from '@prisma/client'
 
-import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders'
-import { searchCustomer, validatePromotion } from '@/app/actions/loyalty'
-import { getRoundedTotal } from '@/app/actions/storeSettings'
-import { getPaymentMethods } from '@/app/actions/paymentMethods'
+import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders/orders'
+import { searchCustomer, validatePromotion } from '@/app/actions/clients/loyalty'
+import { getRoundedTotal } from '@/app/actions/store/storeSettings'
+import { getPaymentMethods } from '@/app/actions/orders/paymentMethods'
 import { addOrderToSyncQueue } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
@@ -46,6 +46,10 @@ type UsePOSCheckoutOptions = {
   operatorRole?: POSOperatorRole
 }
 
+function createBillSelectionId(value: number) {
+  return `${value}-${Date.now()}-${Math.random()}`
+}
+
 export function usePOSCheckout({
   cashierId,
   storeId,
@@ -72,7 +76,7 @@ export function usePOSCheckout({
   useState(() => {
     getPaymentMethods(storeId).then((res) => {
       if (res.success && res.methods) {
-        setPaymentMethods(res.methods as any[])
+        setPaymentMethods(res.methods)
       }
     })
   })
@@ -165,7 +169,7 @@ export function usePOSCheckout({
 
   const handleAddBill = (value: number) => {
     const newBill = {
-      id: `${value}-${Date.now()}-${Math.random()}`,
+      id: createBillSelectionId(value),
       value,
     }
     const newBills = [...selectedBills, newBill]

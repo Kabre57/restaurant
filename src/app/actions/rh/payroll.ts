@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { calculateIvoryCoastSalary } from '@/lib/rh/ivoryCoastTax'
@@ -9,7 +10,7 @@ export async function getPayrolls(userId?: string) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
-    const whereClause: any = { user: { storeId } }
+    const whereClause: Prisma.PayrollWhereInput = { user: { storeId } }
     if (userId) {
       whereClause.userId = userId
     }

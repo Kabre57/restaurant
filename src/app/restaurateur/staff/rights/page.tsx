@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Shield, ShieldAlert, RefreshCw, Loader2, Sun, Moon } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getRolePermissions, updateRolePermission, resetRolePermissions } from '@/app/actions/permissions'
+import { getRolePermissions, updateRolePermission, resetRolePermissions } from '@/app/actions/auth/permissions'
 import { PERMISSIONS_LIST } from '@/app/utils/permissions-config'
 import { Role } from '@prisma/client'
 

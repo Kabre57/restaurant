@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
 import { 
@@ -11,6 +12,10 @@ import {
 } from '@/lib/validation/schemas'
 
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
 
 export async function createProduct(data: { 
   name: string, 
@@ -87,35 +92,21 @@ export async function updateProduct(id: string, data: {
     const { categoryId, storeId, ...rest } = validatedData
     const finalStoreId = role === "ADMIN" ? (storeId || existing.storeId) : authStoreId
 
-    const updateData: any = {
+    const updateData: Prisma.ProductUpdateInput = {
       ...rest,
       ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
       store: { connect: { id: finalStoreId } }
     }
 
-    try {
-      const product = await prisma.product.update({
-        where: { id },
-        data: updateData
-      })
-      await redis.del(REDIS_KEYS.products(product.storeId))
-      return { success: true, product }
-    } catch (error: any) {
-      if (error.message.includes('Unknown argument')) {
-        // Fallback sans les champs problématiques (stock, storeId en scalaire)
-        const { trackStock, stockQuantity, minStockLevel, ...safeData } = updateData
-        const product = await prisma.product.update({
-          where: { id },
-          data: safeData
-        })
-        await redis.del(REDIS_KEYS.products(product.storeId))
-        return { success: true, product }
-      }
-      throw error
-    }
+    const product = await prisma.product.update({
+      where: { id },
+      data: updateData
+    })
+    await redis.del(REDIS_KEYS.products(product.storeId))
+    return { success: true, product }
   } catch (error) {
     console.error("Failed to update product:", error)
-    return { success: false, error: "Erreur lors de la mise à jour: " + (error as any).message }
+    return { success: false, error: "Erreur lors de la mise à jour: " + getErrorMessage(error, "Erreur inconnue") }
   }
 }
 
@@ -134,9 +125,9 @@ export async function deleteProduct(id: string) {
     })
     await redis.del(REDIS_KEYS.products(product.storeId))
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to delete product:", error)
-    if (error.code === 'P2003') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       return { success: false, error: "Impossible de supprimer ce produit car il est présent dans l'historique des commandes. Rendez-le 'Épuisé' à la place." }
     }
     return { success: false, error: "Erreur lors de la suppression" }
@@ -242,7 +233,7 @@ export async function updateCategory(id: string, data: { name?: string, imageUrl
     return { success: true, category }
   } catch (error) {
     console.error("Failed to update category:", error)
-    return { success: false, error: "Erreur lors de la mise à jour: " + (error as any).message }
+    return { success: false, error: "Erreur lors de la mise à jour: " + getErrorMessage(error, "Erreur inconnue") }
   }
 }
 
@@ -261,9 +252,9 @@ export async function deleteCategory(id: string) {
     })
     await redis.del(REDIS_KEYS.products(category.storeId))
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to delete category:", error)
-    if (error.code === 'P2003') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       return { success: false, error: "Impossible de supprimer cette catégorie car elle contient des produits." }
     }
     return { success: false, error: "Erreur lors de la suppression" }

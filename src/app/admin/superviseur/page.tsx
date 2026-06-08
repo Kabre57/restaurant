@@ -2,9 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Loader2, ShieldCheck, Store, UserCog, Wallet } from 'lucide-react'
-import { createSuperviseurAccount, getSuperviseurAccounts } from '@/app/actions/superviseur'
-import { getPendingValidations } from '@/app/actions/admin'
-import { getStores } from '@/app/actions/stores'
+import { createSuperviseurAccount, getSuperviseurAccounts } from '@/app/actions/superviseur/superviseur'
+import { getPendingValidations } from '@/app/actions/analytics/admin'
+import { getStores } from '@/app/actions/store/stores'
 
 type SuperviseurRow = Awaited<ReturnType<typeof getSuperviseurAccounts>>[number]
 type StoreRow = Awaited<ReturnType<typeof getStores>>[number]

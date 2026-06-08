@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma, Role } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
@@ -112,8 +113,7 @@ export async function createEmployee(data: EmployeeData) {
         name:     data.name.trim(),
         email:    data.email.trim().toLowerCase(),
         password: hashedPassword,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        role: (data.role as any) || 'CASHIER',
+        role: (data.role as Role | undefined) || Role.CASHIER,
 
         matricule:     data.matricule,
         civilite:      data.civilite,
@@ -152,7 +152,26 @@ export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
     if (!existing) return { success: false, error: 'Employé non trouvé.' }
     assertSameStore(existing.storeId, storeId, "Employé")
 
-    const updateData: any = { ...data }
+    const updateData: Prisma.UserUpdateInput = {
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role: data.role as Role | undefined,
+      matricule: data.matricule,
+      civilite: data.civilite,
+      sexe: data.sexe,
+      dateNaissance: data.dateNaissance,
+      nationalite: data.nationalite,
+      address: data.address,
+      phone: data.phone,
+      salary: data.salary,
+      contractType: data.contractType,
+      hireDate: data.hireDate,
+      status: data.status,
+      cnpsNumber: data.cnpsNumber,
+      bankName: data.bankName,
+      bankAccount: data.bankAccount,
+    }
     
     if (data.email) {
       updateData.email = data.email.trim().toLowerCase()

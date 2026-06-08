@@ -99,7 +99,7 @@ export async function updateDeliveryStatus(deliveryPersonId: string, status: Del
       data: { status }
     })
     return { success: true }
-  } catch (error) {
+  } catch {
     return { success: false, error: "Erreur lors de la mise à jour du statut" }
   }
 }

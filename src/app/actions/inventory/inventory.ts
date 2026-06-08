@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { IngMvtReason } from '@prisma/client'
+import { IngMvtReason, Prisma } from '@prisma/client'
 import { 
   createIngredientSchema, 
   updateInventorySchema, 
@@ -132,7 +132,7 @@ export async function deleteInventory(id: string) {
 }
 
 export async function checkRecipeAvailability(
-  tx: any,
+  tx: Prisma.TransactionClient,
   storeId: string,
   productId: string,
   quantityNeeded: number,
@@ -197,7 +197,7 @@ export async function checkRecipeAvailability(
 }
 
 export async function deductRecipeIngredients(
-  tx: any,
+  tx: Prisma.TransactionClient,
   storeId: string,
   productId: string,
   quantityNeeded: number,
@@ -270,12 +270,12 @@ export async function deductRecipeIngredients(
   }
 }
 
-export async function decrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
+export async function decrementIngredientInventory(tx: Prisma.TransactionClient, storeId: string, productId: string, itemQuantity: number) {
   await deductRecipeIngredients(tx, storeId, productId, itemQuantity);
 }
 
 export async function incrementRecipeIngredients(
-  tx: any,
+  tx: Prisma.TransactionClient,
   storeId: string,
   productId: string,
   quantityToRestore: number,
@@ -329,7 +329,7 @@ export async function incrementRecipeIngredients(
   }
 }
 
-export async function incrementIngredientInventory(tx: any, storeId: string, productId: string, itemQuantity: number) {
+export async function incrementIngredientInventory(tx: Prisma.TransactionClient, storeId: string, productId: string, itemQuantity: number) {
   await incrementRecipeIngredients(tx, storeId, productId, itemQuantity);
 }
 

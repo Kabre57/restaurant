@@ -5,9 +5,10 @@ import { prisma } from '@/lib/db'
 import { adminCategorySchema } from '@/lib/validation/schemas'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 
-export async function getAdminCategories() {
+export async function getAdminCategories(storeId?: string) {
   const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
-  const where = role === "ADMIN" ? {} : { storeId: authStoreId }
+  const targetStoreId = role === "ADMIN" ? storeId : authStoreId
+  const where = targetStoreId ? { storeId: targetStoreId } : {}
 
   try {
     return await prisma.category.findMany({

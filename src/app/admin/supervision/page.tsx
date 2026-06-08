@@ -14,9 +14,9 @@ import {
   Search,
   PackageCheck
 } from 'lucide-react'
-import { getGlobalStats, getPendingValidations } from '@/app/actions/admin'
-import { getStores } from '@/app/actions/stores'
-import { getMultiSiteCriticalStocks, getRecentMultiSiteMovements } from '@/app/actions/superviseur'
+import { getGlobalStats, getPendingValidations } from '@/app/actions/analytics/admin'
+import { getStores } from '@/app/actions/store/stores'
+import { getMultiSiteCriticalStocks, getRecentMultiSiteMovements } from '@/app/actions/superviseur/superviseur'
 
 type GlobalStats = {
   orderCount: number

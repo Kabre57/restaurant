@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Trash2, X, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react'
-import { getCategories, createCategory, updateCategory, deleteCategory } from '@/app/actions/products'
+import { getCategories, createCategory, updateCategory, deleteCategory } from '@/app/actions/catalog/products'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
 import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudStatus, CrudTable } from '@/components/ui/ParabellumCrudTable'

@@ -1,13 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getStoreOrders } from '@/app/actions/orders'
+import { getStoreOrders } from '@/app/actions/orders/orders'
 import { useSession } from 'next-auth/react'
 import { Loader2, Receipt, Search, Filter, X, CreditCard, User, Clock, Trash2, Plus, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { cancelOrder, modifyOrder } from '@/app/actions/orderManagement'
-import { getProductsByStore } from '@/app/actions/products'
+import { cancelOrder, modifyOrder } from '@/app/actions/orders/orderManagement'
+import { getProductsByStore } from '@/app/actions/catalog/products'
 
 type OrderItem = {
   id: string

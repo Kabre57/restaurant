@@ -128,7 +128,7 @@ export async function getCategories(storeId?: string) {
       where,
       orderBy: { name: 'asc' } 
     })
-  } catch (error) {
+  } catch {
     return []
   }
 }
@@ -209,7 +209,7 @@ export async function updateProductStock(productId: string, quantity: number) {
     })
     revalidatePath('/restaurateur/produits')
     return { success: true, product }
-  } catch (error) {
+  } catch {
     return { success: false, error: "Erreur lors de la mise à jour du stock." }
   }
 }

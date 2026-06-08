@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { syncOrdersBatch } from '@/app/actions/orders'
+import { syncOrdersBatch } from '@/app/actions/orders/orders'
 import {
   clearSyncQueueItem,
   getCategoriesFromIDB,

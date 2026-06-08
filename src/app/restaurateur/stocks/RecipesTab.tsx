@@ -6,7 +6,7 @@ import {
   Search, Plus, Trash, Loader2, Save, BookOpen, Package2, Info, 
   ChevronUp, ChevronDown, ChefHat, Tag, ClipboardList, HelpCircle
 } from 'lucide-react'
-import { getProductRecipe, saveProductRecipe } from '@/app/actions/inventory'
+import { getProductRecipe, saveProductRecipe } from '@/app/actions/inventory/inventory'
 
 type StockProduct = {
   id: string
@@ -129,7 +129,7 @@ export function RecipesTab({ products, globalIngredients }: RecipesTabProps) {
 
     let name = ""
     let costPrice = 0
-    let unit = newRecipeUnit || "g"
+    const unit = newRecipeUnit || "g"
 
     if (isSubRecipe) {
       const prod = products.find(p => p.id === newRecipeItemId)

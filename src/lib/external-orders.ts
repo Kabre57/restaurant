@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { DeliveryPlatform, OrderStatus, OrderType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { redis } from '@/lib/redis'
-import { decrementIngredientInventory } from '@/app/actions/inventory'
+import { decrementIngredientInventory } from '@/app/actions/inventory/inventory'
 import { logger } from '@/lib/logger'
 
 const orderInclude = {

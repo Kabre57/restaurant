@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Utensils, Navigation, Clock, CheckCircle2, LayoutList, ChefHat, BellRing, LogOut, RefreshCw, AlertTriangle, ShoppingCart } from 'lucide-react'
 import { ServerColumn } from './ServerColumn'
-import { markOrderServed } from '@/app/actions/orderLifecycle'
+import { markOrderServed } from '@/app/actions/orders/orderLifecycle'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { playNotificationSound } from '@/lib/sound'

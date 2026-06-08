@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { CreditCard, Check, Plus, Trash2, Edit2, Shield, AlertTriangle } from 'lucide-react'
-import { getPaymentMethods, updatePaymentMethod, createPaymentMethod, deletePaymentMethod } from '@/app/actions/paymentMethods'
+import { getPaymentMethods, updatePaymentMethod, createPaymentMethod, deletePaymentMethod } from '@/app/actions/orders/paymentMethods'
 
 type PaymentMethodType = {
   id: string

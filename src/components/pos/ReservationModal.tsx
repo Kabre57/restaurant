@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, Users, User, Phone, X, Check, Trash2 } from 'lucide-react';
 import { Table, Reservation } from '@prisma/client';
-import { createReservation, updateReservationStatus, deleteReservation } from '@/app/actions/reservations';
+import { createReservation, updateReservationStatus, deleteReservation } from '@/app/actions/clients/reservations';
 
 interface ReservationModalProps {
   table: Table;

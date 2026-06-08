@@ -70,7 +70,7 @@ export async function savePrinter(storeId: string, data: PrinterInput) {
 
     try {
       revalidatePath('/restaurateur/config/materiel')
-    } catch (e) {
+    } catch {
       // Ignorer l'erreur d'invariant hors du contexte Next.js (ex: tests ou scripts CLI)
     }
 
@@ -92,7 +92,7 @@ export async function deletePrinter(id: string) {
 
     try {
       revalidatePath('/restaurateur/config/materiel')
-    } catch (e) {
+    } catch {
       // Ignorer l'erreur d'invariant
     }
 

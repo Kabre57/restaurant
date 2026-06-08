@@ -10,7 +10,7 @@ import {
   BarChart3,
   TrendingUp
 } from 'lucide-react'
-import { getAdminAnalytics } from '@/app/actions/analytics'
+import { getAdminAnalytics } from '@/app/actions/analytics/analytics'
 
 type AnalyticsData = NonNullable<Awaited<ReturnType<typeof getAdminAnalytics>>>
 

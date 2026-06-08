@@ -31,7 +31,7 @@ export async function GET(
           type:        dbOrder.type,
           totalAmount: dbOrder.total,
           createdAt:   dbOrder.createdAt.toISOString(),
-          items:       dbOrder.items.map((i: any) => ({ name: i.product.name, quantity: i.quantity, unitPrice: i.price })),
+          items:       dbOrder.items.map((item) => ({ name: item.product.name, quantity: item.quantity, unitPrice: item.price })),
         });
       }
     } catch { /* fallback */ }

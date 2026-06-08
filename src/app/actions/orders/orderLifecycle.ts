@@ -4,7 +4,7 @@ import { OrderStatus, PaymentStatus, PaymentType } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { publishOrderEvent } from './orderNotifications'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
-import { creditLoyaltyPointsForOrder } from './loyalty'
+import { creditLoyaltyPointsForOrder } from '../clients/loyalty'
 
 const orderInclude = {
   items: {

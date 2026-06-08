@@ -145,7 +145,7 @@ export function AdminUsersClient({ totalStaffCount, cashierCount, kitchenCount, 
                     <td className="py-4 text-[#868e96] font-bold">{user.email}</td>
                     <td className="py-4 font-bold text-black">{user.store?.name || 'Multi-sites (Super-admin)'}</td>
                     <td className="py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest F CFA {
+                      <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                         user.role === 'ADMIN' ? 'bg-[#FF6D00]/10 text-[#FF6D00]' :
                         user.role === 'RESTAURATEUR' ? 'bg-blue-100 text-blue-700' :
                         user.role === 'CASHIER' ? 'bg-purple-100 text-purple-700' :

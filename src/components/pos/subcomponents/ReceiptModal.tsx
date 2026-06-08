@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getStoreSettings } from '@/app/actions/storeSettings'
+import { getStoreSettings } from '@/app/actions/store/storeSettings'
 
 type ReceiptItem = {
   name?: string

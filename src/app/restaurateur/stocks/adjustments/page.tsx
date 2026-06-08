@@ -9,7 +9,7 @@ import {
   getAllIngredients, 
   adjustStockAction,
   getIngredientMovements
-} from '@/app/actions/inventory'
+} from '@/app/actions/inventory/inventory'
 import { CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 export default function StockAdjustmentsPage() {

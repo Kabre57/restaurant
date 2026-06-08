@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { ArrowUpRight, ArrowDownRight, X } from 'lucide-react'
-import { payIn, payOut } from '@/app/actions/cashDrawer'
+import { payIn, payOut } from '@/app/actions/caisse/cashDrawer'
 
 interface PayInOutModalProps {
   isOpen: boolean

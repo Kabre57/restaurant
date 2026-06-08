@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Users, Award, Zap, Search, Plus, X, Calendar, Edit3, Clipboard, ShoppingBag, Loader2, Check } from 'lucide-react'
 import { AddCustomerModal } from './subcomponents/AddCustomerModal'
-import { updateCustomer } from '@/app/actions/clients'
+import { updateCustomer } from '@/app/actions/clients/clients'
 
 type CustomerData = {
   id: string

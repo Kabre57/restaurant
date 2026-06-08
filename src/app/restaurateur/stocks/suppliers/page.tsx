@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Building, Plus, Search, Mail, Phone, MapPin, Loader2, X } from 'lucide-react'
-import { getSuppliers, createSupplier } from '@/app/actions/purchaseOrders'
+import { getSuppliers, createSupplier } from '@/app/actions/inventory/purchaseOrders'
 import { CrudTable, CrudPrimaryButton } from '@/components/ui/ParabellumCrudTable'
 
 export default function SuppliersPage() {

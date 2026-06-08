@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getRolePermissions, updateRolePermission, resetRolePermissions } from '@/app/actions/permissions'
+import { getRolePermissions, updateRolePermission, resetRolePermissions } from '@/app/actions/auth/permissions'
 import { prisma } from '@/lib/db'
 
 vi.mock('@/lib/db', () => {
@@ -17,6 +17,18 @@ vi.mock('@/lib/db', () => {
 vi.mock('next/cache', () => {
   return {
     revalidatePath: vi.fn()
+  }
+})
+
+vi.mock('@/lib/auth-guard', () => {
+  return {
+    requireAuth: vi.fn().mockResolvedValue({
+      storeId: 'store-1',
+      role: 'RESTAURATEUR',
+      userId: 'user-1',
+      email: 'manager@test.local'
+    }),
+    assertSameStore: vi.fn()
   }
 })
 

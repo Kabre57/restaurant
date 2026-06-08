@@ -6,7 +6,7 @@ import {
   Menu, X, LogOut, BellRing, Settings, History, Volume2,
   Sun, Moon, RotateCcw, AlertTriangle, MessageSquare, ClipboardCheck
 } from 'lucide-react'
-import { updateOrderStatus } from '@/app/actions/orders'
+import { updateOrderStatus } from '@/app/actions/orders/orders'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'

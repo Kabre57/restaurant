@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { X, Loader2, Check } from 'lucide-react'
-import { createIngredient } from '@/app/actions/inventory'
+import { createIngredient } from '@/app/actions/inventory/inventory'
 
 interface Props {
   stores: { id: string, name: string }[]
