@@ -21,13 +21,37 @@ const orderInclude = {
 }
 
 async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: string): Promise<string> {
-  if (methodCodeOrId && methodCodeOrId.length > 20) {
-    return methodCodeOrId;
+  const methodCode = methodCodeOrId?.trim()
+
+  if (methodCode) {
+    const methodById = await prisma.paymentMethod.findUnique({
+      where: { id: methodCode }
+    }).catch(() => null)
+    if (methodById && (methodById.storeId === storeId || methodById.storeId === null)) return methodById.id
+
+    const storeMethodByName = await prisma.paymentMethod.findFirst({
+      where: { storeId, name: { equals: methodCode, mode: 'insensitive' } }
+    })
+    if (storeMethodByName) return storeMethodByName.id
+
+    const globalMethodByName = await prisma.paymentMethod.findFirst({
+      where: { storeId: null, name: { equals: methodCode, mode: 'insensitive' } }
+    })
+    if (globalMethodByName) return globalMethodByName.id
   }
-  
-  let type: PaymentType = 'CASH';
-  if (methodCodeOrId === 'CB' || methodCodeOrId === 'CARTE') type = 'CARD';
-  if (methodCodeOrId === 'MOBILE_MONEY' || methodCodeOrId === 'MOBILE') type = 'MOBILE_MONEY';
+
+  const normalizedCode = (methodCode || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+
+  let type: PaymentType = 'CASH'
+  if (normalizedCode.includes('CARTE') || normalizedCode.includes('CARD') || normalizedCode === 'CB' || normalizedCode.includes('VISA')) {
+    type = 'CARD'
+  }
+  if (normalizedCode.includes('MOBILE') || normalizedCode.includes('MONEY') || normalizedCode.includes('ORANGE') || normalizedCode.includes('WAVE') || normalizedCode.includes('MTN')) {
+    type = 'MOBILE_MONEY'
+  }
 
   let pm = await prisma.paymentMethod.findFirst({
     where: { storeId, type }

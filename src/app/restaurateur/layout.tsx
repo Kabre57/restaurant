@@ -43,6 +43,7 @@ import {
   Clock,
   BellRing,
   Search,
+  Printer,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -105,7 +106,20 @@ const menuItems = [
     ]
   },
   { name: 'Support', icon: <LifeBuoy />, href: '/restaurateur/support', roles: ['ALL'] },
-  { name: 'Réglages', icon: <Settings />, href: '/restaurateur/config', roles: ['RESTAURATEUR'] },
+  {
+    name: 'Réglages',
+    icon: <Settings />,
+    href: '/restaurateur/config',
+    roles: ['RESTAURATEUR'],
+    subItems: [
+      { name: 'Général', href: '/restaurateur/config', icon: <Settings />, roles: ['RESTAURATEUR'] },
+      { name: 'Paiements', href: '/restaurateur/config/paiements', icon: <CreditCard />, roles: ['RESTAURATEUR'] },
+      { name: 'Arrondis', href: '/restaurateur/config/arrondis', icon: <Coins />, roles: ['RESTAURATEUR'] },
+      { name: 'Reçus', href: '/restaurateur/config/recus', icon: <FileText />, roles: ['RESTAURATEUR'] },
+      { name: 'Workflow', href: '/restaurateur/config/workflow', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR'] },
+      { name: 'Matériel', href: '/restaurateur/config/materiel', icon: <Printer />, roles: ['RESTAURATEUR'] },
+    ],
+  },
   { name: 'Clés API', icon: <Key />, href: '/restaurateur/integrations/api-tokens', roles: ['RESTAURATEUR'] },
   { name: 'Espaces', icon: <Compass />, href: '/espaces', roles: ['ALL'] },
 ]

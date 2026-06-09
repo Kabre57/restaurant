@@ -17,6 +17,7 @@ export type ReceiptOrder = {
   isOffline?: boolean
   date?: Date | string
   paymentMode?: string
+  paymentType?: string | null
   amountReceived?: number
   changeAmount?: number
   estimatedPrepMinutes?: number | null
@@ -30,6 +31,11 @@ interface ReceiptModalProps {
 
 export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
   const isPendingSettlement = order.paymentMode === 'A regler en caisse'
+  const normalizedPaymentMode = (order.paymentMode || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+  const isCashPayment = order.paymentType === 'CASH' || normalizedPaymentMode === 'ESPECES' || normalizedPaymentMode === 'CASH'
   const orderDate = new Date(order.date || new Date())
   const subtotal = Math.round(order.total / 1.18)
   const tax = order.total - subtotal
@@ -49,7 +55,7 @@ export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
           try {
             const parsed = JSON.parse(res.settings.receiptLogo)
             setLogoPreview(parsed.visual || null)
-          } catch (e) {
+          } catch {
             setLogoPreview(null)
           }
         }
@@ -58,22 +64,22 @@ export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
     void loadSettings()
   }, [storeId])
 
-  async function handlePrint() {
-    await fetch('/api/hardware/print', {
+  function handlePrint() {
+    window.print()
+
+    void fetch('/api/hardware/print', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),
     }).catch(() => null)
 
-    if (order.paymentMode === 'ESPECES' && !isPendingSettlement) {
-      await fetch('/api/hardware/cash-drawer', {
+    if (isCashPayment && !isPendingSettlement) {
+      void fetch('/api/hardware/cash-drawer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order.id, total: order.total }),
       }).catch(() => null)
     }
-
-    window.print()
   }
 
   return (
@@ -168,7 +174,7 @@ export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
         </div>
 
         <div className="receipt-actions grid grid-cols-2 gap-4">
-          <button onClick={() => void handlePrint()} className="py-3 rounded-xl border-2 border-[#dee2e6] text-[10px] font-black uppercase tracking-widest hover:bg-[#f8f9fa] transition-all">Imprimer</button>
+          <button onClick={handlePrint} className="py-3 rounded-xl border-2 border-[#dee2e6] text-[10px] font-black uppercase tracking-widest hover:bg-[#f8f9fa] transition-all">Imprimer</button>
           <button onClick={onClose} className="py-3 rounded-xl bg-[#212529] text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Fermer</button>
         </div>
       </div>

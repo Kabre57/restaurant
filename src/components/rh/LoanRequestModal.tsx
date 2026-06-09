@@ -3,19 +3,34 @@
 import React, { useState } from 'react'
 import { X, CreditCard, FileText, Loader2, Info } from 'lucide-react'
 
+export type LoanRequestFormData = {
+  userId: string
+  type: 'ADVANCE' | 'LOAN'
+  amount: string
+  monthlyDeduction: string
+  startDate: string
+  reason: string
+}
+
+type EmployeeOption = {
+  id: string
+  name: string | null
+  matricule?: string | null
+}
+
 type LoanRequestModalProps = {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: any) => Promise<void>
-  employees: any[]
+  onSave: (data: LoanRequestFormData) => Promise<void>
+  employees: EmployeeOption[]
   currentUserId?: string
   isManager?: boolean
 }
 
 export function LoanRequestModal({ isOpen, onClose, onSave, employees, currentUserId, isManager }: LoanRequestModalProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    userId: currentUserId || '',
+  const [formData, setFormData] = useState<LoanRequestFormData>({
+    userId: '',
     type: 'ADVANCE',
     amount: '',
     monthlyDeduction: '',
@@ -25,10 +40,13 @@ export function LoanRequestModal({ isOpen, onClose, onSave, employees, currentUs
 
   if (!isOpen) return null
 
+  const effectiveUserId = isManager ? formData.userId : currentUserId || formData.userId
+  const payload = { ...formData, userId: effectiveUserId }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await onSave(formData)
+    await onSave(payload)
     setLoading(false)
   }
 
@@ -70,7 +88,7 @@ export function LoanRequestModal({ isOpen, onClose, onSave, employees, currentUs
               >
                 <option value="">Sélectionner un employé</option>
                 {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name} ({emp.matricule || 'N/A'})</option>
+                  <option key={emp.id} value={emp.id}>{emp.name || 'Employé'} ({emp.matricule || 'N/A'})</option>
                 ))}
               </select>
             </div>
@@ -83,7 +101,7 @@ export function LoanRequestModal({ isOpen, onClose, onSave, employees, currentUs
             <select
               required
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as LoanRequestFormData['type'] })}
               className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] px-4 py-3 text-sm font-bold text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white transition-colors"
             >
               <option value="ADVANCE">Avance sur Salaire</option>
@@ -171,7 +189,7 @@ export function LoanRequestModal({ isOpen, onClose, onSave, employees, currentUs
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || !formData.amount || !formData.startDate || !formData.userId}
+            disabled={loading || !formData.amount || !formData.startDate || !effectiveUserId}
             className="flex items-center gap-2 rounded-xl bg-[var(--parabellum-primary)] px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--parabellum-primary)]/20 transition-all hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}

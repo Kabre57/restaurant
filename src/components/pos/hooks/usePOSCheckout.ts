@@ -1,7 +1,7 @@
 // src/components/pos/hooks/usePOSCheckout.ts
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Table } from '@prisma/client'
 
 import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders/orders'
@@ -17,6 +17,7 @@ import {
   buildCashReceiptMeta,
   buildReceiptItemsFromCart,
   buildReceiptItemsFromOrder,
+  isCashPaymentMode,
   type AlertPayload,
   type PaymentContext,
   type PaymentCustomer,
@@ -24,6 +25,13 @@ import {
 import { submitServerOrderFlow } from './serverOrderFlow'
 
 type POSOperatorRole = 'CASHIER' | 'SERVER'
+type POSPaymentMethod = { id: string; name: string; type: string; icon: string | null; isDefault: boolean; isActive?: boolean }
+
+const DEFAULT_PAYMENT_METHODS: POSPaymentMethod[] = [
+  { id: 'default-cash', name: 'Espèces', type: 'CASH', icon: '💵', isDefault: true },
+  { id: 'default-card', name: 'Carte Bancaire', type: 'CARD', icon: '💳', isDefault: false },
+  { id: 'default-mobile', name: 'Mobile Money', type: 'MOBILE_MONEY', icon: '📱', isDefault: false },
+]
 
 type UsePOSCheckoutOptions = {
   cashierId: string
@@ -50,6 +58,12 @@ function createBillSelectionId(value: number) {
   return `${value}-${Date.now()}-${Math.random()}`
 }
 
+function mergeMissingDefaultPaymentMethods(activeMethods: POSPaymentMethod[], configuredMethods: POSPaymentMethod[]) {
+  const existingTypes = new Set(configuredMethods.map((method) => method.type))
+  const missingDefaults = DEFAULT_PAYMENT_METHODS.filter((method) => !existingTypes.has(method.type))
+  return [...activeMethods, ...missingDefaults]
+}
+
 export function usePOSCheckout({
   cashierId,
   storeId,
@@ -70,16 +84,29 @@ export function usePOSCheckout({
   onAlert,
   operatorRole = 'CASHIER',
 }: UsePOSCheckoutOptions) {
-  const [paymentMethods, setPaymentMethods] = useState<{ id: string; name: string; type: string; icon: string | null; isDefault: boolean }[]>([])
-  
-  // Fetch payment methods once on mount
-  useState(() => {
+  const [paymentMethods, setPaymentMethods] = useState<POSPaymentMethod[]>(DEFAULT_PAYMENT_METHODS)
+
+  useEffect(() => {
+    if (!storeId) return
+
+    let isCancelled = false
+
     getPaymentMethods(storeId).then((res) => {
+      if (isCancelled) return
       if (res.success && res.methods) {
-        setPaymentMethods(res.methods)
+        const configuredMethods = res.methods as POSPaymentMethod[]
+        const activeMethods = configuredMethods.filter((method) => method.isActive !== false)
+        const completedMethods = mergeMissingDefaultPaymentMethods(activeMethods, configuredMethods)
+        setPaymentMethods(completedMethods.length > 0 ? completedMethods : DEFAULT_PAYMENT_METHODS)
+      } else {
+        setPaymentMethods(DEFAULT_PAYMENT_METHODS)
       }
     })
-  })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [storeId])
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
@@ -122,7 +149,7 @@ export function usePOSCheckout({
         body: JSON.stringify({ order: orderData }),
       })
 
-      if (orderData.paymentMode === 'ESPECES') {
+      if (isCashPaymentMode(orderData.paymentMode, orderData.paymentType)) {
         await fetch('/api/hardware/cash-drawer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -239,8 +266,12 @@ export function usePOSCheckout({
     setCustomerResults(results as PaymentCustomer[])
   }
 
-  const getReceiptPaymentMeta = (mode: PaymentMode, total: number) =>
-    buildCashReceiptMeta(mode, total, amountReceived, changeAmount)
+  const getPaymentMethodType = (mode: PaymentMode) => paymentMethods.find((method) => method.name === mode)?.type || null
+
+  const getReceiptPaymentMeta = (mode: PaymentMode, total: number) => {
+    const paymentType = getPaymentMethodType(mode)
+    return buildCashReceiptMeta(mode, total, amountReceived, changeAmount, paymentType)
+  }
 
   const openSettlementForOrder = (order: RealtimeOrder) => {
     setPaymentContext({ kind: 'SETTLEMENT', order })
@@ -363,8 +394,10 @@ export function usePOSCheckout({
   // Gere la creation locale, distante et offline d'une commande encaissee a la caisse.
   const finalizeNewPaidOrder = async (mode: PaymentMode) => {
     const currentTotal = newOrderNetTotal
+    const paymentType = getPaymentMethodType(mode)
+    const isCashPayment = isCashPaymentMode(mode, paymentType)
     // Appliquer l'arrondi uniquement pour les paiements espèces
-    const cashTotal = mode === 'ESPECES' && roundedTotal !== null ? roundedTotal : currentTotal
+    const cashTotal = isCashPayment && roundedTotal !== null ? roundedTotal : currentTotal
     const paymentMode = mode
 
     setIsProcessing(true)

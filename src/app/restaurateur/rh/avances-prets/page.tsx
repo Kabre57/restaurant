@@ -1,23 +1,63 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Plus, Loader2, CreditCard, Check, X, FileText } from 'lucide-react'
+import { Plus, Loader2, CreditCard, Check, X } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getLoans, createLoan, updateLoanStatus } from '@/app/actions/rh/loans'
 import { getEmployees } from '@/app/actions/rh/employees'
-import { LoanRequestModal } from '@/components/rh/LoanRequestModal'
+import { LoanRequestFormData, LoanRequestModal } from '@/components/rh/LoanRequestModal'
+
+const managerRoles = ['ADMIN', 'RESTAURATEUR', 'MANAGER']
+const filters = ['ALL', 'PENDING', 'APPROVED', 'SETTLED', 'REJECTED'] as const
+
+type LoanStatusFilter = typeof filters[number]
+type LoanStatus = Exclude<LoanStatusFilter, 'ALL'>
+
+type EmployeeOption = {
+  id: string
+  name: string | null
+  matricule?: string | null
+}
+
+type LoanRecord = {
+  id: string
+  user: EmployeeOption
+  type: string
+  startDate: string | Date
+  amount: number
+  remainingAmount: number
+  status: LoanStatus
+}
+
+function getLoanStatusLabel(status: string) {
+  if (status === 'PENDING') return 'En attente'
+  if (status === 'APPROVED') return 'Approuvé'
+  if (status === 'SETTLED') return 'Soldé'
+  if (status === 'REJECTED') return 'Rejeté'
+  return status
+}
+
+function getLoanStatusClass(status: string) {
+  if (status === 'PENDING') return 'bg-amber-100 text-amber-700'
+  if (status === 'APPROVED') return 'bg-blue-100 text-blue-700'
+  if (status === 'SETTLED') return 'bg-green-100 text-green-700'
+  return 'bg-red-100 text-red-700'
+}
 
 export default function LoansPage() {
   const { data: session, status } = useSession()
-  const [loans, setLoans] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
+  const [loans, setLoans] = useState<LoanRecord[]>([])
+  const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('ALL')
+  const [activeFilter, setActiveFilter] = useState<LoanStatusFilter>('ALL')
 
   const userRole = session?.user?.role || 'WAITER'
-  const isManager = userRole === 'RESTAURATEUR' || userRole === 'MANAGER'
+  const isManager = managerRoles.includes(userRole)
   const userId = isManager ? undefined : session?.user?.id
+  const hasStore = Boolean(session?.user?.storeId)
+  const isPageLoading = status === 'loading' || (hasStore && loading)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -26,21 +66,32 @@ export default function LoansPage() {
     let isCancelled = false
 
     async function fetchData() {
-      setLoading(true)
-      const [loansRes, empRes] = await Promise.all([
-        getLoans(userId),
-        isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
-      ])
-      
-      if (isCancelled) return
+      try {
+        setLoading(true)
+        setError('')
+        const [loansRes, empRes] = await Promise.all([
+          getLoans(userId),
+          isManager ? getEmployees() : Promise.resolve({ success: true, employees: [] })
+        ])
 
-      if (loansRes.success && loansRes.loans) {
-        setLoans(loansRes.loans)
+        if (isCancelled) return
+
+        if (loansRes.success && loansRes.loans) {
+          setLoans(loansRes.loans as LoanRecord[])
+        } else {
+          setError(loansRes.error || "Impossible de charger les avances et prêts.")
+        }
+        if (empRes.success && empRes.employees) {
+          setEmployees(empRes.employees)
+        }
+      } catch (err) {
+        console.error(err)
+        if (!isCancelled) {
+          setError("Impossible de charger les avances et prêts.")
+        }
+      } finally {
+        if (!isCancelled) setLoading(false)
       }
-      if (empRes.success && empRes.employees) {
-        setEmployees(empRes.employees)
-      }
-      setLoading(false)
     }
 
     void fetchData()
@@ -50,35 +101,45 @@ export default function LoansPage() {
     }
   }, [session, status, isManager, userId])
 
-  async function handleSave(data: any) {
+  async function handleSave(data: LoanRequestFormData) {
     const res = await createLoan(data)
     if (res.success) {
       setShowModal(false)
       const refreshRes = await getLoans(userId)
       if (refreshRes.success && refreshRes.loans) {
-        setLoans(refreshRes.loans)
+        setLoans(refreshRes.loans as LoanRecord[])
       }
     } else {
-      alert("Erreur lors de la création de la demande")
+      alert(res.error || "Erreur lors de la création de la demande")
     }
   }
 
-  async function handleStatusUpdate(id: string, newStatus: string) {
+  async function handleStatusUpdate(id: string, newStatus: LoanStatus) {
     if (!confirm("Voulez-vous vraiment changer le statut de cette demande ?")) return
     
     const res = await updateLoanStatus(id, newStatus)
     if (res.success) {
       const refreshRes = await getLoans(userId)
       if (refreshRes.success && refreshRes.loans) {
-        setLoans(refreshRes.loans)
+        setLoans(refreshRes.loans as LoanRecord[])
       }
     }
   }
 
-  if (loading) {
+  if (isPageLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[var(--parabellum-primary)]" />
+      </div>
+    )
+  }
+
+  if (!hasStore) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+          Aucun restaurant n'est associé à votre session.
+        </div>
       </div>
     )
   }
@@ -87,7 +148,9 @@ export default function LoansPage() {
     return activeFilter === 'ALL' ? true : l.status === activeFilter
   })
 
-  const totalOngoing = loans.filter(l => l.status === 'ONGOING').reduce((sum, l) => sum + l.remainingAmount, 0)
+  const totalOngoing = loans
+    .filter(l => l.status === 'APPROVED')
+    .reduce((sum, l) => sum + (l.remainingAmount || 0), 0)
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
@@ -115,18 +178,24 @@ export default function LoansPage() {
           </div>
           <div className="rounded-2xl border border-[var(--parabellum-border)] bg-white p-5 shadow-sm">
             <div className="text-[10px] font-black uppercase tracking-widest text-[var(--parabellum-muted)]">Dossiers en cours</div>
-            <div className="mt-2 text-3xl font-black text-orange-600">{loans.filter(l => l.status === 'ONGOING').length}</div>
+            <div className="mt-2 text-3xl font-black text-orange-600">{loans.filter(l => l.status === 'APPROVED').length}</div>
           </div>
           <div className="rounded-2xl border border-[var(--parabellum-border)] bg-white p-5 shadow-sm">
             <div className="text-[10px] font-black uppercase tracking-widest text-[var(--parabellum-muted)]">Remboursés (Total)</div>
-            <div className="mt-2 text-3xl font-black text-green-600">{loans.filter(l => l.status === 'REPAID').length}</div>
+            <div className="mt-2 text-3xl font-black text-green-600">{loans.filter(l => l.status === 'SETTLED').length}</div>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+          {error}
         </div>
       )}
 
       <div className="rounded-xl border border-[#e5e7ef] bg-white p-4 shadow-sm">
         <div className="flex gap-3 overflow-x-auto">
-          {['ALL', 'ONGOING', 'REPAID', 'CANCELLED'].map((filter) => (
+          {filters.map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
@@ -136,9 +205,7 @@ export default function LoansPage() {
                   : 'bg-gray-100 text-[#adb5bd] hover:bg-gray-200'
               }`}
             >
-              {filter === 'ALL' ? 'Tous' : 
-               filter === 'ONGOING' ? 'En Cours' : 
-               filter === 'REPAID' ? 'Remboursés' : 'Annulés'}
+              {filter === 'ALL' ? 'Tous' : getLoanStatusLabel(filter)}
             </button>
           ))}
         </div>
@@ -192,38 +259,44 @@ export default function LoansPage() {
                       {loan.amount.toLocaleString()} F
                     </td>
                     <td className="px-6 py-4 font-bold text-red-600">
-                      {loan.remainingAmount.toLocaleString()} F
+                      {(loan.remainingAmount || 0).toLocaleString()} F
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                        loan.status === 'ONGOING' ? 'bg-blue-100 text-blue-700' :
-                        loan.status === 'REPAID' ? 'bg-green-100 text-green-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {loan.status === 'ONGOING' ? 'En Cours' : loan.status === 'REPAID' ? 'Remboursé' : 'Annulé'}
+                      <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${getLoanStatusClass(loan.status)}`}>
+                        {getLoanStatusLabel(loan.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {isManager && loan.status === 'ONGOING' ? (
+                      {isManager && loan.status === 'PENDING' ? (
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => handleStatusUpdate(loan.id, 'REPAID')}
+                          <button
+                            onClick={() => handleStatusUpdate(loan.id, 'APPROVED')}
                             className="flex items-center justify-center px-3 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-bold"
-                            title="Marquer comme remboursé"
+                            title="Approuver la demande"
+                          >
+                            <Check className="w-3 h-3 mr-1" /> Approuver
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(loan.id, 'REJECTED')}
+                            className="flex items-center justify-center px-3 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
+                            title="Rejeter la demande"
+                          >
+                            <X className="w-3 h-3 mr-1" /> Rejeter
+                          </button>
+                        </div>
+                      ) : isManager && loan.status === 'APPROVED' ? (
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleStatusUpdate(loan.id, 'SETTLED')}
+                            className="flex items-center justify-center px-3 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-bold"
+                            title="Marquer comme soldé"
                           >
                             <Check className="w-3 h-3 mr-1" /> Solder
-                          </button>
-                          <button 
-                            onClick={() => handleStatusUpdate(loan.id, 'CANCELLED')}
-                            className="flex items-center justify-center px-3 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
-                            title="Annuler le dossier"
-                          >
-                            <X className="w-3 h-3 mr-1" /> Annuler
                           </button>
                         </div>
                       ) : (
                         <span className="text-xs text-[var(--parabellum-muted)] italic">
-                          {loan.status !== 'ONGOING' ? 'Clôturé' : 'En cours'}
+                          {loan.status === 'SETTLED' || loan.status === 'REJECTED' ? 'Clôturé' : 'En attente'}
                         </span>
                       )}
                     </td>

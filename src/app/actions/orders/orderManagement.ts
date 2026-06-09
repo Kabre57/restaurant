@@ -1,11 +1,15 @@
 'use server'
 
-import { OrderStatus, PaymentStatus } from '@prisma/client'
+import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { publishOrderEvent, publishStockAlert } from './orderNotifications'
 import { decrementIngredientInventory, incrementIngredientInventory } from '../inventory/inventory'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+import { redis, REDIS_KEYS } from '@/lib/redis'
+
+const CANCEL_ORDER_ROLES = ["ADMIN", "RESTAURATEUR", "MANAGER", "CASHIER", "SERVER"]
+const REFUND_ORDER_ROLES = ["ADMIN", "RESTAURATEUR", "MANAGER", "CASHIER"]
 
 const orderInclude = {
   items: {
@@ -17,26 +21,96 @@ const orderInclude = {
       },
     },
   },
-  payments: true,
+  payments: {
+    include: {
+      paymentMethod: true,
+    },
+  },
   table: true,
 }
 
+const cancellationOrderInclude = {
+  items: {
+    include: {
+      product: true,
+    },
+  },
+  payments: true,
+}
+
+type CancellationOrder = Prisma.OrderGetPayload<{ include: typeof cancellationOrderInclude }>
+
+type CancelOrderOptions = {
+  refundPaidPayments?: boolean
+}
+
+async function restockOrderItems(tx: Prisma.TransactionClient, order: CancellationOrder) {
+  for (const item of order.items) {
+    // Recréditer en cascade la recette (ingrédients & emballages)
+    await incrementIngredientInventory(tx, order.storeId, item.productId, item.quantity)
+
+    if (item.product && item.product.trackStock) {
+      const newQuantity = item.product.stockQuantity + item.quantity
+
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stockQuantity: newQuantity },
+      })
+
+      await tx.stockMovement.create({
+        data: {
+          productId: item.productId,
+          storeId: order.storeId,
+          quantity: item.quantity,
+          reason: 'ADJUSTMENT',
+          referenceId: order.id,
+        },
+      })
+    }
+  }
+}
+
+async function reverseLoyaltyForRefund(tx: Prisma.TransactionClient, order: CancellationOrder) {
+  if (!order.customerId) return
+  if (order.loyaltyPointsEarned <= 0 && order.loyaltyPointsRedeemed <= 0) return
+
+  const loyalty = await tx.loyalty.findUnique({
+    where: { customerId: order.customerId },
+  })
+  const pointsDelta = order.loyaltyPointsRedeemed - order.loyaltyPointsEarned
+  const nextPoints = Math.max(0, (loyalty?.points ?? 0) + pointsDelta)
+
+  if (loyalty) {
+    await tx.loyalty.update({
+      where: { customerId: order.customerId },
+      data: { points: nextPoints },
+    })
+  } else if (nextPoints > 0) {
+    await tx.loyalty.create({
+      data: { customerId: order.customerId, points: nextPoints },
+    })
+  }
+
+  await tx.order.update({
+    where: { id: order.id },
+    data: {
+      loyaltyPointsEarned: 0,
+      loyaltyPointsRedeemed: 0,
+    },
+  })
+}
+
 /**
- * Annuler une commande et recréditer ses stocks.
+ * Annuler une commande et, si demandé, marquer les paiements encaissés comme remboursés.
  */
-export async function cancelOrder(orderId: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
+export async function cancelOrder(orderId: string, options: CancelOrderOptions = {}) {
+  const shouldRefund = options.refundPaidPayments === true
+  const { storeId: authStoreId, role } = await requireAuth(shouldRefund ? REFUND_ORDER_ROLES : CANCEL_ORDER_ROLES)
 
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
+      include: cancellationOrderInclude,
     })
 
     if (!order) {
@@ -47,56 +121,54 @@ export async function cancelOrder(orderId: string) {
       assertSameStore(order.storeId, authStoreId)
     }
 
-    if (order.status === OrderStatus.CANCELLED) {
+    if (order.status === OrderStatus.CANCELLED && !shouldRefund) {
       return { success: false, error: 'La commande est déjà annulée' }
     }
 
+    const hasSucceededPayment = order.payments.some((payment) => payment.status === PaymentStatus.REUSSIE)
+    if (shouldRefund && !hasSucceededPayment) {
+      return { success: false, error: 'Aucun paiement encaissé à rembourser pour cette commande' }
+    }
+
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      // 1. Recréditer les stocks des produits suivis
-      for (const item of order.items) {
-        // Recréditer en cascade la recette (ingrédients & emballages)
-        await incrementIngredientInventory(tx, order.storeId, item.productId, item.quantity)
-
-        if (item.product && item.product.trackStock) {
-          const newQuantity = item.product.stockQuantity + item.quantity
-
-          // Mise à jour du stock
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stockQuantity: newQuantity },
-          })
-
-          // Audit trail : Enregistrement du mouvement de stock positif
-          await tx.stockMovement.create({
-            data: {
-              productId: item.productId,
-              storeId: order.storeId,
-              quantity: item.quantity, // Positif = entrée/retour
-              reason: 'ADJUSTMENT',
-              referenceId: order.id,
-            },
-          })
+      if (order.status !== OrderStatus.CANCELLED) {
+        if (order.status !== OrderStatus.COMPLETED) {
+          await restockOrderItems(tx, order)
         }
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.CANCELLED },
+        })
       }
 
-      // 2. Mettre à jour le statut de la commande
-      const nextOrder = await tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.CANCELLED },
-        include: orderInclude,
-      })
-
-      // 3. Mettre à jour le statut des paiements en attente ou réussis
       await tx.payment.updateMany({
         where: { orderId, status: PaymentStatus.EN_ATTENTE },
         data: { status: PaymentStatus.ECHOUEE },
       })
 
-      return nextOrder
+      if (shouldRefund) {
+        await tx.payment.updateMany({
+          where: { orderId, status: PaymentStatus.REUSSIE },
+          data: { status: PaymentStatus.REMBOURSEE },
+        })
+
+        await reverseLoyaltyForRefund(tx, order)
+      }
+
+      return tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      })
     })
+
+    if (!updatedOrder) {
+      return { success: false, error: 'Commande introuvable après annulation' }
+    }
 
     // Publier l'événement de mise à jour pour le KDS, le serveur et la caisse
     await publishOrderEvent('order-updated', updatedOrder)
+    await redis.del(REDIS_KEYS.stats(order.storeId))
     revalidatePath('/restaurateur/commandes')
 
     return { success: true, order: updatedOrder }
@@ -105,6 +177,10 @@ export async function cancelOrder(orderId: string) {
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
     return { success: false, error: "Erreur lors de l'annulation de la commande : " + message }
   }
+}
+
+export async function refundOrder(orderId: string) {
+  return cancelOrder(orderId, { refundPaidPayments: true })
 }
 
 /**
@@ -287,6 +363,7 @@ export async function modifyOrder(
     })
 
     await publishOrderEvent('order-updated', updatedOrder)
+    await redis.del(REDIS_KEYS.stats(order.storeId))
     revalidatePath('/restaurateur/commandes')
 
     return { success: true, order: updatedOrder }

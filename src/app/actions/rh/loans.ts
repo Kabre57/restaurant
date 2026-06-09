@@ -10,27 +10,42 @@ type LoanPayload = {
   type: string
   amount: string | number
   monthlyDeduction?: string | number
+  startDate?: string
   reason?: string
 }
 
+const MANAGER_ROLES = ["ADMIN", "RESTAURATEUR", "MANAGER"]
+const LOAN_STATUSES = ["PENDING", "APPROVED", "REJECTED", "SETTLED"]
+
 export async function getLoans(userId?: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId, userId: authUserId, role } = await requireAuth()
+  const canManageLoans = MANAGER_ROLES.includes(role)
 
   try {
     const whereClause: Prisma.LoanWhereInput = { user: { storeId } }
-    if (userId) {
+
+    if (canManageLoans && userId) {
       whereClause.userId = userId
+    } else if (!canManageLoans) {
+      whereClause.userId = authUserId
     }
 
-    const loans = await prisma.loan.findMany({
+    const loanRows = await prisma.loan.findMany({
       where: whereClause,
       include: {
         user: {
-          select: { id: true, name: true, matricule: true }
+          select: { id: true, name: true, matricule: true, storeId: true }
         }
       },
       orderBy: { createdAt: 'desc' }
     })
+
+    const loans = loanRows.map((loan) => ({
+      ...loan,
+      startDate: loan.approvedAt || loan.createdAt,
+      remainingAmount: loan.status === "SETTLED" || loan.status === "REJECTED" ? 0 : loan.amount,
+    }))
+
     return { success: true, loans }
   } catch (error) {
     console.error('Erreur getLoans:', error)
@@ -39,18 +54,35 @@ export async function getLoans(userId?: string) {
 }
 
 export async function createLoan(data: LoanPayload) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId, userId: authUserId, role } = await requireAuth()
+  const canManageLoans = MANAGER_ROLES.includes(role)
+  const targetUserId = canManageLoans ? data.userId : authUserId
 
   try {
+    if (!targetUserId) {
+      return { success: false, error: 'Employé cible requis.' }
+    }
+
     // Vérifier que l'employé cible appartient au store
     const targetUser = await prisma.user.findUnique({
-      where: { id: data.userId },
+      where: { id: targetUserId },
       select: { storeId: true, salary: true }
     })
     if (!targetUser) return { success: false, error: 'Employé introuvable.' }
     assertSameStore(targetUser.storeId, storeId, "Employé")
 
     const amount = parseFloat(String(data.amount))
+    const monthlyDeduction = data.monthlyDeduction
+      ? parseFloat(String(data.monthlyDeduction))
+      : amount
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { success: false, error: 'Montant invalide.' }
+    }
+
+    if (!Number.isFinite(monthlyDeduction) || monthlyDeduction <= 0) {
+      return { success: false, error: 'Retenue mensuelle invalide.' }
+    }
 
     // Validation du montant : plafond à 3x le salaire mensuel
     if (targetUser.salary && amount > targetUser.salary * 3) {
@@ -59,10 +91,10 @@ export async function createLoan(data: LoanPayload) {
 
     const loan = await prisma.loan.create({
       data: {
-        userId: data.userId,
+        userId: targetUserId,
         type: data.type,
-        amount: amount,
-        monthlyDeduction: parseFloat(String(data.monthlyDeduction || data.amount)),
+        amount,
+        monthlyDeduction,
         reason: data.reason,
         status: 'PENDING'
       }
@@ -76,9 +108,13 @@ export async function createLoan(data: LoanPayload) {
 }
 
 export async function updateLoanStatus(id: string, status: string) {
-  const { storeId, userId: approverUserId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId, userId: approverUserId } = await requireAuth(MANAGER_ROLES)
 
   try {
+    if (!LOAN_STATUSES.includes(status)) {
+      return { success: false, error: 'Statut invalide.' }
+    }
+
     // Vérifier que le prêt appartient au store
     const existing = await prisma.loan.findUnique({
       where: { id },
@@ -91,6 +127,10 @@ export async function updateLoanStatus(id: string, status: string) {
     if (status === 'APPROVED') {
       updateData.approvedBy = approverUserId
       updateData.approvedAt = new Date()
+      updateData.settledAt = null
+    }
+    if (status === 'SETTLED') {
+      updateData.settledAt = new Date()
     }
 
     const loan = await prisma.loan.update({
@@ -106,7 +146,8 @@ export async function updateLoanStatus(id: string, status: string) {
 }
 
 export async function deleteLoan(id: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId, userId: authUserId, role } = await requireAuth()
+  const canManageLoans = MANAGER_ROLES.includes(role)
 
   try {
     // Vérifier que le prêt appartient au store
@@ -116,6 +157,12 @@ export async function deleteLoan(id: string) {
     })
     if (!existing) return { success: false, error: 'Prêt/avance introuvable.' }
     assertSameStore(existing.user.storeId, storeId, "Prêt/Avance")
+    if (!canManageLoans && existing.userId !== authUserId) {
+      return { success: false, error: 'Vous ne pouvez supprimer que vos propres demandes.' }
+    }
+    if (!canManageLoans && existing.status !== 'PENDING') {
+      return { success: false, error: 'Seules les demandes en attente peuvent être supprimées.' }
+    }
 
     await prisma.loan.delete({ where: { id } })
     revalidatePath('/restaurateur/rh/avances-prets')

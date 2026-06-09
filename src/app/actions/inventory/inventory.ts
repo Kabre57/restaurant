@@ -17,7 +17,7 @@ export async function createIngredient(data: {
   quantity: number
   minStock: number
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
 
   try {
@@ -69,6 +69,7 @@ export async function createIngredient(data: {
     })
 
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
     return { success: true, inventory }
   } catch (error) {
     console.error("Failed to create ingredient:", error)
@@ -77,7 +78,7 @@ export async function createIngredient(data: {
 }
 
 export async function updateInventory(id: string, quantity: number, minStock: number) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.inventory.findUnique({ where: { id } })
@@ -102,6 +103,7 @@ export async function updateInventory(id: string, quantity: number, minStock: nu
     })
     
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
     return { success: true, inventory: updated }
   } catch (error) {
     console.error("Failed to update inventory:", error)
@@ -110,7 +112,7 @@ export async function updateInventory(id: string, quantity: number, minStock: nu
 }
 
 export async function deleteInventory(id: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.inventory.findUnique({ where: { id } })
@@ -124,6 +126,7 @@ export async function deleteInventory(id: string) {
     })
     
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
     return { success: true }
   } catch (error) {
     console.error("Failed to delete inventory:", error)
@@ -393,7 +396,7 @@ export async function saveProductRecipe(
     displayOrder?: number;
   }[]
 ) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const product = await prisma.product.findUnique({ where: { id: productId } })
@@ -424,6 +427,8 @@ export async function saveProductRecipe(
         })
       }
 
+      revalidatePath('/admin/inventaire')
+      revalidatePath('/restaurateur/stocks')
       return { success: true }
     })
   } catch (error) {
@@ -454,7 +459,7 @@ export async function transferStockAction(data: {
   quantity: number
   note?: string
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   if (role !== "ADMIN") {
     assertSameStore(data.sourceStoreId, authStoreId, "Magasin source")
   }
@@ -541,6 +546,7 @@ export async function transferStockAction(data: {
     return { success: false, error: "Erreur technique lors du transfert de stock." }
   } finally {
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
   }
 }
 
@@ -552,7 +558,7 @@ export async function adjustStockAction(data: {
   reason: IngMvtReason
   note?: string
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const targetStoreId = role === "ADMIN" ? data.storeId : authStoreId
 
   try {
@@ -611,11 +617,12 @@ export async function adjustStockAction(data: {
     return { success: false, error: "Erreur technique lors de l'ajustement du stock." }
   } finally {
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
   }
 }
 
 export async function getInventoryValuationReport(storeId?: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const targetStoreId = role === "ADMIN" ? storeId : authStoreId
 
   try {
@@ -672,7 +679,7 @@ export async function getInventoryValuationReport(storeId?: string) {
 }
 
 export async function getIngredientMovements(storeId?: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const targetStoreId = role === "ADMIN" ? storeId : authStoreId
 
   try {
@@ -691,7 +698,7 @@ export async function getIngredientMovements(storeId?: string) {
 }
 
 export async function updateIngredientPrices(ingredientId: string, costPrice: number, sellPrice: number) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.ingredient.findUnique({ where: { id: ingredientId } })
@@ -708,6 +715,7 @@ export async function updateIngredientPrices(ingredientId: string, costPrice: nu
       }
     })
     revalidatePath('/admin/inventaire')
+    revalidatePath('/restaurateur/stocks')
     return { success: true }
   } catch (error) {
     console.error("Failed to update ingredient prices:", error)

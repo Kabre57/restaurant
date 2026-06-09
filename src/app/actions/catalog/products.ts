@@ -28,7 +28,7 @@ export async function createProduct(data: {
   stockQuantity?: number,
   minStockLevel?: number
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
 
   try {
@@ -74,7 +74,7 @@ export async function updateProduct(id: string, data: {
   minStockLevel?: number,
   storeId?: string
 }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.product.findUnique({ where: { id } })
@@ -111,7 +111,7 @@ export async function updateProduct(id: string, data: {
 }
 
 export async function deleteProduct(id: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.product.findUnique({ where: { id } })
@@ -184,7 +184,7 @@ export async function getCategoriesByStore(storeId: string) {
 }
 
 export async function createCategory(data: { name: string, storeId: string, imageUrl?: string }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
   const finalStoreId = role === "ADMIN" ? data.storeId : authStoreId
 
   try {
@@ -210,7 +210,7 @@ export async function createCategory(data: { name: string, storeId: string, imag
 }
 
 export async function updateCategory(id: string, data: { name?: string, imageUrl?: string }) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.category.findUnique({ where: { id } })
@@ -238,7 +238,7 @@ export async function updateCategory(id: string, data: { name?: string, imageUrl
 }
 
 export async function deleteCategory(id: string) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const existing = await prisma.category.findUnique({ where: { id } })

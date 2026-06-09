@@ -29,16 +29,32 @@ export function buildReceiptItemsFromOrder(order: RealtimeOrder): ReceiptOrder['
   }))
 }
 
+function normalizePaymentLabel(value?: string | null) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+}
+
+export function isCashPaymentMode(mode?: string | null, paymentType?: string | null) {
+  const normalizedMode = normalizePaymentLabel(mode)
+  return paymentType === 'CASH' || normalizedMode === 'ESPECES' || normalizedMode === 'CASH'
+}
+
 export function buildCashReceiptMeta(
   mode: string,
   total: number,
   amountReceived: string,
-  changeAmount: number | null
+  changeAmount: number | null,
+  paymentType?: string | null
 ) {
+  const isCashPayment = isCashPaymentMode(mode, paymentType)
+
   return {
     paymentMode: mode,
-    amountReceived: mode === 'ESPECES' ? parseInt(amountReceived || '0', 10) : total,
-    changeAmount: mode === 'ESPECES' ? changeAmount ?? 0 : 0,
+    paymentType,
+    amountReceived: isCashPayment ? parseInt(amountReceived || '0', 10) : total,
+    changeAmount: isCashPayment ? changeAmount ?? 0 : 0,
   }
 }
 

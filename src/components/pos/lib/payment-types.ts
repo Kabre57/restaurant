@@ -11,7 +11,7 @@ export type PaymentCustomer = {
 }
 
 export type PaymentModalProps = {
-  paymentMethods: { id: string; name: string; type: string; icon: string | null; isDefault?: boolean }[]
+  paymentMethods: { id: string; name: string; type: string; icon: string | null; isDefault?: boolean; isActive?: boolean }[]
   total: number
   title?: string
   showCustomerSection?: boolean
@@ -42,4 +42,3 @@ export type PaymentModalProps = {
   roundedTotal?: number | null
   roundingDiff?: number
 }
-

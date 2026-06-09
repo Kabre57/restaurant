@@ -12,6 +12,12 @@ import { PaymentCustomerSection } from './payment-modal/PaymentCustomerSection'
 import { PaymentPromoSection } from './payment-modal/PaymentPromoSection'
 import { PaymentSummaryPanel } from './payment-modal/PaymentSummaryPanel'
 
+const DEFAULT_PAYMENT_METHODS = [
+  { id: 'default-cash', name: 'Espèces', type: 'CASH', icon: '💵', isDefault: true, isActive: true },
+  { id: 'default-card', name: 'Carte Bancaire', type: 'CARD', icon: '💳', isDefault: false, isActive: true },
+  { id: 'default-mobile', name: 'Mobile Money', type: 'MOBILE_MONEY', icon: '📱', isDefault: false, isActive: true },
+]
+
 export function PaymentModal({
   paymentMethods,
   total,
@@ -44,10 +50,18 @@ export function PaymentModal({
   roundedTotal,
   roundingDiff,
 }: PaymentModalProps) {
-  const defaultMethod = paymentMethods.find(m => m.isDefault)?.name || paymentMethods[0]?.name || 'ESPECES'
-  const [mode, setMode] = React.useState<PaymentMode>(defaultMethod)
+  const availablePaymentMethods = React.useMemo(() => {
+    const activeMethods = paymentMethods.filter((method) => method.isActive !== false)
+    return activeMethods.length > 0 ? activeMethods : DEFAULT_PAYMENT_METHODS
+  }, [paymentMethods])
 
-  const activeMethod = paymentMethods.find(m => m.name === mode)
+  const defaultMethod = availablePaymentMethods.find(m => m.isDefault)?.name || availablePaymentMethods[0]?.name || 'Espèces'
+  const [selectedMode, setSelectedMode] = React.useState<PaymentMode | null>(null)
+  const mode = selectedMode && availablePaymentMethods.some((method) => method.name === selectedMode)
+    ? selectedMode
+    : defaultMethod
+
+  const activeMethod = availablePaymentMethods.find(m => m.name === mode)
   const activeMethodType = activeMethod?.type || 'OTHER'
 
   return (
@@ -58,9 +72,9 @@ export function PaymentModal({
           discount={discount + loyaltyDiscount}
           changeAmount={changeAmount}
           mode={mode}
-          paymentMethods={paymentMethods}
+          paymentMethods={availablePaymentMethods}
           isProcessing={isProcessing}
-          onModeChange={setMode}
+          onModeChange={setSelectedMode}
           onFinalize={() => onFinalize(mode)}
         />
 
@@ -141,4 +155,3 @@ export function PaymentModal({
     </div>
   )
 }
-

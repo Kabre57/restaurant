@@ -32,7 +32,7 @@ export type EmployeeData = {
 }
 
 export async function getEmployees() {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const employees = await prisma.user.findMany({
@@ -53,7 +53,7 @@ export async function getEmployees() {
 }
 
 export async function getEmployeeById(id: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     const employee = await prisma.user.findUnique({
@@ -90,7 +90,7 @@ export async function getEmployeeById(id: string) {
 }
 
 export async function createEmployee(data: EmployeeData) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     if (!data.name || !data.email || !data.password) {
@@ -144,7 +144,7 @@ export async function createEmployee(data: EmployeeData) {
 }
 
 export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     // Vérifier que l'employé appartient au store avant modification
@@ -197,7 +197,7 @@ export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
 }
 
 export async function deleteEmployee(id: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     // Vérifier que l'employé appartient au store avant suppression

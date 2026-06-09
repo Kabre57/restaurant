@@ -32,6 +32,7 @@ import {
   Moon,
   ShieldCheck,
   Ticket,
+  CreditCard,
 } from 'lucide-react'
 
 type StoreSummary = {
@@ -55,6 +56,7 @@ const restaurantItems = [
   { name: 'Modificateurs', icon: <SlidersHorizontal />, href: '/admin/supplements' },
   { name: 'Promotions', icon: <Ticket />, href: '/admin/promotions' },
   { name: 'Tables', icon: <LayoutGrid />, href: '/admin/tables' },
+  { name: 'Paiements', icon: <CreditCard />, href: '/admin/config/paiements' },
   { name: 'Inventaire', icon: <Package />, href: '/admin/inventaire' },
   { name: 'Clients', icon: <Users />, href: '/admin/clients' },
   { name: 'Utilisateurs', icon: <UserCog />, href: '/admin/utilisateurs' },
