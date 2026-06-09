@@ -224,7 +224,7 @@ export default function CashDrawerRotationPage() {
               <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 5px 0;">${new Date(op.createdAt).toLocaleTimeString('fr-FR')}</td>
                 <td style="padding: 5px 0; font-weight: bold; color: ${op.type === 'PAY_IN' ? '#059669' : '#dc2626'}">
-                  ${op.type === 'PAY_IN' ? 'Entrée (Pay-in)' : 'Sortie (Pay-out)'}
+                  ${op.type === 'PAY_IN' ? 'Entrée (Ajoute des espèces)' : 'Sortie (retrait)'}
                 </td>
                 <td style="padding: 5px 0; color: #555;">${op.note || '—'}</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: bold;">
@@ -317,11 +317,11 @@ export default function CashDrawerRotationPage() {
               <td style="text-align: right; font-weight: bold;">+${cashSales.toLocaleString()} FCFA</td>
             </tr>
             <tr>
-              <td>Entrées (Pay-In)</td>
+              <td>Entrées (Ajoute des espèces)</td>
               <td style="text-align: right; font-weight: bold; color: #059669;">+${totalPayIn.toLocaleString()} FCFA</td>
             </tr>
             <tr>
-              <td>Sorties (Pay-Out)</td>
+              <td>Sorties (retrait)</td>
               <td style="text-align: right; font-weight: bold; color: #dc2626;">-${totalPayOut.toLocaleString()} FCFA</td>
             </tr>
             <tr class="total-row">
@@ -480,11 +480,11 @@ export default function CashDrawerRotationPage() {
               {/* Quick adjustments summary */}
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 flex justify-between items-center text-xs">
-                  <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Entrées (Pay-in)</span>
+                  <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Entrées (Ajoute des espèces)</span>
                   <span className="font-black text-emerald-600">+{activePayIn.toLocaleString()} FCFA</span>
                 </div>
                 <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 flex justify-between items-center text-xs">
-                  <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Sorties (Pay-out)</span>
+                  <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Sorties (retrait)</span>
                   <span className="font-black text-rose-500">-{activePayOut.toLocaleString()} FCFA</span>
                 </div>
               </div>
@@ -493,7 +493,7 @@ export default function CashDrawerRotationPage() {
               <div className="space-y-2 pt-4 border-t border-gray-100">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Journal des Ajustements Manuels</h3>
                 {activeShift.operations.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Aucune opération Pay-in ou Pay-out sur ce shift.</p>
+                  <p className="text-xs text-gray-400 italic">Aucune opération Ajoute des espèces ou retrait sur ce shift.</p>
                 ) : (
                   <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto pr-1">
                     {activeShift.operations.map((op) => (
@@ -605,7 +605,7 @@ export default function CashDrawerRotationPage() {
                   >
                     <span className="flex items-center gap-1.5">
                       <PlusCircle className="w-4 h-4" />
-                      Ajout (Pay-In)
+                      Ajout (Ajoute des espèces)
                     </span>
                     <ArrowUpRight className="w-4 h-4" />
                   </button>
@@ -620,7 +620,7 @@ export default function CashDrawerRotationPage() {
                   >
                     <span className="flex items-center gap-1.5">
                       <MinusCircle className="w-4 h-4" />
-                      Retrait (Pay-Out)
+                      Retrait (retrait)
                     </span>
                     <ArrowDownRight className="w-4 h-4" />
                   </button>

@@ -91,7 +91,7 @@ export default function PayInOutModal({
                 {isPayIn ? 'Ajouter des espèces' : 'Retirer des espèces'}
               </h2>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                {isPayIn ? 'Opération Pay-in (Entrée)' : 'Opération Pay-out (Sortie)'}
+                {isPayIn ? 'Opération Ajoute des espèces (Entrée)' : 'Opération retrait (Sortie)'}
               </p>
             </div>
           </div>

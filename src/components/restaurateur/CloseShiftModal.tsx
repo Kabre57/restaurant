@@ -145,11 +145,11 @@ export default function CloseShiftModal({
               <span className="font-bold text-gray-800">+{totalCashSales.toLocaleString()} FCFA</span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Total Pay-in :</span>
+              <span className="text-gray-500">Total Ajoute des espèces :</span>
               <span className="font-bold text-emerald-600">+{totalPayIn.toLocaleString()} FCFA</span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-100">
-              <span className="text-gray-500">Total Pay-out :</span>
+              <span className="text-gray-500">Total retrait :</span>
               <span className="font-bold text-rose-500">-{totalPayOut.toLocaleString()} FCFA</span>
             </div>
           </div>
