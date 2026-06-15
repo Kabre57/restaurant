@@ -75,7 +75,7 @@ const authProxy = withAuth(
 
     // ── /cashier : caissiers + managers ──────────────────────
     if (path.startsWith("/cashier")) {
-      if (!hasRole(role, [ROLE.ADMIN, ROLE.RESTAURATEUR, ROLE.CASHIER, ROLE.DELIVERY])) {
+      if (!hasRole(role, [ROLE.ADMIN, ROLE.RESTAURATEUR, ROLE.CASHIER, ROLE.SERVER, ROLE.DELIVERY])) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
     }

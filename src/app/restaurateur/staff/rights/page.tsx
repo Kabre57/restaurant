@@ -69,6 +69,15 @@ const ROLE_LABELS: Record<Role, string> = {
   STORE_EMPLOYEE: 'Employé Établissement'
 }
 
+const generateSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 export default function AccessRightsDashboard() {
   const { data: session } = useSession()
   const storeId = session?.user?.storeId
@@ -740,9 +749,6 @@ export default function AccessRightsDashboard() {
                               <p className={`text-xs font-medium leading-relaxed ${descTheme}`}>
                                 {perm.desc}
                               </p>
-                              <code className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
-                                Clé: {perm.key}
-                              </code>
                             </div>
 
                             {/* Actions Control */}
@@ -916,34 +922,19 @@ export default function AccessRightsDashboard() {
             <form onSubmit={handleSaveCustomPermission} className="space-y-4">
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-wider mb-1.5 ${descTheme}`}>
-                  Clé technique (unique) *
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-xs font-bold text-slate-400">custom.</span>
-                  <input
-                    type="text"
-                    required
-                    value={customKey}
-                    onChange={(e) => setCustomKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                    placeholder="ma_permission"
-                    disabled={modalMode === 'edit'}
-                    className={`w-full pl-16 pr-4 py-3 text-xs rounded-2xl border outline-none font-semibold transition ${isDarkMode
-                        ? 'bg-[#0f1115] border-[#252a37] text-white focus:border-amber-500'
-                        : 'bg-slate-50 border-[#cbd5e1] text-slate-800 focus:border-amber-500'
-                      }`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-[10px] font-black uppercase tracking-wider mb-1.5 ${descTheme}`}>
                   Nom d'affichage *
                 </label>
                 <input
                   type="text"
                   required
                   value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
+                  onChange={(e) => {
+                    const name = e.target.value
+                    setCustomName(name)
+                    if (modalMode === 'create') {
+                      setCustomKey(generateSlug(name))
+                    }
+                  }}
                   placeholder="Ex: Modifier les tarifs de nuit"
                   className={`w-full px-4 py-3 text-xs rounded-2xl border outline-none font-semibold transition ${isDarkMode
                       ? 'bg-[#0f1115] border-[#252a37] text-white focus:border-amber-500'
