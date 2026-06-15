@@ -72,7 +72,17 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@prisma/instrumentation': 'commonjs @prisma/instrumentation',
+        'swagger-jsdoc': 'commonjs swagger-jsdoc',
+      });
+    }
+
+    return config;
+  },
 };
 
 export default withPWA(nextConfig);
-

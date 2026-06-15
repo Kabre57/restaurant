@@ -1,0 +1,146 @@
+model IngredientMovement {
+  id           String       @id @default(cuid())
+  ingredientId String
+  storeId      String
+  quantity     Float        // positive = added, negative = removed
+  reason       IngMvtReason
+  note         String?
+  createdAt    DateTime     @default(now())
+  
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([ingredientId, createdAt])
+  @@index([storeId, createdAt])
+}
+
+model Supplier {
+  id          String    @id @default(cuid())
+  storeId     String
+  name        String
+  email       String?
+  phone       String?
+  address     String?
+  contactName String?
+  taxId       String?
+  notes       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  store       Store     @relation(fields: [storeId], references: [id])
+  purchaseOrders PurchaseOrder[]
+  
+  @@index([storeId])
+  @@unique([storeId, name])
+}
+
+// Bons de commande fournisseurs
+
+model PurchaseOrder {
+  id           String            @id @default(cuid())
+  poNumber     String            @unique
+  storeId      String
+  supplierId   String
+  status       PurchaseOrderStatus @default(DRAFT)
+  orderDate    DateTime          @default(now())
+  expectedDate DateTime?
+  receivedDate DateTime?
+  notes        String?
+  subtotal     Float
+  taxAmount    Float
+  totalAmount  Float
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  store        Store             @relation(fields: [storeId], references: [id])
+  supplier     Supplier          @relation(fields: [supplierId], references: [id])
+  items        PurchaseOrderItem[]
+  
+  @@index([storeId, status])
+  @@index([supplierId])
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(cuid())
+  purchaseOrderId  String
+  productId        String
+  quantity         Int
+  receivedQuantity Int           @default(0)
+  unitCost         Float
+  totalCost        Float
+  notes            String?
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product          Product       @relation(fields: [productId], references: [id])
+  
+  @@unique([purchaseOrderId, productId])
+}
+
+// Ordres de transfert inter-magasins
+
+model TransferOrder {
+  id               String            @id @default(cuid())
+  transferNumber   String            @unique
+  fromStoreId      String
+  toStoreId        String
+  status           TransferStatus    @default(PENDING)
+  requestedBy      String
+  approvedBy       String?
+  requestDate      DateTime          @default(now())
+  shipDate         DateTime?
+  receiveDate      DateTime?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  fromStore        Store             @relation("FromStore", fields: [fromStoreId], references: [id])
+  toStore          Store             @relation("ToStore", fields: [toStoreId], references: [id])
+  items            TransferOrderItem[]
+  
+  @@index([fromStoreId, status])
+  @@index([toStoreId, status])
+}
+
+model TransferOrderItem {
+  id               String         @id @default(cuid())
+  transferOrderId  String
+  productId        String
+  quantity         Int
+  receivedQuantity Int            @default(0)
+  unitCost         Float
+  totalCost        Float
+  transferOrder    TransferOrder  @relation(fields: [transferOrderId], references: [id], onDelete: Cascade)
+  product          Product        @relation(fields: [productId], references: [id])
+  
+  @@unique([transferOrderId, productId])
+}
+
+// Inventaire physique (comptage)
+
+model PhysicalInventory {
+  id          String                @id @default(cuid())
+  storeId     String
+  name        String
+  status      InventoryStatus       @default(DRAFT)
+  scheduledDate DateTime?
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  store       Store                 @relation(fields: [storeId], references: [id])
+  items       PhysicalInventoryItem[]
+  
+  @@index([storeId, status])
+}
+
+model PhysicalInventoryItem {
+  id                  String            @id @default(cuid())
+  physicalInventoryId String
+  productId           String
+  expectedQuantity    Float
+  countedQuantity     Float?
+  difference          Float?            // counted - expected
+  notes               String?
+  physicalInventory   PhysicalInventory @relation(fields: [physicalInventoryId], references: [id], onDelete: Cascade)
+  product             Product           @relation(fields: [productId], references: [id])
+  
+  @@unique([physicalInventoryId, productId])
+}
+
+// Enums

@@ -16,6 +16,6 @@ docker compose up -d --build
 
 # 3. Synchronisation du schéma Prisma dans le conteneur (Migration)
 echo "💾 Application des migrations Prisma dans le conteneur..."
-docker compose exec -T app npx prisma db push --accept-data-loss
+docker compose exec -T app npx prisma db push --schema ./prisma --accept-data-loss
 
 echo "✅ Mise à jour terminée avec succès !"

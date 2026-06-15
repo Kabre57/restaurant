@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Check, Play, RotateCcw, X, BellRing } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { playNotificationSound } from '@/lib/sound'
 
 import { KDSColumn } from './KDSColumn'
 import SettingsPanel from './SettingsPanel'
@@ -69,7 +70,6 @@ export default function KDSClient({
     }))
   }
 
-<<<<<<< HEAD
   // Suivi des alertes sonores de retard déjà jouées pour éviter les signaux répétés en boucle
   const triggeredAlertsRef = useRef<{ warning: Set<string>; critical: Set<string> }>({
     warning: new Set(),
@@ -119,24 +119,12 @@ export default function KDSClient({
     return () => clearInterval(interval)
   }, [orders, warningThreshold, criticalThreshold])
 
-  useEffect(() => {
-    const refreshClock = () => {
-      setCurrentTime(new Date().toLocaleTimeString('fr-FR'))
-    }
-
-    refreshClock()
-    const interval = setInterval(refreshClock, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
   const streamLabel = streamStatus === 'connected'
     ? 'Flux connecté'
     : streamStatus === 'connecting'
       ? 'Connexion flux'
       : `Reconnexion ${Math.ceil(retryDelay / 1000)}s`
 
-=======
->>>>>>> bbaf5ff (Refactorisation)
   const handleLogout = async () => {
     setIsSidebarOpen(false)
     await signOut({ redirect: false })

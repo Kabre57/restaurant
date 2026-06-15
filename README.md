@@ -36,7 +36,7 @@ Un système de Point de Vente (POS) moderne, robuste et multi-établissements co
    ```
 4. Synchroniser la base de données :
    ```bash
-   npx prisma db push
+   npx prisma db push --schema ./prisma
    ```
 5. Lancer le serveur :
    ```bash

@@ -1,0 +1,343 @@
+model Store {
+  id                  String                    @id @default(cuid())
+  name                String
+  address             String?
+  phone               String?
+  email               String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  commission          Float                     @default(15.0)
+  logo                String?
+  parentId            String?
+  code                String?                   @unique
+  timezone            String?                   @default("UTC")
+  ecommerceEnabled    Boolean                   @default(false)
+  deliveryEnabled     Boolean                   @default(false)
+  clickAndCollectEnabled Boolean                @default(true)
+  deliveryFee         Decimal?                  @default(0) @db.Decimal(10, 2)
+  preparationDelayMinutes Int                   @default(30)
+  closedDates         Json?
+  parent              Store?                    @relation("StoreSubstores", fields: [parentId], references: [id])
+  subStores           Store[]                   @relation("StoreSubstores")
+  categories          Category[]
+  inventories         Inventory[]
+  orders              Order[]
+  products            Product[]
+  promotions          Promotion[]
+  reservations        Reservation[]
+  tables              Table[]
+  platformConnections StorePlatformConnection[]
+  productMappings     ProductPlatformMapping[]
+  users               User[]
+  productOptions      ProductOption[]
+  payouts             Payout[]
+  hrConfiguration     HrConfiguration?
+  storeSettings       StoreSettings?
+  cashDrawerShifts    CashDrawerShift[]
+  apiTokens           ApiToken[]
+  printers            Printer[]
+  PaymentMethod       PaymentMethod[]
+  ingredientMovements IngredientMovement[]
+  ingredients         Ingredient[]
+  deliveryPeople      DeliveryPerson[]
+  customers           Customer[]
+  suppliers           Supplier[]
+  purchaseOrders      PurchaseOrder[]
+  transfersFrom       TransferOrder[]           @relation("FromStore")
+  transfersTo         TransferOrder[]           @relation("ToStore")
+  physicalInventories PhysicalInventory[]
+  rolePermissions     RolePermission[]
+  customPermissions   CustomPermission[]
+
+  transfersSent       StockTransfer[]           @relation("StockTransferFromStore")
+  transfersReceived   StockTransfer[]           @relation("StockTransferToStore")
+  consolidatedReports ConsolidatedReport[]      @relation("StoreConsolidatedReports")
+  usersMulti          User[]                    @relation("UserStores")
+}
+
+model PlatformConfig {
+  id            String   @id @default("global")
+  siteName      String   @default("Ma Plateforme")
+  currency      String   @default("FCFA")
+  supportEmail  String?
+  supportPhone  String?
+  minWithdrawal Float    @default(5000)
+  enforce2FA    Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model SupportTicket {
+  id          String       @id @default(cuid())
+  subject     String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    Priority     @default(MEDIUM)
+  userId      String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User?        @relation(fields: [userId], references: [id])
+}
+
+model Category {
+  id        String          @id @default(cuid())
+  storeId   String
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  imageUrl  String?
+  store     Store           @relation(fields: [storeId], references: [id])
+  products  Product[]
+  options   ProductOption[]
+
+  // Sprint 2 — Filtre catégories par restaurant (navigation menu)
+  @@index([storeId])
+}
+
+model Product {
+  id                  String                   @id @default(cuid())
+  storeId             String
+  categoryId          String
+  name                String
+  description         String?
+  price               Float
+  costPrice           Float                    @default(0.0)
+  image               String?
+  barcode             String?                  // Code-barres (EAN-13, UPC, etc.)
+  isAvailable         Boolean                  @default(true)
+  averagePrepTimeMins Int                      @default(15)
+  createdAt           DateTime                 @default(now())
+  prepTimeSamples     Int                      @default(0)
+  updatedAt           DateTime                 @updatedAt
+  minStockLevel       Int                      @default(5)
+  stockQuantity       Int                      @default(0)
+  trackStock          Boolean                  @default(false)
+  orderItems          OrderItem[]
+  category            Category                 @relation(fields: [categoryId], references: [id])
+  externalMappings    ProductPlatformMapping[]
+  store               Store                    @relation(fields: [storeId], references: [id])
+  ingredients         ProductIngredient[]      @relation("RecipeIngredients")
+  subRecipeFor        ProductIngredient[]      @relation("SubRecipe")
+  stockMovements      StockMovement[]
+  purchaseOrderItems  PurchaseOrderItem[]
+  transferOrderItems  TransferOrderItem[]
+  physicalInventoryItems PhysicalInventoryItem[]
+  stockTransfers      StockTransfer[]          @relation("ProductStockTransfers")
+
+  @@unique([storeId, barcode])
+  @@index([storeId, categoryId, isAvailable])
+}
+
+model StorePlatformConnection {
+  id              String           @id @default(cuid())
+  storeId         String
+  platform        DeliveryPlatform
+  externalStoreId String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  store           Store            @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, platform])
+  @@unique([platform, externalStoreId])
+}
+
+model ProductPlatformMapping {
+  id                String           @id @default(cuid())
+  storeId           String
+  productId         String
+  platform          DeliveryPlatform
+  externalProductId String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  store             Store            @relation(fields: [storeId], references: [id])
+  product           Product          @relation(fields: [productId], references: [id])
+
+  @@unique([productId, platform])
+  @@unique([storeId, platform, externalProductId])
+}
+
+model Promotion {
+  id             String       @id @default(cuid())
+  storeId        String
+  code           String
+  description    String?
+  discountType   DiscountType @default(PERCENTAGE)
+  value          Float
+  isActive       Boolean      @default(true)
+  startDate      DateTime?
+  endDate        DateTime?
+  usageLimit     Int?
+  usedCount      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  minOrderAmount Float        @default(0.0)
+  maxDiscount    Float?
+  applicableTo   String       @default("ALL") // ALL, CATEGORY, PRODUCT
+  applicableId   String?      // CategoryId or ProductId if applicableTo is CATEGORY or PRODUCT
+  startTime      String?      // HH:MM format
+  endTime        String?      // HH:MM format
+  daysOfWeek     Int[]        @default([0, 1, 2, 3, 4, 5, 6])
+  orders         Order[]
+  store          Store        @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, code])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  phone     String?
+  email     String?
+  notes     String?  // Notes sur les préférences / particularités du client
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  loyalty   Loyalty?
+  orders    Order[]
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([email])
+  @@unique([storeId, phone])
+}
+
+model Table {
+  id           String        @id @default(cuid())
+  storeId      String
+  number       Int
+  capacity     Int
+  status       TableStatus   @default(AVAILABLE)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  height       Int           @default(100)
+  shape        TableShape    @default(RECTANGLE)
+  width        Int           @default(100)
+  x            Int           @default(0)
+  y            Int           @default(0)
+  orders       Order[]
+  reservations Reservation[]
+  store        Store         @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, number])
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  storeId       String
+  tableId       String
+  customerName  String
+  phone         String
+  email         String?
+  date          DateTime
+  startTime     DateTime
+  endTime       DateTime
+  guests        Int
+  status        ReservationStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  store         Store             @relation(fields: [storeId], references: [id])
+  table         Table             @relation(fields: [tableId], references: [id])
+  orders        Order[]
+  logs          ReservationLog[]
+
+  @@index([storeId, date])
+  @@index([tableId, status])
+}
+
+model ReservationLog {
+  id            String      @id @default(cuid())
+  reservationId String
+  action        String
+  details       String?
+  utilisateur   String?
+  timestamp     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+}
+
+model Ingredient {
+  id        String              @id @default(cuid())
+  name      String
+  unit      String              @default("unité")
+  costPrice Float               @default(0.0)
+  sellPrice Float               @default(0.0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  inventory Inventory[]
+  products  ProductIngredient[] @relation("BaseIngredient")
+  movements IngredientMovement[]
+  storeId   String
+  store     Store               @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, name])
+}
+
+model ProductIngredient {
+  id                String      @id @default(cuid())
+  productId         String      // recette parente
+  ingredientId      String      // ingrédient simple (Ingredient) ou sous‑recette (Product)
+  quantity          Float
+  unit              String      // g, kg, ml, cuillère, etc.
+  sectionGroup      String?     // ex: "Pour la pâte", "Pour la farce"
+  preparationNote   String?     // ex: "mélanger dans un bol", "laisser reposer 30 min"
+  isSubRecipe       Boolean     @default(false) // si true, ingredientId pointe vers une autre recette (Product)
+  displayOrder      Int         @default(0)     // ordre d’affichage dans le groupe
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  product           Product     @relation("RecipeIngredients", fields: [productId], references: [id])
+  ingredientProduct Product?    @relation("SubRecipe", fields: [ingredientId], references: [id], map: "ProductIngredient_subRecipe_fkey")
+  ingredientBase    Ingredient? @relation("BaseIngredient", fields: [ingredientId], references: [id], map: "ProductIngredient_baseIngredient_fkey")
+
+  @@unique([productId, ingredientId, sectionGroup])
+}
+
+model Inventory {
+  id           String     @id @default(cuid())
+  storeId      String
+  ingredientId String
+  quantity     Float
+  minStock     Float
+  lastUpdated  DateTime   @default(now())
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  store        Store      @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, ingredientId])
+}
+
+model ProductOption {
+  id         String     @id @default(cuid())
+  storeId    String
+  name       String
+  price      Float      @default(0)
+  type       OptionType
+  categoryId String?
+  store      Store      @relation(fields: [storeId], references: [id])
+  category   Category?  @relation(fields: [categoryId], references: [id])
+
+  @@unique([storeId, name, categoryId, type])
+  @@index([categoryId])
+}
+
+// Historique complet des mouvements de stock — indispensable pour l'auditabilité
+
+model StockMovement {
+  id          String    @id @default(cuid())
+  productId   String
+  storeId     String
+  quantity    Int // positif = entrée, négatif = sortie
+  reason      MvtReason
+  referenceId String? // orderId si reason = SALE
+  note        String? // note optionnelle pour les ajustements manuels
+  createdAt   DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([storeId, createdAt])
+  @@index([storeId, reason])
+}

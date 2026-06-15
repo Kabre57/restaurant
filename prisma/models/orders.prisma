@@ -1,0 +1,271 @@
+model DeliveryPerson {
+  id          String         @id @default(cuid())
+  name        String
+  phone       String
+  status      DeliveryStatus @default(OFFLINE)
+  vehicleType String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  orders      Order[]
+  storeId     String
+  store       Store          @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, phone])
+}
+
+model Order {
+  id                   String            @id @default(cuid())
+  storeId              String
+  cashierId            String?
+  customerId           String?
+  tableId              String?
+  estimatedPrepMinutes Int?
+  estimatedReadyAt     DateTime?
+  status               OrderStatus       @default(EN_ATTENTE)
+  type                 OrderType         @default(DINE_IN)
+  total                Float
+  actualPrepMinutes    Int?
+  createdAt            DateTime          @default(now())
+  preparationStartedAt DateTime?
+  readyAt              DateTime?
+  servedAt             DateTime?
+  updatedAt            DateTime          @updatedAt
+  deliveryPersonId     String?
+  clientRequestId      String?           @unique
+  sourcePlatform       DeliveryPlatform?
+  externalOrderId      String?
+  externalStoreId      String?
+  customerName         String?
+  customerPhone        String?
+  customerEmail        String?
+  deliveryAddress      String?
+  customerNotes        String?
+  externalPayload      Json?
+  discount             Float             @default(0)
+  source               OrderSource       @default(POS)
+  deliveryType         OnlineDeliveryType?
+  promotionId          String?
+  loyaltyPointsEarned   Int               @default(0)
+  loyaltyPointsRedeemed Int               @default(0)
+  reservationId        String?
+  deliveryOrder        DeliveryOrder?
+  cashier              User?             @relation("CashierOrders", fields: [cashierId], references: [id])
+  customer             Customer?         @relation(fields: [customerId], references: [id])
+  deliveryPerson       DeliveryPerson?   @relation(fields: [deliveryPersonId], references: [id])
+  promotion            Promotion?        @relation(fields: [promotionId], references: [id])
+  store                Store             @relation(fields: [storeId], references: [id])
+  table                Table?            @relation(fields: [tableId], references: [id])
+  reservation          Reservation?      @relation(fields: [reservationId], references: [id])
+  items                OrderItem[]
+  payments             Payment[]
+  loyaltyTransactions  LoyaltyTransaction[]
+
+  @@unique([sourcePlatform, externalOrderId])
+  @@index([storeId, status])
+  @@index([storeId, createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  priceExcludingTax Float @default(0)
+  taxRate   Float    @default(0.18)
+  taxAmount Float    @default(0)
+  options   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id              String               @id @default(cuid())
+  orderId         String
+  paymentMethodId String?
+  status          PaymentStatus        @default(REUSSIE)
+  amount          Float
+  externalRef     String?
+  onlineMethod    OnlinePaymentMethod?
+  transactionId   String?              @unique
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  order           Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethod   PaymentMethod?       @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([orderId])
+  @@index([paymentMethodId])
+}
+
+model Loyalty {
+  id               String   @id @default(cuid())
+  customerId       String   @unique
+  points           Int      @default(0)
+  pointsMultiplier Float    @default(1.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  customer         Customer @relation(fields: [customerId], references: [id])
+
+  @@index([points])
+}
+
+model PaymentMethod {
+  id           String      @id @default(cuid())
+  name         String // "Espèces", "Carte", "Mobile Money", "Ticket resto"
+  type         PaymentType
+  isActive     Boolean     @default(true)
+  isDefault    Boolean     @default(false)
+  icon         String? // emoji ou URL icône
+  storeId      String? // null = global, sinon spécifique magasin
+  displayOrder Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  store    Store?    @relation(fields: [storeId], references: [id])
+  payments Payment[]
+
+  @@unique([name, storeId])
+  @@index([storeId, isActive])
+  @@index([type])
+}
+
+model Payout {
+  id        String   @id @default(cuid())
+  storeId   String
+  amount    Float
+  status    String   @default("COMPLETED")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : CONTRATS & CARRIÈRE
+// ════════════════════════════════════════
+
+model LoyaltyCustomer {
+  id           String               @id @default(cuid())
+  phone        String               @unique
+  email        String?
+  nom          String?
+  points       Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id          String                 @id @default(cuid())
+  customerId  String
+  orderId     String?
+  type        LoyaltyTransactionType
+  points      Int
+  description String
+  createdAt   DateTime               @default(now())
+  customer    LoyaltyCustomer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order       Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([orderId])
+}
+
+model LoyaltyReward {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  description String?
+  pointsCost  Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model DeliveryOrder {
+  id                   String              @id @default(cuid())
+  orderId              String              @unique
+  address              String
+  latitude             Decimal?
+  longitude            Decimal?
+  distanceKm           Decimal?
+  deliveryFee          Decimal
+  status               DeliveryOrderStatus @default(PENDING)
+  estimatedTimeMinutes Int?
+  startedAt            DateTime?
+  deliveredAt          DateTime?
+  livreurId            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  order                Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  livreur              User?               @relation("DriverOrders", fields: [livreurId], references: [id], onDelete: SetNull)
+  trackings            DeliveryTracking[]
+
+  @@index([livreurId])
+  @@index([status])
+}
+
+model DeliveryDriver {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  vehicleType    String?
+  isActive       Boolean  @default(true)
+  latitude       Decimal?
+  longitude      Decimal?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryTracking {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  livreurId       String
+  latitude        Decimal
+  longitude       Decimal
+  timestamp       DateTime      @default(now())
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  livreur         User          @relation(fields: [livreurId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryOrderId])
+  @@index([livreurId])
+}
+
+model StockTransfer {
+  id          String              @id @default(cuid())
+  fromStoreId String
+  toStoreId   String
+  productId   String
+  quantity    Int
+  status      StockTransferStatus @default(PENDING)
+  requestedAt DateTime            @default(now())
+  completedAt DateTime?
+  notes       String?
+
+  fromStore   Store               @relation("StockTransferFromStore", fields: [fromStoreId], references: [id])
+  toStore     Store               @relation("StockTransferToStore", fields: [toStoreId], references: [id])
+  product     Product             @relation("ProductStockTransfers", fields: [productId], references: [id])
+
+  @@index([fromStoreId])
+  @@index([toStoreId])
+  @@index([productId])
+}
+
+model ConsolidatedReport {
+  id         String   @id @default(cuid())
+  storeId    String
+  date       DateTime
+  ca         Float
+  marge      Float
+  nbOrders   Int
+  nbCouverts Int
+
+  store      Store    @relation("StoreConsolidatedReports", fields: [storeId], references: [id])
+
+  @@unique([storeId, date])
+}

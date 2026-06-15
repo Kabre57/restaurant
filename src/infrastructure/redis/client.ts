@@ -75,12 +75,55 @@ const memClient: RedisLike = {
 };
 
 // ─── Chargement dynamique d'ioredis ──────────────────────
+function buildRedisOptions(rawUrl: string) {
+  try {
+    const parsedUrl = new URL(rawUrl);
+    const options = {
+      host: parsedUrl.hostname || 'localhost',
+      port: parsedUrl.port ? Number.parseInt(parsedUrl.port, 10) : 6379,
+      maxRetriesPerRequest: 2,
+      enableReadyCheck: false,
+      lazyConnect: true,
+    };
+
+    if (parsedUrl.username) {
+      Object.assign(options, { username: decodeURIComponent(parsedUrl.username) });
+    }
+
+    if (parsedUrl.password) {
+      Object.assign(options, { password: decodeURIComponent(parsedUrl.password) });
+    }
+
+    if (parsedUrl.pathname && parsedUrl.pathname !== '/') {
+      const db = Number.parseInt(parsedUrl.pathname.slice(1), 10);
+      if (!Number.isNaN(db)) {
+        Object.assign(options, { db });
+      }
+    }
+
+    if (parsedUrl.protocol === 'rediss:') {
+      Object.assign(options, { tls: {} });
+    }
+
+    return options;
+  } catch {
+    logger.warn('[Redis] REDIS_URL invalide, fallback sur localhost:6379');
+    return {
+      host: 'localhost',
+      port: 6379,
+      maxRetriesPerRequest: 2,
+      enableReadyCheck: false,
+      lazyConnect: true,
+    };
+  }
+}
+
 function tryLoadRedis(): RedisLike {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Redis = require("ioredis");
     const url   = process.env.REDIS_URL ?? "redis://localhost:6379";
-    const client = new Redis(url, { maxRetriesPerRequest: 2, enableReadyCheck: false, lazyConnect: true });
+    const client = new Redis(buildRedisOptions(url));
     client.on("error", (err: Error) => {
       if (process.env.NODE_ENV !== "production")
         logger.warn("[Redis] non-fatal:", err.message);

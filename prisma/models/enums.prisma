@@ -1,0 +1,206 @@
+enum RoundingType {
+  NO_ROUNDING
+  ROUND_UP
+  ROUND_DOWN
+  ROUND_NEAREST
+}
+
+enum WorkflowType {
+  CASHIER_ONLY
+  SERVER_FIRST
+}
+
+enum MvtReason {
+  SALE // Déduit lors de la création d'une commande
+  ADJUSTMENT // Ajustement manuel par un admin
+  WASTE // Perte / casse
+  DELIVERY // Entrée de stock fournisseur
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum OptionType {
+  SUPPLEMENT
+  REMOVAL
+}
+
+enum Role {
+  ADMIN
+  RESTAURATEUR
+  CASHIER
+  SERVER
+  KITCHEN
+  DELIVERY
+  MANAGER
+  LIVREUR
+  SUPER_ADMIN
+  STORE_MANAGER
+  STORE_EMPLOYEE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DeliveryStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+}
+
+enum DeliveryPlatform {
+  GLOVO
+  UBER_EATS
+  DELIVEROO
+  GENERIC
+}
+
+enum OrderStatus {
+  EN_ATTENTE
+  PREPARATION @map("PRÉPARATION")
+  PRET        @map("PRÊT")
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentType {
+  CASH
+  CARD
+  MOBILE_MONEY
+  CHECK
+  MEAL_VOUCHER
+  GIFT_CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  EN_ATTENTE
+  REUSSIE
+  ECHOUEE
+  REMBOURSEE
+}
+
+enum OrderSource {
+  ONLINE
+  POS
+}
+
+enum OnlineDeliveryType {
+  DELIVERY
+  CLICK_AND_COLLECT
+}
+
+enum OnlinePaymentMethod {
+  CARD
+  ORANGE_MONEY
+  MTN_MONEY
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  SEATED
+  EN_ATTENTE
+  COMPLETED
+}
+
+enum TableShape {
+  RECTANGLE
+  CIRCLE
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum OperationType {
+  PAY_IN
+  PAY_OUT
+}
+
+enum IngMvtReason {
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT_LOSS // Perte
+  ADJUSTMENT_THEFT // Vol
+  ADJUSTMENT_WASTE // Casse
+  ADJUSTMENT_CORRECTION // Correction manuelle
+  INITIAL_STOCK // Stock initial
+  DELIVERY // Livraison fournisseur
+}
+
+// Fournisseurs
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  SHIPPED
+  RECEIVED
+  CANCELLED
+}
+
+enum InventoryStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Suivi du temps de travail (Pointage / Fiches de présence)
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+}
+
+enum DeliveryOrderStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_PROGRESS
+  DELIVERED
+  CANCELLED
+}
+
+enum StockTransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}

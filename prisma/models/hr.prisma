@@ -1,0 +1,374 @@
+model User {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CASHIER)
+  status    String   @default("ACTIVE") // ACTIVE, INACTIVE, LEAVE, SUSPENDED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Champs RH ---
+  matricule        String?   @unique
+  firstName        String? // Prénom (name = nom complet)
+  civilite         String? // M, Mme
+  sexe             String? // M, F
+  dateNaissance    DateTime?
+  lieuNaissance    String?
+  nationalite      String?
+  phone            String?
+  address          String?
+  jobTitle         String? // Poste / Fonction
+  department       String? // Service / Département
+  hireDate         DateTime?
+  endDate          DateTime?
+  bankName         String?
+  bankAccount      String?
+  cnpsNumber       String?
+  // Composition familiale pour calcul IGR (Côte d'Ivoire)
+  maritalStatus    String? // SINGLE, MARRIED, DIVORCED, WIDOWED
+  numberOfChildren Int?      @default(0)
+  // Cache rapide (dénormalisé depuis Contract pour affichage)
+  contractType     String? // CDI, CDD, Stage, Freelance
+  salary           Float? // Salaire de base (FCFA)
+
+  orders              Order[]         @relation("CashierOrders")
+  tickets             SupportTicket[]
+  store               Store           @relation(fields: [storeId], references: [id])
+  contracts           Contract[]
+  payrolls            Payroll[]
+  leaveRequests       LeaveRequest[]
+  loans               Loan[]
+  evaluationsReceived Evaluation[]    @relation("UserEvaluations")
+  evaluationsGiven    Evaluation[]    @relation("EvaluatorEvaluations")
+  history             UserHistory[]
+  timecards           Timecard[]
+  deliveryOrders      DeliveryOrder[]   @relation("DriverOrders")
+  driverTrackings     DeliveryTracking[]
+  deliveryDriver      DeliveryDriver?
+  stores              Store[]           @relation("UserStores")
+  userPermissions     UserPermission[]
+
+  // Sprint 2 — Indexes de performance
+  @@index([storeId, role]) // Lister les caissiers/serveurs d'un restaurant
+  @@index([storeId, status]) // Employés actifs / en congé par restaurant
+}
+
+model Contract {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String // CDI, CDD, Stage, Freelance
+  startDate        DateTime
+  endDate          DateTime?
+  position         String? // Poste
+  department       String? // Département
+  baseSalary       Float
+  status           String    @default("ACTIVE") // ACTIVE, TERMINATED, EXPIRED
+  terminationDate  DateTime?
+  terminationNote  String?
+  maritalStatus    String? // Copie au moment du contrat
+  numberOfChildren Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : PAIE
+// ════════════════════════════════════════
+
+model Payroll {
+  id             String    @id @default(cuid())
+  userId         String
+  period         String // "2025-01", "2025-02", ...
+  baseSalary     Float
+  socialSecurity Float     @default(0) // CNPS Salariale
+  taxAmount      Float     @default(0) // ITS + CN + IGR
+  netSalary      Float
+  employerCost   Float     @default(0) // CNPS Patronale
+  details        Json?     // Détail comptable complet (lignes de gains, cotisations, indemnités)
+  paymentStatus  String    @default("PENDING") // PENDING, PAID
+  paymentDate    DateTime?
+  reference      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@index([period])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : CONGÉS
+// ════════════════════════════════════════
+
+model LeaveRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  type         String // PAID, SICK, MATERNITY, UNPAID, OTHER
+  startDate    DateTime
+  endDate      DateTime
+  daysCount    Int
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reason       String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  rejectedNote String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([startDate, endDate])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : AVANCES & PRÊTS
+// ════════════════════════════════════════
+
+model Loan {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String // ADVANCE, LOAN
+  amount           Float
+  monthlyDeduction Float? // Pour les prêts uniquement
+  status           String    @default("PENDING") // PENDING, APPROVED, REJECTED, SETTLED
+  reason           String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  settledAt        DateTime?
+  note             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : ÉVALUATIONS
+// ════════════════════════════════════════
+
+model Evaluation {
+  id           String   @id @default(cuid())
+  userId       String // Employé évalué
+  evaluatorId  String // Manager qui évalue
+  period       String // "2025-Q1", "2025-ANNUEL"
+  overallScore Int // Note globale /5
+  criteria     Json? // {ponctualite: 4, qualite: 5, ...}
+  strengths    String?
+  improvements String?
+  goals        String?
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation("UserEvaluations", fields: [userId], references: [id], onDelete: Cascade)
+  evaluator    User     @relation("EvaluatorEvaluations", fields: [evaluatorId], references: [id])
+
+  @@index([userId, period])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : HISTORIQUE
+// ════════════════════════════════════════
+
+model UserHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String // CONTRACT_CREATED, SALARY_UPDATED, STATUS_CHANGED, ...
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ════════════════════════════════════════
+// MODULE RH : CONFIGURATION FISCALE
+// ════════════════════════════════════════
+
+model HrConfiguration {
+  id                String   @id @default(cuid())
+  storeId           String   @unique
+  cnpsEmployeeRate  Float    @default(6.3) // Taux salarial CNPS (%)
+  cnpsEmployerRate  Float    @default(16.45) // Taux patronal CNPS (%)
+  itsRate           Float    @default(1.2) // ITS (%)
+  baseImposableRate Float    @default(80.0) // Base imposable (% du brut)
+  cnpsCeiling       Float    @default(1647315) // Plafond CNPS annuel (FCFA)
+  igrBaseRate       Float    @default(85.0) // Base IGR (% du net imposable)
+  taxRates          Json? // Barèmes CN et IGR personnalisés
+  // --- Informations Entreprise (pour bulletin de paie) ---
+  nomEntreprise       String?  // Raison sociale
+  adresseSiege        String?  // Adresse complète
+  telephone           String?  // Téléphone entreprise
+  registreCommerce    String?  // N° RC
+  compteContribuable  String?  // N° CC
+  numeroCnps          String?  // N° Employeur CNPS
+  // --- Configuration Présences ---
+  horaireJournalier   Float?   @default(8.0)  // Heures par jour
+  joursParSemaine     Int?     @default(5)    // Jours travaillés par semaine
+  // --- Taux cotisations patronales supplémentaires ---
+  cmuRate             Float?   @default(0.0)  // CMU % (Couverture Maladie Universelle)
+  formationRate       Float?   @default(0.6)  // Formation continue %
+  apprentissageRate   Float?   @default(0.4)  // Taxe d'apprentissage %
+  prestFamilialeRate  Float?   @default(5.75) // Prestation familiale %
+  accidentTravailRate Float?   @default(3.0)  // Accident de travail %
+  cmuSalarialFixe     Float?   @default(1000) // CMU part salariale fixe (FCFA)
+  cmuPatronalFixe     Float?   @default(500)  // CMU part patronale fixe (FCFA)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  store             Store    @relation(fields: [storeId], references: [id])
+}
+
+model StoreSettings {
+  id            String       @id @default(cuid())
+  storeId       String       @unique
+  rounding      RoundingType @default(NO_ROUNDING)
+  roundingValue Int          @default(5)
+  receiptLogo   String?      @db.Text // Base64 du logo pour impression ESC/POS
+  receiptHeader String? // Texte personnalisé en-tête de reçu
+  receiptFooter String? // Texte personnalisé pied de reçu
+  workflowType  WorkflowType @default(SERVER_FIRST)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  store         Store        @relation(fields: [storeId], references: [id])
+}
+
+model Printer {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String // e.g. "Imprimante Cuisine", "Imprimante Comptoir"
+  type          String // "ETHERNET", "USB", "BLUETOOTH"
+  ipAddress     String? // e.g. "192.168.1.100"
+  port          Int      @default(9100)
+  paperWidth    Int      @default(80) // 80 or 58 (mm)
+  printReceipts Boolean  @default(true) // Ticket de caisse
+  printOrders   Boolean  @default(false) // Bons de préparation cuisine
+  categories    String? // Catégories associées sous forme de chaîne de caractères (ex: "boissons,desserts")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  store         Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+}
+
+model CashDrawerShift {
+  id             String                @id @default(cuid())
+  storeId        String
+  openedById     String
+  openedByName   String
+  openedAt       DateTime              @default(now())
+  closedById     String?
+  closedByName   String?
+  closedAt       DateTime?
+  startAmount    Int // Fond de caisse initial (FCFA)
+  endAmount      Int? // Saisie montant final (FCFA)
+  expectedAmount Int? // Calculé attendu (startAmount + ventes espèces + payIn - payOut)
+  status         ShiftStatus           @default(OPEN)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  store          Store                 @relation(fields: [storeId], references: [id])
+  operations     CashDrawerOperation[]
+
+  @@index([storeId])
+  @@index([status])
+}
+
+model CashDrawerOperation {
+  id        String          @id @default(cuid())
+  shiftId   String
+  amount    Int // Montant de l'opération (FCFA)
+  type      OperationType
+  note      String? // Motif de l'opération
+  createdAt DateTime        @default(now())
+  shift     CashDrawerShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId])
+}
+
+model ApiToken {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String // Nom descriptif (ex: "Intégration Apify")
+  token     String   @unique // Jeton sécurisé haché ou brut (GLP_...)
+  prefix    String // Masked preview (ex: "GLP_abcd")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model Timecard {
+  id        String    @id @default(cuid())
+  storeId   String
+  userId    String
+  clockIn   DateTime  @default(now())
+  clockOut  DateTime?
+  duration  Float?    // en heures
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, userId])
+}
+
+// Droits d'accès personnalisés
+
+model RolePermission {
+  id            String   @id @default(cuid())
+  storeId       String
+  role          Role
+  permissionKey String
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, role, permissionKey])
+  @@index([storeId, role])
+}
+
+model ClotureMois {
+  id        String   @id @default(cuid())
+  storeId   String
+  period    String   // "2026-06", etc.
+  isClosed  Boolean  @default(true)
+  closedAt  DateTime @default(now())
+  closedBy  String
+
+  @@unique([storeId, period])
+  @@index([storeId])
+}
+
+model UserPermission {
+  id            String   @id @default(cuid())
+  userId        String
+  permissionKey String
+  enabled       Boolean
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionKey])
+  @@index([userId])
+}
+
+model CustomPermission {
+  id            String   @id @default(cuid())
+  storeId       String
+  permissionKey String
+  name          String
+  desc          String
+  module        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, permissionKey])
+  @@index([storeId])
+}

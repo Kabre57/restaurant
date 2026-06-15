@@ -106,19 +106,23 @@ body {
   text-transform: uppercase;
 }
 
+@page receipt {
+  size: 80mm auto;
+  margin: 4mm;
+}
+
+@page payslip {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
 @media print {
   body:not(.printing-payslip) {
-    @page {
-      size: 80mm auto;
-      margin: 4mm;
-    }
+    page: receipt;
   }
 
   body.printing-payslip {
-    @page {
-      size: A4 portrait;
-      margin: 10mm;
-    }
+    page: payslip;
   }
 
   body:not(.printing-payslip) * {
@@ -209,9 +213,7 @@ body {
   color: var(--parabellum-text) !important;
 }
 
-.dark .text-\#72788f,
 .dark .text-\[\#72788f\],
-.dark .text-[#72788f],
 .dark .text-gray-500,
 .dark .text-gray-600,
 .dark .text-\[\#adb5bd\],
@@ -269,4 +271,3 @@ body {
 .dark a.bg-white:hover {
   background-color: var(--parabellum-body) !important;
 }
-

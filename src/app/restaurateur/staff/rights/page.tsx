@@ -10,7 +10,12 @@ import {
   Search,
   Plus,
   Users,
-  Settings
+  Settings,
+  AlertCircle,
+  Edit,
+  Trash2,
+  Check,
+  X
 } from 'lucide-react'
 import { Role } from '@prisma/client'
 import { MODULES_LIST, DEFAULT_PERMISSIONS } from '@/app/utils/permissions-config'
@@ -88,6 +93,13 @@ export default function AccessRightsDashboard() {
   const cardTheme = isDarkMode ? 'bg-[#151821] border-[#252a37] shadow-xl' : 'bg-white border-[#e3e8f0] shadow-sm'
   const titleTheme = isDarkMode ? 'text-white' : 'text-[#1a202c]'
   const descTheme = isDarkMode ? 'text-[#9faab7]' : 'text-[#64748b]'
+  const borderTheme = isDarkMode ? 'border-[#252a37]' : 'border-[#e3e8f0]'
+  const hoverRowTheme = isDarkMode ? 'hover:bg-[#1a1e2a]' : 'hover:bg-slate-50'
+  const badgeTheme = (category: string) => {
+    if (category === 'system') return isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'
+    if (category === 'custom') return isDarkMode ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'
+    return isDarkMode ? 'bg-slate-500/10 text-slate-300' : 'bg-slate-100 text-slate-600'
+  }
 
   return (
     <div className={`min-h-screen transition-all duration-300 p-4 sm:p-6 lg:p-8 ${bgTheme}`}>
@@ -343,40 +355,8 @@ export default function AccessRightsDashboard() {
               />
             )}
 
-<<<<<<< HEAD
-                        return (
-                          <button
-                            key={mod.id}
-                            onClick={() => {
-                              setActiveModule(mod.id)
-                              setSearchQuery('')
-                            }}
-                            className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 shrink-0 lg:shrink ${isSelected
-                                ? 'bg-amber-500 border-amber-500 text-white shadow-md'
-                                : isDarkMode
-                                  ? 'bg-[#151821] border-[#252a37] text-slate-300 hover:bg-[#1a1e2a]'
-                                  : 'bg-white border-[#cbd5e1] text-slate-700 hover:bg-slate-50'
-                              }`}
-                          >
-                            <div className="text-left">
-                              <p className="text-xs font-black uppercase tracking-wider truncate max-w-[150px] lg:max-w-none">
-                                {mod.name}
-                              </p>
-                              <p className={`text-[9px] font-bold ${isSelected ? 'text-white/80' : 'text-slate-400'} mt-0.5`}>
-                                {mod.pages.length} pages
-                              </p>
-                            </div>
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                              }`}>
-                              {count}/{total}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
+            {activeTab === 'lecture_metier' ? (
+              <>
                 {/* CONTENT AREA: DETAILED PERMISSIONS */}
                 <div className="lg:col-span-9 space-y-4">
                   {filteredPermissions.length === 0 ? (
@@ -414,92 +394,14 @@ export default function AccessRightsDashboard() {
                               </p>
                             </div>
 
-                            {/* Actions Control */}
-                            <div className="flex items-center gap-3 shrink-0">
-                              {/* Edit/Delete custom permission if creator */}
-                              {isCustom && (
-                                <div className="flex items-center gap-1.5 mr-2">
-                                  <button
-                                    onClick={() => {
-                                      const c = customPermissions.find(cp => cp.permissionKey === perm.key)
-                                      if (c) openEditModal(c)
-                                    }}
-                                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition"
-                                    title="Modifier la permission"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteCustomPermission(perm.key)}
-                                    className="p-2 rounded-xl border border-red-200 dark:border-red-900/30 hover:bg-red-500/10 text-red-500 transition"
-                                    title="Supprimer la permission"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Tab Specific Toggles */}
-                              {activeTab === 'permissions_role' && (
-                                <div className="w-16 flex justify-end">
-                                  {isSaving ? (
-                                    <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
-                                  ) : (
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={!!rolePermissions[perm.key]}
-                                        onChange={() => handleToggleRolePermission(perm.key, !!rolePermissions[perm.key])}
-                                        className="sr-only peer"
-                                      />
-                                      <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all ${isDarkMode
-                                          ? 'bg-[#252a37] peer-checked:bg-amber-400'
-                                          : 'bg-slate-200 peer-checked:bg-slate-900'
-                                        }`}></div>
-                                    </label>
-                                  )}
-                                </div>
-                              )}
-
-                              {activeTab === 'exceptions_user' && (
-                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-1">
-                                  {(['inherited', 'authorized', 'forbidden'] as const).map((status) => {
-                                    const currentStatus = userPermissions[perm.key]?.status || 'inherited'
-                                    const isSelected = currentStatus === status
-
-                                    let label = 'Hérité'
-                                    let btnClass = 'text-slate-500'
-                                    if (status === 'authorized') {
-                                      label = 'Autorisé'
-                                      if (isSelected) btnClass = 'bg-emerald-500 text-white shadow'
-                                    } else if (status === 'forbidden') {
-                                      label = 'Interdit'
-                                      if (isSelected) btnClass = 'bg-rose-500 text-white shadow'
-                                    } else {
-                                      if (isSelected) btnClass = 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-white shadow'
-                                    }
-
-                                    return (
-                                      <button
-                                        key={status}
-                                        onClick={() => handleUpdateUserPermission(perm.key, status)}
-                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition ${btnClass}`}
-                                      >
-                                        {label}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
                           </div>
                         )
                       })}
                     </div>
                   )}
                 </div>
+              </>
 
-              </div>
             ) : (
               /* TAB: LECTURE METIER (MATRIX VIEW) */
               <div className={`rounded-3xl border p-6 overflow-hidden ${cardTheme}`}>
@@ -553,16 +455,6 @@ export default function AccessRightsDashboard() {
                   </table>
                 </div>
               </div>
-=======
-            {activeTab === 'lecture_metier' && (
-              <MatrixViewTab
-                isDarkMode={isDarkMode}
-                filteredPermissions={filteredPermissions}
-                systemRoles={SYSTEM_ROLES}
-                roleLabels={ROLE_LABELS}
-                defaultPermissions={DEFAULT_PERMISSIONS}
-              />
->>>>>>> bbaf5ff (Refactorisation)
             )}
           </>
         )}
@@ -570,7 +462,6 @@ export default function AccessRightsDashboard() {
 
       {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
-<<<<<<< HEAD
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className={`w-full max-w-lg p-6 rounded-3xl border transition-all ${cardTheme} shadow-2xl`}>
             <div className="flex items-center justify-between border-b pb-4 mb-4 dark:border-slate-800">
@@ -668,24 +559,6 @@ export default function AccessRightsDashboard() {
             </form>
           </div>
         </div>
-=======
-        <CustomPermissionModal
-          isDarkMode={isDarkMode}
-          modalMode={modalMode}
-          customKey={customKey}
-          customName={customName}
-          customDesc={customDesc}
-          customModule={customModule}
-          errorMessage={errorMessage}
-          actionLoading={actionLoading}
-          setCustomKey={setCustomKey}
-          setCustomName={setCustomName}
-          setCustomDesc={setCustomDesc}
-          setCustomModule={setCustomModule}
-          setIsModalOpen={setIsModalOpen}
-          handleSaveCustomPermission={handleSaveCustomPermission}
-        />
->>>>>>> bbaf5ff (Refactorisation)
       )}
     </div>
   )
