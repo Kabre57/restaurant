@@ -247,6 +247,10 @@ async function seedDatabase() {
   }
 
   console.log("📦 Ingrédients et inventaire initialisés pour le multi-magasins.");
+
+  // Seeder la recette Gyoza Marmiton
+  await seedGyozaRecipe(storeMain.id);
+
   console.log("\n🎉 Réinitialisation et Seed terminés avec succès !");
   console.log("\n📧 Comptes de test créés (Mot de passe commun : password123) :");
   console.log("   - administrateur@pos.com (ADMIN)           -> Mamadou Koné");
@@ -256,6 +260,198 @@ async function seedDatabase() {
   console.log("   - cuisinier@pos.com      (KITCHEN)         -> Bakary Coulibaly");
   console.log("   - serveur@pos.com        (SERVER)          -> Chantal Yao");
   console.log("   - caissier2@pos.com      (CASHIER/Plateau) -> Jean-Baptiste Ouattara\n");
+}
+
+async function seedGyozaRecipe(storeId: string) {
+  console.log("🥟 Seeding de la recette Gyoza Marmiton...");
+
+  // Drop raw database constraints if they exist
+  try {
+    await prisma.$executeRawUnsafe('ALTER TABLE "ProductIngredient" DROP CONSTRAINT IF EXISTS "ProductIngredient_subRecipe_fkey";');
+    await prisma.$executeRawUnsafe('ALTER TABLE "ProductIngredient" DROP CONSTRAINT IF EXISTS "ProductIngredient_baseIngredient_fkey";');
+  } catch (err) {
+    // ignore
+  }
+
+  // Categorie
+  let category = await prisma.category.findFirst({
+    where: { storeId, name: "Entrées" }
+  });
+  if (!category) {
+    category = await prisma.category.create({
+      data: {
+        storeId,
+        name: "Entrées"
+      }
+    });
+  }
+  const categoryId = category.id;
+
+  // Ingrédients bruts
+  const rawIngredientsData = [
+    { name: "Farine", unit: "g", costPrice: 0.005 },
+    { name: "Eau", unit: "cl", costPrice: 0.002 },
+    { name: "Porc", unit: "g", costPrice: 0.012 },
+    { name: "Chou", unit: "g", costPrice: 0.004 },
+    { name: "Ail", unit: "g", costPrice: 0.015 },
+    { name: "Gingembre", unit: "g", costPrice: 0.025 },
+    { name: "Sauce soja", unit: "cl", costPrice: 0.15 },
+    { name: "Huile", unit: "cl", costPrice: 0.08 },
+    { name: "Sel", unit: "pincées", costPrice: 0.02 }
+  ];
+
+  const ingredientsMap: Record<string, string> = {};
+
+  for (const item of rawIngredientsData) {
+    let ing = await prisma.ingredient.findFirst({
+      where: { storeId, name: item.name }
+    });
+    if (!ing) {
+      ing = await prisma.ingredient.create({
+        data: {
+          storeId,
+          name: item.name,
+          unit: item.unit,
+          costPrice: item.costPrice
+        }
+      });
+    }
+    ingredientsMap[item.name] = ing.id;
+
+    // Assurer le stock
+    const inv = await prisma.inventory.findFirst({
+      where: { storeId, ingredientId: ing.id }
+    });
+    if (!inv) {
+      await prisma.inventory.create({
+        data: {
+          storeId,
+          ingredientId: ing.id,
+          quantity: 10000,
+          minStock: 100
+        }
+      });
+    } else {
+      await prisma.inventory.update({
+        where: { id: inv.id },
+        data: { quantity: 10000 }
+      });
+    }
+  }
+
+  // Sous-recettes et Produit Final
+  const productsToCreate = [
+    { name: "Préparation A", price: 0, description: "Mélange aromatique d'ail, gingembre et soja", isRecipe: true },
+    { name: "Farce", price: 0, description: "Farce à base de porc et chou assaisonné", isRecipe: true },
+    { name: "Pâte à gyozas", price: 0, description: "Pâte fine de farine et eau reposée", isRecipe: true },
+    { name: "Gyoza final", price: 2500, description: "Véritables raviolis japonais de A à Z", isRecipe: true }
+  ];
+
+  const productsMap: Record<string, string> = {};
+
+  for (const item of productsToCreate) {
+    let prod = await prisma.product.findFirst({
+      where: { storeId, name: item.name }
+    });
+    if (!prod) {
+      prod = await prisma.product.create({
+        data: {
+          storeId,
+          categoryId,
+          name: item.name,
+          price: item.price,
+          description: item.description,
+          trackStock: false,
+          stockQuantity: 0
+        }
+      });
+    }
+    productsMap[item.name] = prod.id;
+  }
+
+  // Nettoyer les anciennes associations
+  await prisma.productIngredient.deleteMany({
+    where: {
+      productId: {
+        in: Object.values(productsMap)
+      }
+    }
+  });
+
+  // Associer les ingrédients/sous-recettes
+  const prepARecipe = [
+    { ingredientId: ingredientsMap["Ail"], quantity: 10, unit: "g", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Hacher finement" },
+    { ingredientId: ingredientsMap["Gingembre"], quantity: 5, unit: "g", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Râper finement" },
+    { ingredientId: ingredientsMap["Sauce soja"], quantity: 2, unit: "cl", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Ajouter au mélange" },
+    { ingredientId: ingredientsMap["Huile"], quantity: 2, unit: "cl", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Ajouter pour lier" }
+  ];
+  await prisma.productIngredient.createMany({
+    data: prepARecipe.map((item, idx) => ({
+      productId: productsMap["Préparation A"],
+      ingredientId: item.ingredientId,
+      quantity: item.quantity,
+      unit: item.unit,
+      isSubRecipe: item.isSubRecipe,
+      sectionGroup: item.sectionGroup,
+      preparationNote: item.preparationNote,
+      displayOrder: idx
+    }))
+  });
+
+  const farceRecipe = [
+    { ingredientId: ingredientsMap["Porc"], quantity: 250, unit: "g", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Hacher menu" },
+    { ingredientId: ingredientsMap["Chou"], quantity: 100, unit: "g", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Émincer et dégorger" },
+    { ingredientId: ingredientsMap["Sel"], quantity: 2, unit: "pincées", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Saupoudrer pour assaisonner" },
+    { ingredientId: productsMap["Préparation A"], quantity: 1, unit: "portions", isSubRecipe: true, sectionGroup: "Ingrédients principaux", preparationNote: "Intégrer la préparation aromatique" }
+  ];
+  await prisma.productIngredient.createMany({
+    data: farceRecipe.map((item, idx) => ({
+      productId: productsMap["Farce"],
+      ingredientId: item.ingredientId,
+      quantity: item.quantity,
+      unit: item.unit,
+      isSubRecipe: item.isSubRecipe,
+      sectionGroup: item.sectionGroup,
+      preparationNote: item.preparationNote,
+      displayOrder: idx
+    }))
+  });
+
+  const pateRecipe = [
+    { ingredientId: ingredientsMap["Farine"], quantity: 400, unit: "g", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Tamiser dans un saladier" },
+    { ingredientId: ingredientsMap["Eau"], quantity: 50, unit: "cl", isSubRecipe: false, sectionGroup: "Ingrédients principaux", preparationNote: "Verser progressivement et pétrir" }
+  ];
+  await prisma.productIngredient.createMany({
+    data: pateRecipe.map((item, idx) => ({
+      productId: productsMap["Pâte à gyozas"],
+      ingredientId: item.ingredientId,
+      quantity: item.quantity,
+      unit: item.unit,
+      isSubRecipe: item.isSubRecipe,
+      sectionGroup: item.sectionGroup,
+      preparationNote: item.preparationNote,
+      displayOrder: idx
+    }))
+  });
+
+  const gyozaFinalRecipe = [
+    { ingredientId: productsMap["Pâte à gyozas"], quantity: 1, unit: "portions", isSubRecipe: true, sectionGroup: "Pâte", preparationNote: "Étaler finement en disques de 8cm" },
+    { ingredientId: productsMap["Farce"], quantity: 1, unit: "portions", isSubRecipe: true, sectionGroup: "Farce", preparationNote: "Placer une cuillère de farce au centre et plier en demi-lune" }
+  ];
+  await prisma.productIngredient.createMany({
+    data: gyozaFinalRecipe.map((item, idx) => ({
+      productId: productsMap["Gyoza final"],
+      ingredientId: item.ingredientId,
+      quantity: item.quantity,
+      unit: item.unit,
+      isSubRecipe: item.isSubRecipe,
+      sectionGroup: item.sectionGroup,
+      preparationNote: item.preparationNote,
+      displayOrder: idx
+    }))
+  });
+
+  console.log("✅ Recette Gyoza Marmiton seedée avec succès.");
 }
 
 async function main() {
