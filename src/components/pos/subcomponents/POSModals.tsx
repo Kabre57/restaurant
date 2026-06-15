@@ -3,6 +3,10 @@
 
 import React from 'react'
 import { useSession } from 'next-auth/react'
+import type { Reservation, Table } from '@prisma/client'
+import type { CartItem } from '@/store/useCart'
+import type { RealtimeOrder } from '../hooks/usePOSRealtime'
+import type { usePOSCheckout } from '../hooks/usePOSCheckout'
 import { CashierStatsModal } from './CashierStatsModal'
 import { ReceiptModal } from './ReceiptModal'
 import { PaymentModal } from './PaymentModal'
@@ -11,29 +15,44 @@ import { OptionsModal } from './OptionsModal'
 import { TableStatusModal } from './TableStatusModal'
 import { AlertModal } from './AlertModal'
 
+type ActiveShift = {
+  id: string
+  startAmount: number
+  openedByName: string
+  openedAt: Date | string
+}
+
+type POSAlertState = {
+  title: string
+  message: string
+  type?: 'error' | 'success' | 'info'
+} | null
+
 interface POSModalsProps {
   showSessionStats: boolean
   setShowSessionStats: (val: boolean) => void
   sessionTotal: number
-  checkout: any
+  checkout: ReturnType<typeof usePOSCheckout>
   showReservationModal: boolean
   setShowReservationModal: (val: boolean) => void
-  tableForReservation: any
+  tableForReservation: Table | null
   storeId: string
-  reservations: any[]
+  reservations: Reservation[]
   editingOptionsId: string | null
   setEditingOptionsId: (val: string | null) => void
-  items: any[]
-  updateOptions: any
-  showTableStatusModal: any
-  setShowTableStatusModal: (val: any) => void
-  activeTableOrder: any
+  items: CartItem[]
+  updateOptions: (id: string, options: string) => void
+  showTableStatusModal: Table | null
+  setShowTableStatusModal: (val: Table | null) => void
+  activeTableOrder: RealtimeOrder | null
   operatorRole: 'CASHIER' | 'SERVER'
   handleMarkOrderServed: () => void
-  alertState: any
-  setAlertState: (val: any) => void
-  onAddItems: (table: any) => void
-  onSettlePayment: (table: any, order: any) => void
+  alertState: POSAlertState
+  setAlertState: (val: POSAlertState) => void
+  onAddItems: (table: Table) => void
+  onSettlePayment: (table: Table, order: RealtimeOrder | null) => void
+  activeShift?: ActiveShift | null
+  onCloseShift?: (endAmount: number) => Promise<unknown>
 }
 
 export function POSModals({
@@ -59,6 +78,8 @@ export function POSModals({
   setAlertState,
   onAddItems,
   onSettlePayment,
+  activeShift,
+  onCloseShift,
 }: POSModalsProps) {
   const { data: session } = useSession()
 
@@ -69,6 +90,8 @@ export function POSModals({
           total={sessionTotal}
           cashierName={session?.user?.name || 'Caissier'}
           onClose={() => setShowSessionStats(false)}
+          activeShift={activeShift}
+          onCloseShift={onCloseShift}
         />
       )}
 
@@ -105,12 +128,27 @@ export function POSModals({
           onCustomerSearch={checkout.handleCustomerSearch}
           customerResults={checkout.customerResults}
           onSelectCustomer={(customer) => checkout.setSelectedCustomer(customer)}
+          loyaltyPointsRedeemed={checkout.loyaltyPointsRedeemed}
+          onLoyaltyPointsRedeemedChange={checkout.setLoyaltyPointsRedeemed}
+          loyaltyDiscount={checkout.loyaltyDiscount}
           selectedBills={checkout.selectedBills}
           onAddBill={checkout.onAddBill}
           onRemoveBill={checkout.onRemoveBill}
           onResetBills={checkout.onResetBills}
           roundedTotal={checkout.roundedTotal}
           roundingDiff={checkout.roundingDiff}
+          orderType={checkout.orderType}
+          onOrderTypeChange={checkout.setOrderType}
+          deliveryAddress={checkout.deliveryAddress}
+          onDeliveryAddressChange={checkout.setDeliveryAddress}
+          deliveryClientName={checkout.deliveryClientName}
+          onDeliveryClientNameChange={checkout.setDeliveryClientName}
+          deliveryClientPhone={checkout.deliveryClientPhone}
+          onDeliveryClientPhoneChange={checkout.setDeliveryClientPhone}
+          deliveryFee={checkout.deliveryFee}
+          deliveryDistanceKm={checkout.deliveryDistanceKm}
+          deliveryDurationMins={checkout.deliveryDurationMins}
+          handleAddressSelect={checkout.handleAddressSelect}
         />
       )}
 

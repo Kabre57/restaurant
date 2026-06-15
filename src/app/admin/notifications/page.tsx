@@ -115,7 +115,7 @@ export default async function AdminNotificationsPage() {
                 key={notif.id}
                 className="flex items-start gap-4 rounded-xl border border-[#E5E7EB] bg-[#F8F9FA] p-5 hover:bg-white hover:border-[#FF6D00] transition-all"
               >
-                <div className={`rounded-xl p-2.5 shrink-0 F CFA {
+                <div className={`rounded-xl p-2.5 shrink-0 ${
                   isCritical ? 'bg-red-500/10 text-red-500' :
                   isWarning ? 'bg-amber-500/10 text-amber-500' :
                   isSuccess ? 'bg-green-500/10 text-green-500' :
@@ -138,7 +138,7 @@ export default async function AdminNotificationsPage() {
                     <span className="rounded-lg bg-white border border-[#E5E7EB] px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-[#FF6D00]">
                       {notif.store}
                     </span>
-                    <span className={`rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-widest F CFA {
+                    <span className={`rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
                       isCritical ? 'bg-red-100 text-red-700' :
                       isWarning ? 'bg-amber-100 text-amber-700' :
                       isSuccess ? 'bg-green-100 text-green-700' :

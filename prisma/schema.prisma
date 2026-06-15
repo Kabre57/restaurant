@@ -15,6 +15,11 @@ enum RoundingType {
   ROUND_NEAREST
 }
 
+enum WorkflowType {
+  CASHIER_ONLY
+  SERVER_FIRST
+}
+
 model Store {
   id                  String                    @id @default(cuid())
   name                String
@@ -25,6 +30,17 @@ model Store {
   updatedAt           DateTime                  @updatedAt
   commission          Float                     @default(15.0)
   logo                String?
+  parentId            String?
+  code                String?                   @unique
+  timezone            String?                   @default("UTC")
+  ecommerceEnabled    Boolean                   @default(false)
+  deliveryEnabled     Boolean                   @default(false)
+  clickAndCollectEnabled Boolean                @default(true)
+  deliveryFee         Decimal?                  @default(0) @db.Decimal(10, 2)
+  preparationDelayMinutes Int                   @default(30)
+  closedDates         Json?
+  parent              Store?                    @relation("StoreSubstores", fields: [parentId], references: [id])
+  subStores           Store[]                   @relation("StoreSubstores")
   categories          Category[]
   inventories         Inventory[]
   orders              Order[]
@@ -53,6 +69,12 @@ model Store {
   transfersTo         TransferOrder[]           @relation("ToStore")
   physicalInventories PhysicalInventory[]
   rolePermissions     RolePermission[]
+  customPermissions   CustomPermission[]
+
+  transfersSent       StockTransfer[]           @relation("StockTransferFromStore")
+  transfersReceived   StockTransfer[]           @relation("StockTransferToStore")
+  consolidatedReports ConsolidatedReport[]      @relation("StoreConsolidatedReports")
+  usersMulti          User[]                    @relation("UserStores")
 }
 
 model User {
@@ -101,6 +123,11 @@ model User {
   evaluationsGiven    Evaluation[]    @relation("EvaluatorEvaluations")
   history             UserHistory[]
   timecards           Timecard[]
+  deliveryOrders      DeliveryOrder[]   @relation("DriverOrders")
+  driverTrackings     DeliveryTracking[]
+  deliveryDriver      DeliveryDriver?
+  stores              Store[]           @relation("UserStores")
+  userPermissions     UserPermission[]
 
   // Sprint 2 — Indexes de performance
   @@index([storeId, role]) // Lister les caissiers/serveurs d'un restaurant
@@ -183,11 +210,13 @@ model Product {
   category            Category                 @relation(fields: [categoryId], references: [id])
   externalMappings    ProductPlatformMapping[]
   store               Store                    @relation(fields: [storeId], references: [id])
-  ingredients         ProductIngredient[]
+  ingredients         ProductIngredient[]      @relation("RecipeIngredients")
+  subRecipeFor        ProductIngredient[]      @relation("SubRecipe")
   stockMovements      StockMovement[]
   purchaseOrderItems  PurchaseOrderItem[]
   transferOrderItems  TransferOrderItem[]
   physicalInventoryItems PhysicalInventoryItem[]
+  stockTransfers      StockTransfer[]          @relation("ProductStockTransfers")
 
   @@unique([storeId, barcode])
   @@index([storeId, categoryId, isAvailable])
@@ -217,19 +246,28 @@ model Order {
   externalStoreId      String?
   customerName         String?
   customerPhone        String?
+  customerEmail        String?
   deliveryAddress      String?
   customerNotes        String?
   externalPayload      Json?
   discount             Float             @default(0)
+  source               OrderSource       @default(POS)
+  deliveryType         OnlineDeliveryType?
   promotionId          String?
+  loyaltyPointsEarned   Int               @default(0)
+  loyaltyPointsRedeemed Int               @default(0)
+  reservationId        String?
+  deliveryOrder        DeliveryOrder?
   cashier              User?             @relation("CashierOrders", fields: [cashierId], references: [id])
   customer             Customer?         @relation(fields: [customerId], references: [id])
   deliveryPerson       DeliveryPerson?   @relation(fields: [deliveryPersonId], references: [id])
   promotion            Promotion?        @relation(fields: [promotionId], references: [id])
   store                Store             @relation(fields: [storeId], references: [id])
   table                Table?            @relation(fields: [tableId], references: [id])
+  reservation          Reservation?      @relation(fields: [reservationId], references: [id])
   items                OrderItem[]
   payments             Payment[]
+  loyaltyTransactions  LoyaltyTransaction[]
 
   @@unique([sourcePlatform, externalOrderId])
   @@index([storeId, status])
@@ -266,21 +304,28 @@ model ProductPlatformMapping {
 }
 
 model Promotion {
-  id           String       @id @default(cuid())
-  storeId      String
-  code         String
-  description  String?
-  discountType DiscountType @default(PERCENTAGE)
-  value        Float
-  isActive     Boolean      @default(true)
-  startDate    DateTime?
-  endDate      DateTime?
-  usageLimit   Int?
-  usedCount    Int          @default(0)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  orders       Order[]
-  store        Store        @relation(fields: [storeId], references: [id])
+  id             String       @id @default(cuid())
+  storeId        String
+  code           String
+  description    String?
+  discountType   DiscountType @default(PERCENTAGE)
+  value          Float
+  isActive       Boolean      @default(true)
+  startDate      DateTime?
+  endDate        DateTime?
+  usageLimit     Int?
+  usedCount      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  minOrderAmount Float        @default(0.0)
+  maxDiscount    Float?
+  applicableTo   String       @default("ALL") // ALL, CATEGORY, PRODUCT
+  applicableId   String?      // CategoryId or ProductId if applicableTo is CATEGORY or PRODUCT
+  startTime      String?      // HH:MM format
+  endTime        String?      // HH:MM format
+  daysOfWeek     Int[]        @default([0, 1, 2, 3, 4, 5, 6])
+  orders         Order[]
+  store          Store        @relation(fields: [storeId], references: [id])
 
   @@unique([storeId, code])
 }
@@ -291,6 +336,9 @@ model OrderItem {
   productId String
   quantity  Int
   price     Float
+  priceExcludingTax Float @default(0)
+  taxRate   Float    @default(0.18)
+  taxAmount Float    @default(0)
   options   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -302,16 +350,18 @@ model OrderItem {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
+  id              String               @id @default(cuid())
   orderId         String
-  paymentMethodId String
-  status          PaymentStatus @default(REUSSIE)
+  paymentMethodId String?
+  status          PaymentStatus        @default(REUSSIE)
   amount          Float
   externalRef     String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  onlineMethod    OnlinePaymentMethod?
+  transactionId   String?              @unique
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  order           Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethod   PaymentMethod?       @relation(fields: [paymentMethodId], references: [id])
 
   @@index([orderId])
   @@index([paymentMethodId])
@@ -337,12 +387,13 @@ model Customer {
 }
 
 model Loyalty {
-  id         String   @id @default(cuid())
-  customerId String   @unique
-  points     Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  customer   Customer @relation(fields: [customerId], references: [id])
+  id               String   @id @default(cuid())
+  customerId       String   @unique
+  points           Int      @default(0)
+  pointsMultiplier Float    @default(1.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  customer         Customer @relation(fields: [customerId], references: [id])
 
   @@index([points])
 }
@@ -353,6 +404,7 @@ model Table {
   number       Int
   capacity     Int
   status       TableStatus   @default(AVAILABLE)
+  isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   height       Int           @default(100)
@@ -369,33 +421,50 @@ model Table {
 }
 
 model Reservation {
-  id           String            @id @default(cuid())
-  storeId      String
-  tableId      String
-  customerName String
-  phone        String
-  date         DateTime
-  guests       Int
-  status       ReservationStatus @default(EN_ATTENTE)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  store        Store             @relation(fields: [storeId], references: [id])
-  table        Table             @relation(fields: [tableId], references: [id])
+  id            String            @id @default(cuid())
+  storeId       String
+  tableId       String
+  customerName  String
+  phone         String
+  email         String?
+  date          DateTime
+  startTime     DateTime
+  endTime       DateTime
+  guests        Int
+  status        ReservationStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  store         Store             @relation(fields: [storeId], references: [id])
+  table         Table             @relation(fields: [tableId], references: [id])
+  orders        Order[]
+  logs          ReservationLog[]
 
   @@index([storeId, date])
   @@index([tableId, status])
 }
 
+model ReservationLog {
+  id            String      @id @default(cuid())
+  reservationId String
+  action        String
+  details       String?
+  utilisateur   String?
+  timestamp     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+}
+
 model Ingredient {
   id        String              @id @default(cuid())
   name      String
-  unit      String
+  unit      String              @default("unité")
   costPrice Float               @default(0.0)
   sellPrice Float               @default(0.0)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   inventory Inventory[]
-  products  ProductIngredient[]
+  products  ProductIngredient[] @relation("BaseIngredient")
   movements IngredientMovement[]
   storeId   String
   store     Store               @relation(fields: [storeId], references: [id])
@@ -405,14 +474,23 @@ model Ingredient {
 }
 
 model ProductIngredient {
-  id           String     @id @default(cuid())
-  productId    String
-  ingredientId String
-  quantity     Float
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-  product      Product    @relation(fields: [productId], references: [id])
+  id                String      @id @default(cuid())
+  productId         String      // recette parente
+  ingredientId      String      // ingrédient simple (Ingredient) ou sous‑recette (Product)
+  quantity          Float
+  unit              String      // g, kg, ml, cuillère, etc.
+  sectionGroup      String?     // ex: "Pour la pâte", "Pour la farce"
+  preparationNote   String?     // ex: "mélanger dans un bol", "laisser reposer 30 min"
+  isSubRecipe       Boolean     @default(false) // si true, ingredientId pointe vers une autre recette (Product)
+  displayOrder      Int         @default(0)     // ordre d’affichage dans le groupe
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  @@unique([productId, ingredientId])
+  product           Product     @relation("RecipeIngredients", fields: [productId], references: [id])
+  ingredientProduct Product?    @relation("SubRecipe", fields: [ingredientId], references: [id], map: "ProductIngredient_subRecipe_fkey")
+  ingredientBase    Ingredient? @relation("BaseIngredient", fields: [ingredientId], references: [id], map: "ProductIngredient_baseIngredient_fkey")
+
+  @@unique([productId, ingredientId, sectionGroup])
 }
 
 model Inventory {
@@ -486,6 +564,10 @@ enum Role {
   KITCHEN
   DELIVERY
   MANAGER
+  LIVREUR
+  SUPER_ADMIN
+  STORE_MANAGER
+  STORE_EMPLOYEE
 }
 
 enum TicketStatus {
@@ -565,6 +647,22 @@ enum PaymentStatus {
   REMBOURSEE
 }
 
+enum OrderSource {
+  ONLINE
+  POS
+}
+
+enum OnlineDeliveryType {
+  DELIVERY
+  CLICK_AND_COLLECT
+}
+
+enum OnlinePaymentMethod {
+  CARD
+  ORANGE_MONEY
+  MTN_MONEY
+}
+
 enum TableStatus {
   AVAILABLE
   OCCUPIED
@@ -572,9 +670,11 @@ enum TableStatus {
 }
 
 enum ReservationStatus {
-  EN_ATTENTE
+  PENDING
   CONFIRMED
   CANCELLED
+  SEATED
+  EN_ATTENTE
   COMPLETED
 }
 
@@ -632,6 +732,7 @@ model Payroll {
   taxAmount      Float     @default(0) // ITS + CN + IGR
   netSalary      Float
   employerCost   Float     @default(0) // CNPS Patronale
+  details        Json?     // Détail comptable complet (lignes de gains, cotisations, indemnités)
   paymentStatus  String    @default("PENDING") // PENDING, PAID
   paymentDate    DateTime?
   reference      String?
@@ -743,6 +844,24 @@ model HrConfiguration {
   cnpsCeiling       Float    @default(1647315) // Plafond CNPS annuel (FCFA)
   igrBaseRate       Float    @default(85.0) // Base IGR (% du net imposable)
   taxRates          Json? // Barèmes CN et IGR personnalisés
+  // --- Informations Entreprise (pour bulletin de paie) ---
+  nomEntreprise       String?  // Raison sociale
+  adresseSiege        String?  // Adresse complète
+  telephone           String?  // Téléphone entreprise
+  registreCommerce    String?  // N° RC
+  compteContribuable  String?  // N° CC
+  numeroCnps          String?  // N° Employeur CNPS
+  // --- Configuration Présences ---
+  horaireJournalier   Float?   @default(8.0)  // Heures par jour
+  joursParSemaine     Int?     @default(5)    // Jours travaillés par semaine
+  // --- Taux cotisations patronales supplémentaires ---
+  cmuRate             Float?   @default(0.0)  // CMU % (Couverture Maladie Universelle)
+  formationRate       Float?   @default(0.6)  // Formation continue %
+  apprentissageRate   Float?   @default(0.4)  // Taxe d'apprentissage %
+  prestFamilialeRate  Float?   @default(5.75) // Prestation familiale %
+  accidentTravailRate Float?   @default(3.0)  // Accident de travail %
+  cmuSalarialFixe     Float?   @default(1000) // CMU part salariale fixe (FCFA)
+  cmuPatronalFixe     Float?   @default(500)  // CMU part patronale fixe (FCFA)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   store             Store    @relation(fields: [storeId], references: [id])
@@ -756,6 +875,7 @@ model StoreSettings {
   receiptLogo   String?      @db.Text // Base64 du logo pour impression ESC/POS
   receiptHeader String? // Texte personnalisé en-tête de reçu
   receiptFooter String? // Texte personnalisé pied de reçu
+  workflowType  WorkflowType @default(SERVER_FIRST)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   store         Store        @relation(fields: [storeId], references: [id])
@@ -1042,4 +1162,185 @@ model RolePermission {
 
   @@unique([storeId, role, permissionKey])
   @@index([storeId, role])
+}
+
+model ClotureMois {
+  id        String   @id @default(cuid())
+  storeId   String
+  period    String   // "2026-06", etc.
+  isClosed  Boolean  @default(true)
+  closedAt  DateTime @default(now())
+  closedBy  String
+
+  @@unique([storeId, period])
+  @@index([storeId])
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+}
+
+model LoyaltyCustomer {
+  id           String               @id @default(cuid())
+  phone        String               @unique
+  email        String?
+  nom          String?
+  points       Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id          String                 @id @default(cuid())
+  customerId  String
+  orderId     String?
+  type        LoyaltyTransactionType
+  points      Int
+  description String
+  createdAt   DateTime               @default(now())
+  customer    LoyaltyCustomer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order       Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([orderId])
+}
+
+model LoyaltyReward {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  description String?
+  pointsCost  Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model DeliveryOrder {
+  id                   String              @id @default(cuid())
+  orderId              String              @unique
+  address              String
+  latitude             Decimal?
+  longitude            Decimal?
+  distanceKm           Decimal?
+  deliveryFee          Decimal
+  status               DeliveryOrderStatus @default(PENDING)
+  estimatedTimeMinutes Int?
+  startedAt            DateTime?
+  deliveredAt          DateTime?
+  livreurId            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  order                Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  livreur              User?               @relation("DriverOrders", fields: [livreurId], references: [id], onDelete: SetNull)
+  trackings            DeliveryTracking[]
+
+  @@index([livreurId])
+  @@index([status])
+}
+
+model DeliveryDriver {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  vehicleType    String?
+  isActive       Boolean  @default(true)
+  latitude       Decimal?
+  longitude      Decimal?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryTracking {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  livreurId       String
+  latitude        Decimal
+  longitude       Decimal
+  timestamp       DateTime      @default(now())
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  livreur         User          @relation(fields: [livreurId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryOrderId])
+  @@index([livreurId])
+}
+
+enum DeliveryOrderStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_PROGRESS
+  DELIVERED
+  CANCELLED
+}
+
+enum StockTransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+model StockTransfer {
+  id          String              @id @default(cuid())
+  fromStoreId String
+  toStoreId   String
+  productId   String
+  quantity    Int
+  status      StockTransferStatus @default(PENDING)
+  requestedAt DateTime            @default(now())
+  completedAt DateTime?
+  notes       String?
+
+  fromStore   Store               @relation("StockTransferFromStore", fields: [fromStoreId], references: [id])
+  toStore     Store               @relation("StockTransferToStore", fields: [toStoreId], references: [id])
+  product     Product             @relation("ProductStockTransfers", fields: [productId], references: [id])
+
+  @@index([fromStoreId])
+  @@index([toStoreId])
+  @@index([productId])
+}
+
+model ConsolidatedReport {
+  id         String   @id @default(cuid())
+  storeId    String
+  date       DateTime
+  ca         Float
+  marge      Float
+  nbOrders   Int
+  nbCouverts Int
+
+  store      Store    @relation("StoreConsolidatedReports", fields: [storeId], references: [id])
+
+  @@unique([storeId, date])
+}
+
+model UserPermission {
+  id            String   @id @default(cuid())
+  userId        String
+  permissionKey String
+  enabled       Boolean
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionKey])
+  @@index([userId])
+}
+
+model CustomPermission {
+  id            String   @id @default(cuid())
+  storeId       String
+  permissionKey String
+  name          String
+  desc          String
+  module        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, permissionKey])
+  @@index([storeId])
 }

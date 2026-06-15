@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { X, Upload, Check, Loader2 } from 'lucide-react'
-import { addProduct } from '@/app/actions/admin'
+import { addProduct } from '@/app/actions/analytics/admin'
 import Image from 'next/image'
 
 type Category = { id: string, name: string, imageUrl?: string | null }

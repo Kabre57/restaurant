@@ -1,14 +1,35 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+
+type EvaluationPayload = {
+  userId: string
+  evaluatorId?: string
+  period?: string
+  score?: string | number
+  overallScore?: string | number
+  skills?: Prisma.InputJsonValue
+  criteria?: Prisma.InputJsonValue
+  strengths?: string
+  improvements?: string
+  objectives?: string
+  goals?: string
+  comments?: string
+  comment?: string
+}
+
+function parseEvaluationScore(value: string | number | undefined) {
+  return Math.round(parseFloat(String(value ?? '5')))
+}
 
 export async function getEvaluations(userId?: string) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
-    const whereClause: any = { user: { storeId } }
+    const whereClause: Prisma.EvaluationWhereInput = { user: { storeId } }
     if (userId) {
       whereClause.userId = userId
     }
@@ -32,7 +53,7 @@ export async function getEvaluations(userId?: string) {
   }
 }
 
-export async function createEvaluation(data: any) {
+export async function createEvaluation(data: EvaluationPayload) {
   const { storeId, userId: sessionUserId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
@@ -59,9 +80,9 @@ export async function createEvaluation(data: any) {
       data: {
         userId: data.userId,
         evaluatorId: evaluatorId,
-        period: data.period,
-        overallScore: Math.round(parseFloat(data.score || data.overallScore || '5')),
-        criteria: data.skills || data.criteria || {},
+        period: data.period || '',
+        overallScore: parseEvaluationScore(data.score ?? data.overallScore),
+        criteria: data.skills ?? data.criteria ?? {},
         strengths: data.strengths || '',
         improvements: data.improvements || '',
         goals: data.objectives || data.goals || '',
@@ -76,7 +97,7 @@ export async function createEvaluation(data: any) {
   }
 }
 
-export async function updateEvaluation(id: string, data: any) {
+export async function updateEvaluation(id: string, data: EvaluationPayload) {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
@@ -92,8 +113,8 @@ export async function updateEvaluation(id: string, data: any) {
       where: { id },
       data: {
         period: data.period,
-        overallScore: Math.round(parseFloat(data.score || data.overallScore || '5')),
-        criteria: data.skills || data.criteria || {},
+        overallScore: parseEvaluationScore(data.score ?? data.overallScore),
+        criteria: data.skills ?? data.criteria ?? {},
         strengths: data.strengths,
         improvements: data.improvements,
         goals: data.objectives || data.goals,

@@ -1,0 +1,10 @@
+.next
+out
+build
+.tmp
+.git
+.gitignore
+coverage
+test-results
+playwright-report
+*.tsbuildinfo

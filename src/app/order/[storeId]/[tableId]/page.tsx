@@ -2,8 +2,8 @@ import React from 'react';
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation';
 import CustomerOrderClient from '@/components/customer/CustomerOrderClient';
-import { getProductsByStore, getCategoriesByStore } from '@/app/actions/products';
-import { getProductOptions } from '@/app/actions/productOptions';
+import { getProductsByStore, getCategoriesByStore } from '@/app/actions/catalog/products';
+import { getProductOptions } from '@/app/actions/catalog/productOptions';
 
 interface PageProps {
   params: Promise<{

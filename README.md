@@ -43,6 +43,20 @@ Un système de Point de Vente (POS) moderne, robuste et multi-établissements co
    npm run dev
    ```
 
+## 📖 Documentation de l'API (Swagger & OpenAPI)
+
+Le projet intègre une documentation interactive de ses APIs REST via Swagger.
+
+### Accès à la console interactive
+La documentation est disponible sur la route : `http://localhost:3000/api-docs`.
+*Note : Cette route est sécurisée et requiert d'être authentifié avec le rôle `ADMIN` ou `SUPER_ADMIN`.*
+
+### Exporter la spécification OpenAPI
+Pour exporter la spécification OpenAPI 3.0 complète dans le fichier statique `openapi.json` à la racine du projet, lancez :
+```bash
+npm run generate:api
+```
+
 ## 👥 Rôles Utilisateurs
 
 - **SUPER_ADMIN / ADMIN** : Gestion globale, statistiques et configuration des établissements.

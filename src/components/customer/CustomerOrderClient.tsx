@@ -4,8 +4,8 @@ import React, { useState, useMemo } from 'react'
 import { BellRing, ChevronRight, Plus, Search, ShoppingBag, CheckCircle2, X } from 'lucide-react'
 import { Product, Category } from '@prisma/client'
 import Image from 'next/image'
-import { createOrder } from '@/app/actions/orders'
-import { verifyPromoCode } from '@/app/actions/promotions'
+import { createOrder } from '@/app/actions/orders/orders'
+import { verifyPromoCode } from '@/app/actions/catalog/promotions'
 import CustomerCartModal, { CartItem, getItemKey } from './CustomerCartModal'
 
 interface CustomerOrderClientProps {
@@ -201,7 +201,12 @@ export default function CustomerOrderClient({
     let promotionId: string | undefined
 
     if (paymentData.promoCode) {
-      const promo = await verifyPromoCode(paymentData.promoCode, storeId, cartTotal)
+      const mappedItems = cart.map((item) => ({
+        productId: item.product.id,
+        price: item.product.price + (item.customization?.priceAdjustment || 0),
+        quantity: item.quantity,
+      }))
+      const promo = await verifyPromoCode(paymentData.promoCode, storeId, cartTotal, mappedItems)
       if (!promo.success) {
         alert(promo.error || 'Code promotionnel invalide')
         setIsSubmitting(false)

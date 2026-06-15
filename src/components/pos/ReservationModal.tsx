@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { Calendar, Clock, Users, User, Phone, X, Check, Trash2 } from 'lucide-react';
-import { Table, Reservation } from '@prisma/client';
-import { createReservation, updateReservationStatus, deleteReservation } from '@/app/actions/reservations';
+import { Table, Reservation, ReservationStatus } from '@prisma/client';
+import { createReservation, updateReservationStatus, deleteReservation } from '@/app/actions/clients/reservations';
 
 interface ReservationModalProps {
   table: Table;
@@ -43,7 +43,7 @@ export default function ReservationModal({ table, storeId, onClose, existingRese
     setIsSubmitting(false);
   };
 
-  const handleUpdateStatus = async (id: string, status: any) => {
+  const handleUpdateStatus = async (id: string, status: ReservationStatus) => {
     await updateReservationStatus(id, status);
   };
 

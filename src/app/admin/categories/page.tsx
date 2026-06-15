@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { Layers, Loader2, Upload, X } from 'lucide-react'
-import { createAdminCategory, deleteAdminCategory, getAdminCategories } from '@/app/actions/adminCategories'
-import { getStores } from '@/app/actions/stores'
+import { createAdminCategory, deleteAdminCategory, getAdminCategories } from '@/app/actions/catalog/adminCategories'
+import { getStores } from '@/app/actions/store/stores'
 import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudStatus, CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 type CategoryRow = Awaited<ReturnType<typeof getAdminCategories>>[number]
@@ -11,9 +11,16 @@ type StoreRow = Awaited<ReturnType<typeof getStores>>[number]
 
 const initialForm = { name: '', storeId: '', imageUrl: '' }
 
+function readAdminActiveStoreId() {
+  if (typeof document === 'undefined') return ''
+  const match = document.cookie.match(/(^| )admin_active_store_id=([^;]*)/)
+  return match ? decodeURIComponent(match[2]) : localStorage.getItem('admin_active_store_id') || ''
+}
+
 export default function AdminCategories() {
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [stores, setStores] = useState<StoreRow[]>([])
+  const [activeStoreId, setActiveStoreId] = useState('')
   const [form, setForm] = useState(initialForm)
   const [message, setMessage] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -37,8 +44,8 @@ export default function AdminCategories() {
     reader.readAsDataURL(file)
   }
 
-  async function refreshData() {
-    const [categoryRows, storeRows] = await Promise.all([getAdminCategories(), getStores()])
+  async function refreshData(storeId = activeStoreId) {
+    const [categoryRows, storeRows] = await Promise.all([getAdminCategories(storeId || undefined), getStores()])
     setCategories(categoryRows)
     setStores(storeRows)
   }
@@ -46,15 +53,28 @@ export default function AdminCategories() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([getAdminCategories(), getStores()])
-      .then(([categoryRows, storeRows]) => {
-        if (cancelled) return
-        setCategories(categoryRows)
-        setStores(storeRows)
-        setForm((current) => ({ ...current, storeId: storeRows[0]?.id || '' }))
+    async function loadInitialData() {
+      const storeRows = await getStores()
+      const storedStoreId = readAdminActiveStoreId()
+      const nextStoreId = storeRows.some((store) => store.id === storedStoreId)
+        ? storedStoreId
+        : storeRows[0]?.id || ''
+      const categoryRows = await getAdminCategories(nextStoreId || undefined)
+
+      if (cancelled) return
+      setActiveStoreId(nextStoreId)
+      setCategories(categoryRows)
+      setStores(storeRows)
+      setForm((current) => ({ ...current, storeId: nextStoreId }))
+    }
+
+    loadInitialData()
+      .catch((error) => {
+        console.error(error)
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false)
+        if (cancelled) return
+        setIsLoading(false)
       })
 
     return () => {
@@ -69,7 +89,7 @@ export default function AdminCategories() {
 
     const result = await createAdminCategory(form)
     if (result.success) {
-      setForm({ ...initialForm, storeId: stores[0]?.id || '' })
+      setForm({ ...initialForm, storeId: activeStoreId || stores[0]?.id || '' })
       setShowAddModal(false)
       await refreshData()
     } else {

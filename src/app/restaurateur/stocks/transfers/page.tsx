@@ -19,8 +19,8 @@ import {
   createTransferOrder, 
   shipTransferOrder, 
   receiveTransferOrder 
-} from '@/app/actions/transferOrders';
-import { getProductsByStore } from '@/app/actions/products';
+} from '@/app/actions/inventory/transferOrders';
+import { getProductsByStore } from '@/app/actions/catalog/products';
 import { CrudTable, CrudStatus, CrudPrimaryButton } from '@/components/ui/ParabellumCrudTable';
 
 type StoreSummary = {

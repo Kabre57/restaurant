@@ -1,9 +1,10 @@
 'use server'
 
-import { prisma } from '@/lib/db'
+import { Prisma, Role } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import { requireAuth, assertSameStore } from '@/lib/auth-guard'
+import { StaffRepository } from '@/modules/staff/repositories/staff.repository'
 
 // Define a type for employee creation/update
 export type EmployeeData = {
@@ -16,8 +17,8 @@ export type EmployeeData = {
   matricule?:      string
   civilite?:       string
   sexe?:           string
-  dateNaissance?:  Date | null   // était: dateBirth (n'existe pas dans Prisma)
-  nationalite?:    string        // était: nationality
+  dateNaissance?:  Date | null
+  nationalite?:    string
   address?:        string
   phone?:          string
   salary?:         number
@@ -27,23 +28,14 @@ export type EmployeeData = {
 
   cnpsNumber?:     string
   bankName?:       string
-  bankAccount?:    string        // était: rib (n'existe pas dans Prisma)
+  bankAccount?:    string
 }
 
 export async function getEmployees() {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
-    const employees = await prisma.user.findMany({
-      where: { storeId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        contracts: {
-          where: { status: 'ACTIVE' },
-          take: 1
-        }
-      }
-    })
+    const employees = await StaffRepository.findEmployeesByStore(storeId)
     return { success: true, employees }
   } catch (error) {
     console.error("Failed to fetch employees:", error)
@@ -52,27 +44,10 @@ export async function getEmployees() {
 }
 
 export async function getEmployeeById(id: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
-    const employee = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        contracts: true,
-        payrolls: {
-          orderBy: { createdAt: 'desc' },
-          take: 5
-        },
-        leaveRequests: {
-          orderBy: { createdAt: 'desc' },
-          take: 5
-        },
-        loans: {
-          orderBy: { createdAt: 'desc' },
-          take: 5
-        }
-      }
-    })
+    const employee = await StaffRepository.findEmployeeById(id)
 
     if (!employee) {
       return { success: false, error: 'Employé non trouvé.' }
@@ -89,16 +64,14 @@ export async function getEmployeeById(id: string) {
 }
 
 export async function createEmployee(data: EmployeeData) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     if (!data.name || !data.email || !data.password) {
       return { success: false, error: 'Nom, email et mot de passe sont requis.' }
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email.trim().toLowerCase() }
-    })
+    const existingUser = await StaffRepository.findUserByEmail(data.email.trim().toLowerCase())
 
     if (existingUser) {
       return { success: false, error: 'Cet email est déjà utilisé.' }
@@ -106,31 +79,28 @@ export async function createEmployee(data: EmployeeData) {
 
     const hashedPassword = await bcrypt.hash(data.password, 10)
 
-    const newEmployee = await prisma.user.create({
-      data: {
-        storeId, // ✅ Utilise le storeId de la session, jamais du client
-        name:     data.name.trim(),
-        email:    data.email.trim().toLowerCase(),
-        password: hashedPassword,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        role: (data.role as any) || 'CASHIER',
+    const newEmployee = await StaffRepository.createEmployee({
+      storeId, // ✅ Utilise le storeId de la session, jamais du client
+      name:     data.name.trim(),
+      email:    data.email.trim().toLowerCase(),
+      password: hashedPassword,
+      role: (data.role as Role | undefined) || Role.CASHIER,
 
-        matricule:     data.matricule,
-        civilite:      data.civilite,
-        sexe:          data.sexe,
-        dateNaissance: data.dateNaissance,   // champ Prisma correct
-        nationalite:   data.nationalite,     // champ Prisma correct
-        address:       data.address,
-        phone:         data.phone,
-        salary:       data.salary,
-        contractType: data.contractType,
-        hireDate:     data.hireDate,
-        status:       data.status || 'ACTIVE',
+      matricule:     data.matricule,
+      civilite:      data.civilite,
+      sexe:          data.sexe,
+      dateNaissance: data.dateNaissance,
+      nationalite:   data.nationalite,
+      address:       data.address,
+      phone:         data.phone,
+      salary:       data.salary,
+      contractType: data.contractType,
+      hireDate:     data.hireDate,
+      status:       data.status || 'ACTIVE',
 
-        cnpsNumber:  data.cnpsNumber,
-        bankName:    data.bankName,
-        bankAccount: data.bankAccount,       // champ Prisma correct
-      }
+      cnpsNumber:  data.cnpsNumber,
+      bankName:    data.bankName,
+      bankAccount: data.bankAccount,
     })
 
     revalidatePath('/restaurateur/rh/effectifs')
@@ -144,15 +114,34 @@ export async function createEmployee(data: EmployeeData) {
 }
 
 export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     // Vérifier que l'employé appartient au store avant modification
-    const existing = await prisma.user.findUnique({ where: { id }, select: { storeId: true } })
+    const existing = await StaffRepository.findEmployeeStoreId(id)
     if (!existing) return { success: false, error: 'Employé non trouvé.' }
     assertSameStore(existing.storeId, storeId, "Employé")
 
-    const updateData: any = { ...data }
+    const updateData: Prisma.UserUpdateInput = {
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role: data.role as Role | undefined,
+      matricule: data.matricule,
+      civilite: data.civilite,
+      sexe: data.sexe,
+      dateNaissance: data.dateNaissance,
+      nationalite: data.nationalite,
+      address: data.address,
+      phone: data.phone,
+      salary: data.salary,
+      contractType: data.contractType,
+      hireDate: data.hireDate,
+      status: data.status,
+      cnpsNumber: data.cnpsNumber,
+      bankName: data.bankName,
+      bankAccount: data.bankAccount,
+    }
     
     if (data.email) {
       updateData.email = data.email.trim().toLowerCase()
@@ -162,10 +151,7 @@ export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
       updateData.password = await bcrypt.hash(data.password, 10)
     }
 
-    const updatedEmployee = await prisma.user.update({
-      where: { id },
-      data: updateData
-    })
+    const updatedEmployee = await StaffRepository.updateEmployee(id, updateData)
 
     revalidatePath('/restaurateur/rh/effectifs')
     revalidatePath(`/restaurateur/rh/effectifs/${id}`)
@@ -178,17 +164,15 @@ export async function updateEmployee(id: string, data: Partial<EmployeeData>) {
 }
 
 export async function deleteEmployee(id: string) {
-  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
+  const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR", "MANAGER"])
 
   try {
     // Vérifier que l'employé appartient au store avant suppression
-    const existing = await prisma.user.findUnique({ where: { id }, select: { storeId: true } })
+    const existing = await StaffRepository.findEmployeeStoreId(id)
     if (!existing) return { success: false, error: 'Employé non trouvé.' }
     assertSameStore(existing.storeId, storeId, "Employé")
 
-    await prisma.user.delete({
-      where: { id }
-    })
+    await StaffRepository.deleteEmployee(id)
     
     revalidatePath('/restaurateur/rh/effectifs')
     

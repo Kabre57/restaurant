@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { History, Search, Loader2, RefreshCcw, Filter } from 'lucide-react'
-import { getIngredientMovements } from '@/app/actions/inventory'
+import { getIngredientMovements } from '@/app/actions/inventory/inventory'
 import { IngMvtReason } from '@prisma/client'
 import { CrudTable } from '@/components/ui/ParabellumCrudTable'
 

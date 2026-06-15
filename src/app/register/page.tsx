@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Loader2, Utensils, Building, Globe, Check, AlertCircle, ToggleLeft, ToggleRight, Tag, ShoppingBag, RotateCcw, Wallet, WifiOff } from "lucide-react";
-import { registerStore } from "../actions/register";
+import { registerStore } from "../actions/store/register";
 
 export default function RegisterPage() {
   const router = useRouter();

@@ -1,0 +1,760 @@
+'use server'
+
+import { OrderStatus, OrderType, PaymentStatus, Prisma, PaymentType } from '@prisma/client'
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
+import { prisma } from '@/lib/db'
+import { computeEstimatedPrepMinutes } from '@/lib/prep-estimates'
+import { orderCreateSchema } from '@/lib/validation/schemas'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { headers } from 'next/headers'
+import { publishOrderEvent, publishPOSOrderAlert, publishStockAlert } from './orderNotifications'
+import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
+import { creditLoyaltyPointsForOrder } from '../clients/loyalty'
+import { decrementIngredientInventory } from '../inventory/inventory'
+import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
+import { AnalyticsService } from '@/services/analytics.service'
+import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
+
+const orderInclude = {
+  items: {
+    include: {
+      product: {
+        include: {
+          category: true
+        }
+      }
+    }
+  },
+  payments: {
+    include: {
+      paymentMethod: true
+    }
+  },
+  table: true
+}
+
+type OrderInput = {
+  clientRequestId?: string
+  storeId: string
+  cashierId?: string
+  /** @deprecated Ne plus passer total depuis le client — recalculé côté serveur */
+  total?: number
+  type: OrderType
+  paymentMode?: string
+  paymentStatus?: PaymentStatus | string
+  items: {
+    productId: string
+    quantity: number
+    /** @deprecated Ignoré — le prix est lu depuis la base de données */
+    price?: number
+    options?: string
+  }[]
+  tableId?: string
+  promotionId?: string
+  discount?: number
+  customerId?: string
+  loyaltyPointsRedeemed?: number
+  externalPayload?: Prisma.InputJsonValue
+}
+
+async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: string): Promise<string> {
+  const methodCode = methodCodeOrId?.trim()
+
+  if (methodCode) {
+    const methodById = await prisma.paymentMethod.findUnique({
+      where: { id: methodCode }
+    }).catch(() => null)
+    if (methodById && (methodById.storeId === storeId || methodById.storeId === null)) return methodById.id
+
+    const storeMethodByName = await prisma.paymentMethod.findFirst({
+      where: { storeId, name: { equals: methodCode, mode: 'insensitive' } }
+    })
+    if (storeMethodByName) return storeMethodByName.id
+
+    const globalMethodByName = await prisma.paymentMethod.findFirst({
+      where: { storeId: null, name: { equals: methodCode, mode: 'insensitive' } }
+    })
+    if (globalMethodByName) return globalMethodByName.id
+  }
+
+  const normalizedCode = (methodCode || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+
+  let type: PaymentType = 'CASH'
+  if (normalizedCode.includes('CARTE') || normalizedCode.includes('CARD') || normalizedCode === 'CB' || normalizedCode.includes('VISA')) {
+    type = 'CARD'
+  }
+  if (normalizedCode.includes('MOBILE') || normalizedCode.includes('MONEY') || normalizedCode.includes('ORANGE') || normalizedCode.includes('WAVE') || normalizedCode.includes('MTN')) {
+    type = 'MOBILE_MONEY'
+  }
+
+  let pm = await prisma.paymentMethod.findFirst({
+    where: { storeId, type }
+  });
+  
+  if (!pm) {
+    pm = await prisma.paymentMethod.findFirst({
+      where: { storeId: null, type }
+    });
+  }
+
+  if (!pm) {
+    pm = await prisma.paymentMethod.create({
+      data: { name: type === 'CASH' ? 'Espèces' : type, type, storeId, isDefault: true }
+    });
+  }
+
+  return pm.id;
+}
+
+function normalizePaymentStatus(status?: PaymentStatus | string): PaymentStatus {
+  if (status === PaymentStatus.EN_ATTENTE || status === 'EN_ATTENTE') return PaymentStatus.EN_ATTENTE
+  if (status === PaymentStatus.ECHOUEE || status === 'ECHOUEE') return PaymentStatus.ECHOUEE
+  if (status === PaymentStatus.REMBOURSEE || status === 'REMBOURSEE') return PaymentStatus.REMBOURSEE
+  return PaymentStatus.REUSSIE
+}
+
+function normalizeOrderStatus(status: OrderStatus | string): OrderStatus {
+  if (status === 'PRÉPARATION' || status === OrderStatus.PREPARATION) return OrderStatus.PREPARATION
+  if (status === 'PRÊT' || status === OrderStatus.PRET) return OrderStatus.PRET
+  if (status === OrderStatus.COMPLETED) return OrderStatus.COMPLETED
+  if (status === OrderStatus.CANCELLED) return OrderStatus.CANCELLED
+  return OrderStatus.EN_ATTENTE
+}
+
+function buildEstimatedReadyAt(prepMinutes: number, baseDate = new Date()) {
+  return new Date(baseDate.getTime() + prepMinutes * 60_000)
+}
+
+async function updateProductPrepAveragesFromOrder(tx: Prisma.TransactionClient, orderId: string, actualPrepMinutes: number) {
+  const orderItems = await tx.orderItem.findMany({
+    where: { orderId },
+    select: { productId: true },
+    distinct: ['productId']
+  })
+
+  for (const item of orderItems) {
+    const product = await tx.product.findUnique({
+      where: { id: item.productId },
+      select: { averagePrepTimeMins: true, prepTimeSamples: true }
+    })
+
+    if (!product) continue
+
+    const nextSamples = product.prepTimeSamples + 1
+    const nextAverage = Math.max(
+      1,
+      Math.round(((product.averagePrepTimeMins * product.prepTimeSamples) + actualPrepMinutes) / nextSamples)
+    )
+
+    await tx.product.update({
+      where: { id: item.productId },
+      data: {
+        averagePrepTimeMins: nextAverage,
+        prepTimeSamples: nextSamples,
+      }
+    })
+  }
+}
+
+export async function createOrder(data: OrderInput) {
+  try {
+    // FIXED: Ajouter getServerSession() au début
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return { success: false, error: "Authentification requise" }
+    }
+    const user = session.user
+
+    // FIXED: Ajouter rate limiting (5 req/minute)
+    const headerList = await headers()
+    const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "unknown"
+    const rateLimitResult = await checkRateLimit(`action-create-order:${ip}`, 5, 60)
+    if (!rateLimitResult.allowed) {
+      return { success: false, error: "Trop de requêtes. Réessayez plus tard." }
+    }
+
+    // FIXED: Ajouter validation Zod (orderCreateSchema)
+    const parsed = orderCreateSchema.safeParse(data)
+    if (!parsed.success) {
+      return { success: false, error: "Données de commande invalides" }
+    }
+
+    // FIXED: Vérifier storeId isolation
+    if (user.role !== "ADMIN" && user.storeId !== data.storeId) {
+      return { success: false, error: "Accès refusé : ce store ne vous appartient pas" }
+    }
+
+    const settings = await prisma.storeSettings.findUnique({
+      where: { storeId: data.storeId }
+    })
+
+    if (settings?.workflowType === 'CASHIER_ONLY') {
+      const isPaid = data.paymentStatus === 'REUSSIE' || data.paymentStatus === 'REUSSI';
+      if (!isPaid) {
+        return { success: false, error: "Paiement échoué ou Payer" }
+      }
+    }
+
+    if (!data.items.length) {
+      return { success: false, error: "La commande ne contient aucun article" }
+    }
+
+    if (data.clientRequestId) {
+      const existingOrder = await prisma.order.findUnique({
+        where: { clientRequestId: data.clientRequestId },
+        include: orderInclude
+      })
+
+      if (existingOrder) {
+        if (existingOrder.storeId !== data.storeId || existingOrder.cashierId !== data.cashierId) {
+          return { success: false, error: "Identifiant de synchronisation invalide" }
+        }
+
+        return { success: true, order: existingOrder, replayed: true }
+      }
+    }
+
+    const productIds = [...new Set(data.items.map(item => item.productId))]
+    const availableProducts = await prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        storeId: data.storeId,
+        isAvailable: true
+      },
+      select: {
+        id: true,
+        name: true,
+        price: true, // utilisé pour le recalcul côté serveur
+        averagePrepTimeMins: true,
+        trackStock: true,
+        stockQuantity: true,
+        minStockLevel: true
+      }
+    })
+
+    if (availableProducts.length !== productIds.length) {
+      return { success: false, error: "Un ou plusieurs produits ne sont plus disponibles" }
+    }
+
+    // Recalcul sécurisé du total côté serveur — ne jamais faire confiance au client
+    const productPriceMap = new Map(availableProducts.map(p => [p.id, p.price]))
+    const computedSubtotalExcludingTax = data.items.reduce((acc, item) => {
+      const serverPrice = productPriceMap.get(item.productId) ?? 0
+      return acc + serverPrice * item.quantity
+    }, 0)
+    const computedDiscount = data.discount ?? 0
+    const taxableAmount = Math.max(0, computedSubtotalExcludingTax - computedDiscount)
+    const computedTax = computeTaxFromNetAmount(taxableAmount)
+    const computedTotal = computedTax.totalIncludingTax
+
+    const paymentMethodId = await resolvePaymentMethodId(data.storeId, data.paymentMode as string)
+    const paymentStatus = normalizePaymentStatus(data.paymentStatus)
+    const estimatedPrepMinutes = computeEstimatedPrepMinutes(data.items, availableProducts)
+    const estimatedReadyAt = buildEstimatedReadyAt(estimatedPrepMinutes)
+
+    const order = await prisma.$transaction(async (tx) => {
+      const productMap = new Map(availableProducts.map((product) => [product.id, product]))
+
+      // Check if data.customerId belongs to the new LoyaltyCustomer table
+      let isLoyaltyCustomer = false
+      let dbCustomerId = data.customerId || null
+
+      if (data.customerId) {
+        const lc = await tx.loyaltyCustomer.findUnique({
+          where: { id: data.customerId }
+        })
+        if (lc) {
+          isLoyaltyCustomer = true
+          dbCustomerId = null // set to null in Order to avoid foreign key violation
+        }
+      }
+
+      const orderCreateData: Prisma.OrderUncheckedCreateInput = {
+        clientRequestId: data.clientRequestId || null,
+        storeId: data.storeId,
+        cashierId: data.cashierId || null,
+        tableId: data.tableId || null,
+        customerId: dbCustomerId,
+        total: computedTotal, // ✅ Prix calculé depuis la BDD, jamais depuis le client
+        type: data.type,
+        status: OrderStatus.EN_ATTENTE,
+        estimatedPrepMinutes,
+        estimatedReadyAt,
+        externalPayload: data.externalPayload ?? Prisma.JsonNull,
+        items: {
+          create: data.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: productPriceMap.get(item.productId) ?? 0, // ✅ Prix HT depuis la BDD
+            priceExcludingTax: productPriceMap.get(item.productId) ?? 0,
+            taxRate: DEFAULT_VAT_RATE,
+            taxAmount: computeTaxFromNetAmount((productPriceMap.get(item.productId) ?? 0) * item.quantity).taxAmount,
+            options: item.options
+          }))
+        },
+        payments: {
+          create: {
+            paymentMethodId: paymentMethodId,
+            status: paymentStatus,
+            amount: computedTotal // ✅ Montant du paiement = total calculé serveur
+          }
+        }
+      }
+
+      const createOrderRecord = async () => {
+        try {
+          return await tx.order.create({
+            data: {
+              ...orderCreateData,
+              discount: data.discount || 0,
+              promotionId: data.promotionId || null,
+              customerId: dbCustomerId,
+              loyaltyPointsRedeemed: data.loyaltyPointsRedeemed || 0,
+            },
+            include: orderInclude
+          })
+        } catch (error) {
+          const message = error instanceof Error ? error.message : ''
+          if (message.includes('Unknown argument')) {
+            console.warn("Fallback creation order: some fields are not supported by the current client")
+            return tx.order.create({
+              data: orderCreateData,
+              include: orderInclude
+            })
+          }
+
+          throw error
+        }
+      }
+
+      const newOrder = await createOrderRecord()
+
+      for (const item of data.items) {
+        const product = productMap.get(item.productId)
+
+        // Déduction en cascade de la recette (ingrédients & emballages)
+        await decrementIngredientInventory(tx, data.storeId, item.productId, item.quantity)
+
+        if (!product || !product.trackStock) {
+          continue
+        }
+
+        const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQuantity: newQuantity }
+        })
+
+        // ✅ Audit trail : enregistrement du mouvement de stock
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            storeId: data.storeId,
+            quantity: -item.quantity, // négatif = sortie
+            reason: 'SALE',
+            referenceId: newOrder.id,
+          }
+        })
+
+        if (newQuantity < product.minStockLevel) {
+          await publishStockAlert(data.storeId, { name: product.name, stockQuantity: newQuantity })
+        }
+      }
+
+
+      // Increment promotion usage
+      if (data.promotionId) {
+        await tx.promotion.update({
+          where: { id: data.promotionId },
+          data: { usedCount: { increment: 1 } }
+        })
+      }
+
+      if (paymentStatus === PaymentStatus.REUSSIE && data.customerId) {
+        if (isLoyaltyCustomer) {
+          const pointsToEarn = Math.floor(computedTotal / 100)
+          if (pointsToEarn > 0) {
+            await tx.loyaltyCustomer.update({
+              where: { id: data.customerId },
+              data: { points: { increment: pointsToEarn } }
+            })
+            await tx.loyaltyTransaction.create({
+              data: {
+                customerId: data.customerId,
+                orderId: newOrder.id,
+                type: 'EARN',
+                points: pointsToEarn,
+                description: `Points accumulés sur la commande #${newOrder.id.slice(-6).toUpperCase()}`
+              }
+            })
+            await tx.order.update({
+              where: { id: newOrder.id },
+              data: {
+                loyaltyPointsEarned: pointsToEarn,
+                loyaltyPointsRedeemed: data.loyaltyPointsRedeemed || 0
+              }
+            })
+          }
+          if (data.loyaltyPointsRedeemed && data.loyaltyPointsRedeemed > 0) {
+            await tx.loyaltyCustomer.update({
+              where: { id: data.customerId },
+              data: { points: { decrement: data.loyaltyPointsRedeemed } }
+            })
+            await tx.loyaltyTransaction.create({
+              data: {
+                customerId: data.customerId,
+                orderId: newOrder.id,
+                type: 'REDEEM',
+                points: -data.loyaltyPointsRedeemed,
+                description: `Points rachetés sur la commande #${newOrder.id.slice(-6).toUpperCase()}`
+              }
+            })
+            await tx.order.update({
+              where: { id: newOrder.id },
+              data: {
+                loyaltyPointsRedeemed: data.loyaltyPointsRedeemed
+              }
+            })
+          }
+        } else {
+          await creditLoyaltyPointsForOrder(newOrder.id, tx)
+          if (data.loyaltyPointsRedeemed && data.loyaltyPointsRedeemed > 0) {
+            await tx.loyalty.update({
+              where: { customerId: data.customerId },
+              data: { points: { decrement: data.loyaltyPointsRedeemed } }
+            })
+          }
+        }
+      }
+
+      return newOrder
+    })
+
+    if (data.type === 'DELIVERY') {
+      const payload = (data.externalPayload as any) || {}
+      try {
+        const { DeliveryService } = await import("@/services/delivery.service");
+        await DeliveryService.createDeliveryOrder({
+          orderId: order.id,
+          address: payload.deliveryAddress || 'Abidjan',
+          deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
+          estimatedTimeMinutes: payload.deliveryDurationMins ? Number(payload.deliveryDurationMins) : null,
+          livreurId: payload.deliveryLivreurId || null,
+        });
+      } catch (err) {
+        console.error("Failed to create DeliveryOrder via DeliveryService, falling back:", err);
+        await prisma.deliveryOrder.create({
+          data: {
+            orderId: order.id,
+            address: payload.deliveryAddress || 'Abidjan',
+            status: 'PENDING',
+            distanceKm: payload.deliveryDistanceKm ? Number(payload.deliveryDistanceKm) : null,
+            deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
+            livreurId: payload.deliveryLivreurId || null,
+          }
+        });
+      }
+    }
+
+    await publishOrderEvent('new-order', order)
+    await publishPOSOrderAlert('ORDER_CREATED', order)
+    
+    // Invalider le cache des commandes pour le dashboard
+    await redis.del(REDIS_KEYS.stats(data.storeId))
+    await AnalyticsService.invalidateStoreAnalytics(data.storeId)
+
+    return { success: true, order };
+  } catch (error) {
+    console.error("Failed to create order:", error)
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+    return { success: false, error: "Erreur lors de la création de la commande: " + errorMessage }
+  }
+}
+
+export async function addItemsToOrder(orderId: string, items: OrderInput['items'], _ignoredTotal?: number) {
+  // _ignoredTotal est conservé pour compatibilité API mais ignoré — recalculé depuis la BDD
+  void _ignoredTotal
+
+  try {
+    if (!items.length) {
+      return { success: false, error: "Aucun article à ajouter" }
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId }
+    })
+
+    if (!order) {
+      return { success: false, error: "Commande introuvable" }
+    }
+
+    // Si la commande etait deja terminee ou marquee prete, on la repasse en attente.
+    const newStatus = order.status === OrderStatus.PRET || order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED
+      ? OrderStatus.EN_ATTENTE
+      : order.status
+
+    // Recalcul sécurisé du delta depuis la BDD
+    const itemProductIds = items.map(i => i.productId)
+    const itemProducts = await prisma.product.findMany({
+      where: { id: { in: itemProductIds } },
+      select: { id: true, price: true }
+    })
+    const itemPriceMap = new Map(itemProducts.map(p => [p.id, p.price]))
+    const addedTotal = items.reduce((acc, i) => {
+      const lineTotal = (itemPriceMap.get(i.productId) ?? 0) * i.quantity
+      return acc + computeTaxFromNetAmount(lineTotal).totalIncludingTax
+    }, 0)
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const orderUpdate = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          total: { increment: addedTotal }, // addedTotal recalculé côté serveur
+          status: newStatus,
+          actualPrepMinutes: null,
+          preparationStartedAt: newStatus === OrderStatus.EN_ATTENTE ? null : order.preparationStartedAt,
+          readyAt: null,
+          servedAt: null,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: itemPriceMap.get(item.productId) ?? 0, // ✅ Prix HT BDD
+              priceExcludingTax: itemPriceMap.get(item.productId) ?? 0,
+              taxRate: DEFAULT_VAT_RATE,
+              taxAmount: computeTaxFromNetAmount((itemPriceMap.get(item.productId) ?? 0) * item.quantity).taxAmount,
+              options: item.options
+            }))
+          }
+        },
+        include: orderInclude
+      })
+
+      const estimatedPrepMinutes = computeEstimatedPrepMinutes(
+        orderUpdate.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+        orderUpdate.items.map((item) => ({
+          id: item.productId,
+          averagePrepTimeMins: item.product.averagePrepTimeMins,
+        }))
+      )
+
+      const estimateBase = newStatus === OrderStatus.PREPARATION && order.preparationStartedAt
+        ? new Date(order.preparationStartedAt)
+        : new Date()
+
+      const orderWithEstimate = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          estimatedPrepMinutes,
+          estimatedReadyAt: buildEstimatedReadyAt(estimatedPrepMinutes, estimateBase),
+        },
+        include: orderInclude
+      })
+
+      // Deduct stocks
+      for (const item of items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: {
+            id: true,
+            name: true,
+            trackStock: true,
+            stockQuantity: true,
+            minStockLevel: true
+          }
+        })
+
+        // Déduction en cascade de la recette (ingrédients & emballages)
+        await decrementIngredientInventory(tx, order.storeId, item.productId, item.quantity)
+
+        if (product?.trackStock) {
+          const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stockQuantity: newQuantity }
+          })
+
+          if (newQuantity < product.minStockLevel) {
+            await publishStockAlert(order.storeId, { name: product.name, stockQuantity: newQuantity })
+          }
+        }
+      }
+
+      return orderWithEstimate
+    })
+
+    // S'il y a un paiement en attente, on met à jour son montant.
+    // Sinon, on ouvre une nouvelle ligne de paiement en attente pour les extras.
+    const pendingPayment = await prisma.payment.findFirst({
+      where: { orderId: orderId, status: PaymentStatus.EN_ATTENTE }
+    })
+
+    if (pendingPayment) {
+      await prisma.payment.update({
+        where: { id: pendingPayment.id },
+        data: { amount: { increment: addedTotal } }
+      })
+    } else {
+      const paidPaymentCount = await prisma.payment.count({
+        where: {
+          orderId,
+          status: PaymentStatus.REUSSIE,
+        }
+      })
+
+      if (paidPaymentCount > 0) {
+        await prisma.payment.create({
+          data: {
+            orderId,
+            paymentMethodId: await resolvePaymentMethodId(order.storeId, 'ESPECES'),
+            status: PaymentStatus.EN_ATTENTE,
+            amount: addedTotal,
+          }
+        })
+      }
+    }
+
+    await publishOrderEvent('order-updated', updatedOrder)
+    await redis.del(REDIS_KEYS.stats(order.storeId))
+
+    return { success: true, order: updatedOrder }
+  } catch (error) {
+    console.error("Failed to add items to order:", error)
+    return { success: false, error: "Erreur lors de l'ajout des articles" }
+  }
+}
+
+export async function settleOrderPayment(orderId: string, paymentMode: string, storeId?: string) { return settleOrderPaymentAction(orderId, paymentMode, storeId) }
+export async function markOrderServed(orderId: string, storeId?: string) { return markOrderServedAction(orderId, storeId) }
+export async function syncOrdersBatch(orders: OrderInput[]) {
+  const batch = orders.slice(0, 10)
+  const results = []
+
+  for (const order of batch) {
+    results.push(await createOrder(order))
+  }
+
+  return results
+}
+
+export async function getActiveOrders(storeId: string) {
+  try {
+    return await prisma.order.findMany({
+      where: {
+        storeId,
+        status: {
+          in: [OrderStatus.EN_ATTENTE, OrderStatus.PREPARATION, OrderStatus.PRET]
+        }
+      },
+      include: orderInclude,
+      orderBy: {
+        createdAt: 'asc'
+      }
+    })
+  } catch (error) {
+    console.error("Failed to fetch active orders:", error)
+    return []
+  }
+}
+
+export async function getStoreOrders(storeId: string) {
+  try {
+    return await getCached(REDIS_KEYS.stats(storeId), 300, async () => {
+      return await prisma.order.findMany({
+        where: { storeId },
+        include: orderInclude,
+        orderBy: { createdAt: 'desc' },
+        take: 100
+      })
+    })
+  } catch (error) {
+    console.error("Failed to fetch store orders:", error)
+    return []
+  }
+}
+export async function updateOrderStatus(orderId: string, status: OrderStatus | string, storeId?: string) {
+  try {
+    const nextStatus = normalizeOrderStatus(status)
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        storeId: true,
+        status: true,
+        createdAt: true,
+        estimatedPrepMinutes: true,
+        preparationStartedAt: true,
+      }
+    })
+
+    if (!existingOrder) {
+      return { success: false, error: "Commande introuvable" }
+    }
+
+    if (storeId && existingOrder.storeId !== storeId) {
+      return { success: false, error: "Commande hors périmètre restaurant" }
+    }
+
+    const now = new Date()
+
+    const order = await prisma.$transaction(async (tx) => {
+      const updateData: Prisma.OrderUpdateInput = {
+        status: nextStatus,
+      }
+
+      if (nextStatus === OrderStatus.PREPARATION) {
+        const prepStart = existingOrder.preparationStartedAt || now
+        updateData.preparationStartedAt = prepStart
+        if (existingOrder.estimatedPrepMinutes) {
+          updateData.estimatedReadyAt = buildEstimatedReadyAt(existingOrder.estimatedPrepMinutes, prepStart)
+        }
+      }
+
+      if (nextStatus === OrderStatus.PRET) {
+        const prepStart = existingOrder.preparationStartedAt || existingOrder.createdAt
+        const actualPrepMinutes = Math.max(1, Math.round((now.getTime() - prepStart.getTime()) / 60_000))
+
+        updateData.readyAt = now
+        updateData.actualPrepMinutes = actualPrepMinutes
+
+        const updatedReadyOrder = await tx.order.update({
+          where: { id: orderId },
+          data: updateData,
+          include: orderInclude
+        })
+
+        await updateProductPrepAveragesFromOrder(tx, orderId, actualPrepMinutes)
+        return updatedReadyOrder
+      }
+
+      if (nextStatus === OrderStatus.COMPLETED) {
+        updateData.servedAt = now
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: orderInclude
+      })
+    })
+
+    await publishOrderEvent('order-updated', order)
+    if (order.status === OrderStatus.PRET) {
+      await publishPOSOrderAlert('ORDER_READY', order)
+    }
+    
+    await redis.del(REDIS_KEYS.stats(order.storeId))
+    await AnalyticsService.invalidateStoreAnalytics(order.storeId)
+
+    return { success: true, order };
+  } catch (error) {
+    console.error("Failed to update order status:", error)
+    return { success: false, error: "Erreur lors de la mise à jour du statut" }
+  }
+}

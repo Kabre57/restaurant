@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Utensils, LayoutGrid, Bell, Settings, User, LogOut, Calendar, Map as MapIcon, X } from 'lucide-react'
+import { Utensils, LayoutGrid, Bell, Settings, User, LogOut, Calendar, Map as MapIcon, X, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -14,6 +14,7 @@ interface SidebarProps {
   onTabChange?: (tab: string) => void
   isOpen?: boolean
   onClose?: () => void
+  flowModeLocked?: boolean
 }
 
 export function Sidebar({
@@ -24,6 +25,7 @@ export function Sidebar({
   onTabChange,
   isOpen = false,
   onClose,
+  flowModeLocked = false,
 }: SidebarProps) {
   const router = useRouter()
   const primaryLabel = operatorRole === 'SERVER' ? 'SERVICE' : 'CAISSE'
@@ -67,11 +69,20 @@ export function Sidebar({
           </div>
 
           <div className="flex flex-col gap-4 lg:w-full lg:items-center">
+            {operatorRole === 'SERVER' && (
+              <SidebarLink icon={<ArrowLeft />} label="RETOUR" href="/serveur" dark={isRestaurateur} expanded onNavigate={onClose} />
+            )}
             <SidebarLink icon={<LayoutGrid />} label={primaryLabel} active={activeTab === 'CAISSE'} onClick={() => { onTabChange?.('CAISSE'); onClose?.() }} dark={isRestaurateur} expanded />
-            <SidebarLink icon={<MapIcon />} label="PLAN" active={activeTab === 'PLAN'} onClick={() => { onTabChange?.('PLAN'); onClose?.() }} dark={isRestaurateur} expanded />
-            <SidebarLink icon={<Calendar />} label="RESA" active={activeTab === 'RESERVATIONS'} onClick={() => { onTabChange?.('RESERVATIONS'); onClose?.() }} dark={isRestaurateur} expanded />
+            {!flowModeLocked && (
+              <>
+                <SidebarLink icon={<MapIcon />} label="PLAN" active={activeTab === 'PLAN'} onClick={() => { onTabChange?.('PLAN'); onClose?.() }} dark={isRestaurateur} expanded />
+                <SidebarLink icon={<Calendar />} label="RESA" active={activeTab === 'RESERVATIONS'} onClick={() => { onTabChange?.('RESERVATIONS'); onClose?.() }} dark={isRestaurateur} expanded />
+              </>
+            )}
             {isRestaurateur && <SidebarLink icon={<Bell />} label="CUISINE" href="/kds" dark={isRestaurateur} expanded onNavigate={onClose} />}
-            <SidebarLink icon={<Settings />} label="GESTION" href="/restaurateur/produits" dark={isRestaurateur} expanded onNavigate={onClose} />
+            {isRestaurateur && (
+              <SidebarLink icon={<Settings />} label="GESTION" href="/restaurateur/produits" dark={isRestaurateur} expanded onNavigate={onClose} />
+            )}
           </div>
         </div>
 

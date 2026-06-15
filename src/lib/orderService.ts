@@ -30,6 +30,7 @@ export interface CreateOrderInput {
   items:           OrderItemInput[];
   notes?:          string;
   idempotencyKey?: string;
+  externalPayload?: any;
 }
 
 export interface OrderData {
@@ -67,6 +68,7 @@ const createOrderInputSchema = z.object({
   })).min(1, "Au moins un article requis"),
   notes:          z.string().max(1000).optional(),
   idempotencyKey: z.string().uuid().optional(),
+  externalPayload: z.any().optional(),
 });
 
 // ── In-memory store (fallback si DB indisponible) ─────────
@@ -145,6 +147,32 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderData> {
           },
         },
       });
+      
+      if (order.type === 'DELIVERY') {
+        const payload = (input.externalPayload as any) || {}
+        try {
+          const { DeliveryService } = await import("@/services/delivery.service");
+          await DeliveryService.createDeliveryOrder({
+            orderId: order.id,
+            address: payload.deliveryAddress || 'Abidjan',
+            deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
+            estimatedTimeMinutes: payload.deliveryDurationMins ? Number(payload.deliveryDurationMins) : null,
+            livreurId: payload.deliveryLivreurId || null,
+          });
+        } catch (err) {
+          logger.error("[orderService] Failed to create DeliveryOrder via DeliveryService, falling back:", err);
+          await prisma.deliveryOrder.create({
+            data: {
+              orderId: order.id,
+              address: payload.deliveryAddress || 'Abidjan',
+              status: 'PENDING',
+              distanceKm: payload.deliveryDistanceKm ? Number(payload.deliveryDistanceKm) : null,
+              deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
+              livreurId: payload.deliveryLivreurId || null,
+            }
+          });
+        }
+      }
 
       const result: OrderData = {
         id:           order.id,

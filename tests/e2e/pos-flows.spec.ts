@@ -7,7 +7,7 @@ test.describe('Restaurant POS E2E Scenarios', () => {
     await page.goto('/login')
 
     // Confirmer le titre de l'application et les éléments clés
-    await expect(page).toHaveTitle(/POS/i)
+    await expect(page).toHaveTitle(/Parabellum/i)
     
     // Vérifier la présence du formulaire de connexion
     const emailInput = page.locator('input[type="email"]')
@@ -32,11 +32,34 @@ test.describe('Restaurant POS E2E Scenarios', () => {
   })
 
   test('should correctly render self-service restaurant menu page', async ({ page }) => {
-    // Accéder à la page générique de sélection d'espace/table si disponible ou login
     await page.goto('/menu')
     
-    // Si la page redirige ou affiche un message d'accueil pour la sélection de restaurant
     const body = page.locator('body')
     await expect(body).toBeVisible()
+  })
+
+  test('should redirect unauthenticated users to login for protected routes', async ({ page }) => {
+    // Augmenter le timeout car le serveur de dev Next.js compile les pages à la volée
+    test.setTimeout(60000)
+
+    // Route cashier protégée
+    await page.goto('/cashier')
+    await page.waitForURL('**/login**')
+    expect(page.url()).toContain('/login')
+
+    // Route serveur protégée
+    await page.goto('/serveur')
+    await page.waitForURL('**/login**')
+    expect(page.url()).toContain('/login')
+
+    // Route KDS protégée
+    await page.goto('/kds')
+    await page.waitForURL('**/login**')
+    expect(page.url()).toContain('/login')
+
+    // Route restaurateur protégée
+    await page.goto('/restaurateur')
+    await page.waitForURL('**/login**')
+    expect(page.url()).toContain('/login')
   })
 })

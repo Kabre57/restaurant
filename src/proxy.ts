@@ -1,5 +1,6 @@
 import { withAuth } from "next-auth/middleware";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequestWithAuth } from "next-auth/middleware";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 /**
@@ -103,7 +104,7 @@ const authProxy = withAuth(
 
 // ─── Main Unified Proxy ──────────────────────────────────────────────────────
 
-export default async function proxy(req: NextRequest, event: any) {
+export default async function proxy(req: NextRequest, event: NextFetchEvent) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin");
 
@@ -145,7 +146,8 @@ export default async function proxy(req: NextRequest, event: any) {
       pathname.startsWith("/api/auth/") ||
       pathname.startsWith("/api/glovo-webhook") ||
       pathname.startsWith("/api/payments/mobile") ||
-      pathname.startsWith("/api/remote-order");
+      pathname.startsWith("/api/remote-order") ||
+      pathname.startsWith("/api/health");
 
     if (!isPublicApi) {
       const jwtToken = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -186,7 +188,7 @@ export default async function proxy(req: NextRequest, event: any) {
   }
 
   // 4. Pages Standard (Non-API) — Protection NextAuth standard
-  return (authProxy as any)(req, event);
+  return authProxy(req as NextRequestWithAuth, event);
 }
 
 // ─── Matcher Configuration ───────────────────────────────────────────────────

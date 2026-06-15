@@ -1,0 +1,1328 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Parabellum POS API",
+    "description": "Spécification complète et interactive des API du système de point de vente (POS) et de commande en ligne Gourmet. Supporte l'authentification par session, les webhooks tiers et les protocoles matériels réseau.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Serveur de développement local"
+    },
+    {
+      "url": "https://www.parabellumpos.online",
+      "description": "Serveur de production principal"
+    }
+  ],
+  "paths": {
+    "/api/orders": {
+      "get": {
+        "summary": "Liste des commandes du POS",
+        "description": "Récupère la liste filtrée des commandes du restaurant. Accès réservé aux rôles CASHIER, SERVER, RESTAURATEUR, ADMIN.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du magasin (isolation multi-tenant)."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OrderStatus"
+            },
+            "description": "Filtrer par statut de commande."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des commandes récupérée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Order"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non authentifié."
+          },
+          "429": {
+            "description": "Limite de requêtes dépassée (Rate limit)."
+          }
+        }
+      },
+      "post": {
+        "summary": "Créer une commande en caisse (POS)",
+        "description": "Crée une nouvelle commande sur place, à emporter ou en livraison depuis la caisse tactile.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Commande créée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Données d'entrée invalides (Zod error)."
+          },
+          "401": {
+            "description": "Non authentifié."
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/status": {
+      "post": {
+        "summary": "Mettre à jour le statut d'une commande",
+        "description": "Modifie le statut d'une commande et notifie en temps réel le KDS et l'interface client.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la commande."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "$ref": "#/components/schemas/OrderStatus"
+                  },
+                  "prepTime": {
+                    "type": "integer",
+                    "description": "Temps estimé de préparation en minutes."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Statut mis à jour avec succès."
+          },
+          "400": {
+            "description": "Statut invalide."
+          },
+          "404": {
+            "description": "Commande non trouvée."
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/ticket": {
+      "get": {
+        "summary": "Payload d'impression du ticket de caisse",
+        "description": "Récupère la structure d'impression brute (au format ESC/POS) pour impression physique du reçu de commande.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la commande."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket généré avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "summary": "Liste publique des produits",
+        "description": "Récupère les produits du catalogue public (ex: pour affichage QR menu).",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du restaurant."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "summary": "Liste publique des catégories",
+        "description": "Récupère les catégories publiques du restaurant.",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du restaurant."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "summary": "Prise de commande externe",
+        "description": "Soumet une commande externe (ex: depuis l'application mobile client ou le site web de commande).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicOrderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Commande créée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erreur de validation des données d'entrée."
+          }
+        }
+      }
+    },
+    "/api/glovo-webhook": {
+      "post": {
+        "summary": "Injection de commandes Glovo",
+        "description": "Point d'entrée pour recevoir les commandes tierces en provenance de la plateforme Glovo.",
+        "security": [
+          {
+            "GlovoSignature": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "orderId",
+                  "storeId",
+                  "items"
+                ],
+                "properties": {
+                  "orderId": {
+                    "type": "string"
+                  },
+                  "storeId": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "sku": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Commande Glovo injectée avec succès."
+          },
+          "401": {
+            "description": "Signature Glovo invalide."
+          }
+        }
+      }
+    },
+    "/api/payments/mobile": {
+      "post": {
+        "summary": "Initier un paiement Mobile Money local",
+        "description": "Lance une transaction push STK (MTN, Orange, Wave) auprès des agrégateurs locaux de Côte d'Ivoire.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "orderId",
+                  "phoneNumber",
+                  "amount",
+                  "operator"
+                ],
+                "properties": {
+                  "orderId": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string",
+                    "description": "Numéro au format local (ex: 0707XXXXXX)"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      "MTN",
+                      "ORANGE",
+                      "WAVE"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paiement initialisé. Réponse asynchrone attendue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactionId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "SUCCESS",
+                        "FAILED"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/mobile/notify": {
+      "post": {
+        "summary": "Callback de notification Mobile Money",
+        "description": "Point de terminaison asynchrone appelé par l'opérateur de paiement (MTN, Orange, Wave) pour notifier du statut final du paiement.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "transactionId",
+                  "status",
+                  "signature"
+                ],
+                "properties": {
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "SUCCESS",
+                      "FAILED"
+                    ]
+                  },
+                  "signature": {
+                    "type": "string",
+                    "description": "Signature cryptographique de sécurité pour valider la provenance de la notification."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notification reçue et validée."
+          }
+        }
+      }
+    },
+    "/api/remote-order": {
+      "post": {
+        "summary": "Commande Kiosque sans caissier",
+        "description": "Traitement et enregistrement rapide d'une commande passée sur borne de commande interactive (Kiosque).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Commande Kiosque validée."
+          }
+        }
+      }
+    },
+    "/api/tables": {
+      "get": {
+        "summary": "Liste des tables physiques",
+        "description": "Récupère la liste de toutes les tables du restaurant avec leur état d'occupation actuel.",
+        "security": [
+          {
+            "CookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Table"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tables/events": {
+      "get": {
+        "summary": "Flux SSE temps réel des tables",
+        "description": "Établit une connexion persistante Server-Sent Events (SSE) pour diffuser les changements d'état des tables en salle.",
+        "responses": {
+          "200": {
+            "description": "Connexion SSE établie.",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "example": "text/event-stream"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-cache"
+                }
+              },
+              "Connection": {
+                "schema": {
+                  "type": "string",
+                  "example": "keep-alive"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kds/stream": {
+      "get": {
+        "summary": "Flux SSE du Kitchen Display System",
+        "description": "Établit la connexion SSE pour diffuser en temps réel les nouvelles commandes à préparer en cuisine.",
+        "responses": {
+          "200": {
+            "description": "Connexion SSE KDS établie."
+          }
+        }
+      }
+    },
+    "/api/hardware/print": {
+      "post": {
+        "summary": "Envoyer une tâche d'impression",
+        "description": "Commande l'impression d'un ticket physique via l'imprimante réseau configurée (protocole ESC/POS).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "printerIp",
+                  "payload"
+                ],
+                "properties": {
+                  "printerIp": {
+                    "type": "string"
+                  },
+                  "payload": {
+                    "type": "string",
+                    "description": "Payload encodé ESC/POS."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Impression lancée."
+          }
+        }
+      }
+    },
+    "/api/hardware/cash-drawer": {
+      "post": {
+        "summary": "Ouvrir le tiroir-caisse",
+        "description": "Commande l'impulsion électrique d'ouverture du tiroir-caisse connecté à l'imprimante thermique.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "printerIp"
+                ],
+                "properties": {
+                  "printerIp": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tiroir-caisse ouvert avec succès."
+          }
+        }
+      }
+    },
+    "/api/hardware/payment-terminal": {
+      "post": {
+        "summary": "Réveiller le terminal de paiement (TPE)",
+        "description": "Initie la demande de paiement par carte bancaire sur le terminal physique connecté.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "terminalIp",
+                  "amount"
+                ],
+                "properties": {
+                  "terminalIp": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Commande TPE lancée."
+          }
+        }
+      }
+    },
+    "/api/webhooks/stripe": {
+      "post": {
+        "summary": "Webhook de notification de paiement Stripe",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Point d'entrée de callback appelé par Stripe pour notifier des événements de transaction (succès ou échec).",
+        "responses": {
+          "200": {
+            "description": "Événement reçu et traité avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Échec du traitement ou signature invalide."
+          }
+        }
+      }
+    },
+    "/api/webhooks/mobile-money": {
+      "post": {
+        "summary": "Webhook de notification de paiement Mobile Money",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Point d'entrée de callback appelé par l'agrégateur (ex. CinetPay) pour notifier du statut d'une transaction Mobile Money (Orange Money, MTN, Moov).",
+        "responses": {
+          "200": {
+            "description": "Notification reçue et validée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "transaction_id manquant."
+          },
+          "401": {
+            "description": "Signature HMAC invalide."
+          },
+          "505": {
+            "description": "Erreur interne lors du traitement du webhook."
+          }
+        }
+      }
+    },
+    "/api/public/products": {
+      "get": {
+        "summary": "Liste des produits disponibles en ligne",
+        "tags": [
+          "Public"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du magasin pour filtrer les produits"
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrer par catégorie de produit"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Terme de recherche sur le nom du produit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès de la récupération des produits publics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Le paramètre storeId est requis."
+          },
+          "500": {
+            "description": "Une erreur est survenue lors de la récupération des produits."
+          }
+        }
+      }
+    },
+    "/api/public/products/{id}": {
+      "get": {
+        "summary": "Détails d'un produit public actif",
+        "tags": [
+          "Public"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Identifiant unique du produit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails du produit récupérés avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "product": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produit non trouvé ou indisponible."
+          },
+          "500": {
+            "description": "Une erreur est survenue lors de la récupération du produit."
+          }
+        }
+      }
+    },
+    "/api/orders/checkout": {
+      "post": {
+        "summary": "Passer une commande e-commerce (online checkout)",
+        "tags": [
+          "Orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customerName",
+                  "customerPhone",
+                  "customerEmail",
+                  "deliveryType",
+                  "paymentMethod",
+                  "storeId",
+                  "items"
+                ],
+                "properties": {
+                  "customerName": {
+                    "type": "string"
+                  },
+                  "customerPhone": {
+                    "type": "string"
+                  },
+                  "customerEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "deliveryType": {
+                    "type": "string",
+                    "enum": [
+                      "DELIVERY",
+                      "CLICK_AND_COLLECT"
+                    ]
+                  },
+                  "deliveryAddress": {
+                    "type": "string"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "CARD",
+                      "ORANGE_MONEY",
+                      "MTN_MONEY"
+                    ]
+                  },
+                  "storeId": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "productId",
+                        "quantity"
+                      ],
+                      "properties": {
+                        "productId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Commande créée et intention de paiement initialisée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "order": {
+                      "type": "object"
+                    },
+                    "payment": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation échouée ou stock insuffisant."
+          }
+        }
+      }
+    },
+    "/api/delivery/orders": {
+      "post": {
+        "summary": "Créer une nouvelle commande de livraison",
+        "tags": [
+          "Delivery"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "orderId",
+                  "customerName",
+                  "customerPhone",
+                  "deliveryAddress"
+                ],
+                "properties": {
+                  "orderId": {
+                    "type": "string"
+                  },
+                  "customerName": {
+                    "type": "string"
+                  },
+                  "customerPhone": {
+                    "type": "string"
+                  },
+                  "deliveryAddress": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Commande de livraison créée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation des données échouée ou erreur de création."
+          }
+        }
+      },
+      "get": {
+        "summary": "Récupérer la liste des commandes de livraison",
+        "tags": [
+          "Delivery"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "ASSIGNED",
+                "PICKED_UP",
+                "IN_PROGRESS",
+                "DELIVERED",
+                "CANCELLED"
+              ]
+            },
+            "description": "Filtrer par statut de la livraison"
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filtrer par identifiant unique du magasin"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des livraisons récupérée avec succès.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur interne du serveur."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Authentification par cookie NextAuth.js"
+      },
+      "GlovoSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Glovo-Signature",
+        "description": "Signature HMAC cryptographique pour valider les requêtes de Glovo."
+      }
+    },
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayId": {
+            "type": "string"
+          },
+          "storeId": {
+            "type": "string"
+          },
+          "tableId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "total": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "options": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OrderCreateInput": {
+        "type": "object",
+        "required": [
+          "storeId",
+          "items",
+          "total"
+        ],
+        "properties": {
+          "storeId": {
+            "type": "string"
+          },
+          "tableId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "productId",
+                "quantity",
+                "price"
+              ],
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "integer"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "options": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "customerPhone": {
+            "type": "string"
+          }
+        }
+      },
+      "PublicOrderInput": {
+        "type": "object",
+        "required": [
+          "storeId",
+          "items",
+          "customerPhone"
+        ],
+        "properties": {
+          "storeId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "customerPhone": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "storeId": {
+            "type": "string"
+          }
+        }
+      },
+      "Table": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TableStatus"
+          },
+          "seats": {
+            "type": "integer"
+          }
+        }
+      },
+      "TicketPayload": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "footer": {
+            "type": "string"
+          },
+          "rawEscPos": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": [
+          "EN_ATTENTE",
+          "PREPARATION",
+          "PRET",
+          "COMPLETED",
+          "CANCELLED"
+        ],
+        "description": "Status de la commande:\n- EN_ATTENTE: Commande reçue, en attente de préparation\n- PREPARATION: En cours de préparation en cuisine\n- PRET: Commande prête à être servie/remise\n- COMPLETED: Commande terminée et servie\n- CANCELLED: Commande annulée"
+      },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "CASH",
+          "CARD",
+          "MOBILE_MONEY",
+          "CHECK",
+          "MEAL_VOUCHER",
+          "GIFT_CARD",
+          "OTHER"
+        ]
+      },
+      "OrderType": {
+        "type": "string",
+        "enum": [
+          "DINE_IN",
+          "TAKEAWAY",
+          "DELIVERY"
+        ]
+      },
+      "TableStatus": {
+        "type": "string",
+        "enum": [
+          "AVAILABLE",
+          "OCCUPIED",
+          "RESERVED"
+        ]
+      },
+      "ReservationStatus": {
+        "type": "string",
+        "enum": [
+          "EN_ATTENTE",
+          "CONFIRMED",
+          "CANCELLED",
+          "COMPLETED"
+        ]
+      }
+    }
+  },
+  "tags": []
+}

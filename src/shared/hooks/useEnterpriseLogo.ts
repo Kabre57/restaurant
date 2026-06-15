@@ -6,7 +6,7 @@ export function useEnterpriseLogo() {
   const { data: session } = useSession();
   
   return {
-    companyName: (session?.user as any)?.storeName || 'L\'ENTREPRISE',
+    companyName: session?.user.storeName || 'L\'ENTREPRISE',
     logoUrl: null // Add logic for fetching logo if needed
   };
 }

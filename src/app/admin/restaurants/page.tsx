@@ -14,7 +14,7 @@ import {
   Upload
 } from 'lucide-react'
 import Image from 'next/image'
-import { createStore, getStores } from '@/app/actions/stores'
+import { createStore, getStores } from '@/app/actions/store/stores'
 
 type StoreRow = Awaited<ReturnType<typeof getStores>>[number]
 

@@ -1,13 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { getStoreOrders } from '@/app/actions/orders'
+import { getStoreOrders } from '@/app/actions/orders/orders'
 import { useSession } from 'next-auth/react'
 import { Loader2, Receipt, Search, Filter, X, CreditCard, User, Clock, Trash2, Plus, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { cancelOrder, modifyOrder } from '@/app/actions/orderManagement'
-import { getProductsByStore } from '@/app/actions/products'
+import { cancelOrder, modifyOrder, refundOrder } from '@/app/actions/orders/orderManagement'
+import { getProductsByStore } from '@/app/actions/catalog/products'
 
 type OrderItem = {
   id: string
@@ -28,7 +28,14 @@ type OrderSummary = {
   total: number
   status: string
   table?: { number: number } | null
-  payments?: Array<{ method?: string | null }>
+  payments?: Array<{
+    status: string
+    amount?: number
+    paymentMethod?: {
+      name?: string | null
+      type?: string | null
+    } | null
+  }>
   items?: OrderItem[]
 }
 
@@ -67,21 +74,65 @@ export default function RestaurateurCommandes() {
     }
   }, [session?.user?.storeId])
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir annuler cette commande ? Les stocks des produits suivis seront automatiquement recrédités.")) return
+  const reloadOrders = async () => {
+    const storeId = session?.user?.storeId
+    if (!storeId) return
+    const data = await getStoreOrders(storeId)
+    setOrders(data as OrderSummary[])
+  }
+
+  const hasSucceededPayment = (order: OrderSummary) => {
+    return order.payments?.some(payment => payment.status === 'REUSSIE') ?? false
+  }
+
+  const hasRefundedPayment = (order: OrderSummary) => {
+    return order.payments?.some(payment => payment.status === 'REMBOURSEE') ?? false
+  }
+
+  const canCancelOrder = (order: OrderSummary) => {
+    return order.status !== 'CANCELLED' && order.status !== 'COMPLETED'
+  }
+
+  const canRefundOrder = (order: OrderSummary) => {
+    return hasSucceededPayment(order)
+  }
+
+  const handleCancelOrder = async (order: OrderSummary) => {
+    const paidWarning = hasSucceededPayment(order)
+      ? "\n\nAttention : cette action annule la commande sans marquer le paiement comme remboursé. Utilisez « Annuler & rembourser » si l'argent est rendu au client."
+      : ''
+    if (!confirm(`Êtes-vous sûr de vouloir annuler cette commande ? Les stocks des produits suivis seront automatiquement recrédités.${paidWarning}`)) return
     setActionLoading(true)
-    const res = await cancelOrder(orderId)
-    if (res.success) {
-      setSelectedOrder(res.order as any)
-      const storeId = session?.user?.storeId
-      if (storeId) {
-        const data = await getStoreOrders(storeId)
-        setOrders(data as OrderSummary[])
+    try {
+      const res = await cancelOrder(order.id)
+      if (res.success) {
+        setSelectedOrder(res.order as OrderSummary)
+        await reloadOrders()
+      } else {
+        alert(res.error || "Erreur lors de l'annulation")
       }
-    } else {
-      alert(res.error || "Erreur lors de l'annulation")
+    } finally {
+      setActionLoading(false)
     }
-    setActionLoading(false)
+  }
+
+  const handleRefundOrder = async (order: OrderSummary) => {
+    const stockMessage = order.status === 'COMPLETED'
+      ? "\n\nCette commande est déjà terminée : le stock ne sera pas recrédité automatiquement."
+      : "\n\nSi la commande n'est pas terminée, les stocks seront recrédités automatiquement."
+    if (!confirm(`Confirmer le remboursement complet de cette commande ? Le paiement passera en REMBOURSÉ et la commande sera annulée.${stockMessage}`)) return
+    setActionLoading(true)
+    try {
+      const res = await refundOrder(order.id)
+      if (res.success) {
+        setSelectedOrder(res.order as OrderSummary)
+        await reloadOrders()
+      } else {
+        alert(res.error || "Erreur lors du remboursement")
+      }
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleStartModification = async (order: OrderSummary) => {
@@ -184,6 +235,42 @@ export default function RestaurateurCommandes() {
     }
   }
 
+  const getPrimaryPayment = (order: OrderSummary) => {
+    return (
+      order.payments?.find(payment => payment.status === 'REUSSIE') ||
+      order.payments?.find(payment => payment.status === 'REMBOURSEE') ||
+      order.payments?.find(payment => payment.status === 'EN_ATTENTE') ||
+      order.payments?.[0] ||
+      null
+    )
+  }
+
+  const getPaymentMethodName = (order: OrderSummary) => {
+    return getPrimaryPayment(order)?.paymentMethod?.name || 'Non spécifié'
+  }
+
+  const getPaymentStatusColor = (order: OrderSummary) => {
+    const status = getPrimaryPayment(order)?.status || 'EN_ATTENTE'
+    switch (status) {
+      case 'REUSSIE': return 'bg-[#ebfbee] text-[#2f9e44]'
+      case 'EN_ATTENTE': return 'bg-[#fff9db] text-[#f08c00]'
+      case 'ECHOUEE': return 'bg-[#fff5f5] text-[#e03131]'
+      case 'REMBOURSEE': return 'bg-[#e7f5ff] text-[#1c7ed6]'
+      default: return 'bg-[#f1f3f5] text-[#495057]'
+    }
+  }
+
+  const getPaymentStatusText = (order: OrderSummary) => {
+    const status = getPrimaryPayment(order)?.status || 'EN_ATTENTE'
+    switch (status) {
+      case 'REUSSIE': return 'PAYÉ'
+      case 'EN_ATTENTE': return 'À ENCAISSER'
+      case 'ECHOUEE': return 'ÉCHOUÉ'
+      case 'REMBOURSEE': return 'REMBOURSÉ'
+      default: return status
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -228,9 +315,14 @@ export default function RestaurateurCommandes() {
                     <p className="mt-3 text-xs font-bold text-[#212529]">{format(new Date(order.createdAt), 'dd MMM yyyy', { locale: fr })}</p>
                     <p className="text-[10px] font-black uppercase text-[#adb5bd]">{format(new Date(order.createdAt), 'HH:mm')}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getStatusColor(order.status)}`}>
-                    {getStatusText(order.status)}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getPaymentStatusColor(order)}`}>
+                      {getPaymentStatusText(order)}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getStatusColor(order.status)}`}>
+                      {getStatusText(order.status)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-4">
@@ -271,7 +363,8 @@ export default function RestaurateurCommandes() {
                 <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Date & Heure</th>
                 <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Type / Table</th>
                 <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Montant</th>
-                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Statut</th>
+                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Paiement</th>
+                <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest">Cuisine</th>
                 <th className="p-6 text-[10px] font-black text-[#adb5bd] uppercase tracking-widest text-right">Détails</th>
               </tr>
             </thead>
@@ -302,6 +395,14 @@ export default function RestaurateurCommandes() {
                     <span className="text-sm font-black text-[#212529]">{order.total.toLocaleString()} FCFA</span>
                   </td>
                   <td className="p-6">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getPaymentStatusColor(order)}`}>
+                        {getPaymentStatusText(order)}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase text-[#adb5bd]">{getPaymentMethodName(order)}</span>
+                    </div>
+                  </td>
+                  <td className="p-6">
                     <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getStatusColor(order.status)}`}>
                       {getStatusText(order.status)}
                     </span>
@@ -318,7 +419,7 @@ export default function RestaurateurCommandes() {
               ))}
               {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center">
+                  <td colSpan={7} className="p-10 text-center">
                     <div className="flex flex-col items-center justify-center text-[#adb5bd] gap-4">
                       <Receipt className="w-12 h-12 opacity-20" />
                       <span className="text-xs font-black uppercase tracking-widest">Aucune commande trouvée</span>
@@ -349,6 +450,9 @@ export default function RestaurateurCommandes() {
                   <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getStatusColor(selectedOrder.status)}`}>
                     {getStatusText(selectedOrder.status)}
                   </span>
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${getPaymentStatusColor(selectedOrder)}`}>
+                    {getPaymentStatusText(selectedOrder)}
+                  </span>
                   <span className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {format(new Date(selectedOrder.createdAt), 'dd MMM yyyy à HH:mm', { locale: fr })}
@@ -363,8 +467,10 @@ export default function RestaurateurCommandes() {
                   <CreditCard className="w-4 h-4" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Paiement</span>
                 </div>
-                <p className="text-sm font-black text-[#212529]">{selectedOrder.payments?.[0]?.method || 'Non spécifié'}</p>
-                <p className="text-xs font-bold text-[#495057] mt-1">{selectedOrder.total.toLocaleString()} FCFA</p>
+                <p className="text-sm font-black text-[#212529]">{getPaymentMethodName(selectedOrder)}</p>
+                <p className="text-xs font-bold text-[#495057] mt-1">
+                  {getPaymentStatusText(selectedOrder)} · {selectedOrder.total.toLocaleString()} FCFA
+                </p>
               </div>
               <div className="bg-[#f8f9fa] p-5 rounded-2xl border border-[#dee2e6]">
                 <div className="flex items-center gap-2 mb-2 text-[#adb5bd]">
@@ -397,26 +503,51 @@ export default function RestaurateurCommandes() {
             </div>
 
             <div className="mt-8 flex flex-col gap-2 border-t border-[#dee2e6] pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-xs font-black text-[#adb5bd] uppercase tracking-widest">Total Payé</span>
+              <span className="text-xs font-black text-[#adb5bd] uppercase tracking-widest">
+                {getPrimaryPayment(selectedOrder)?.status === 'REUSSIE' ? 'Total Payé' : 'Total Commande'}
+              </span>
               <span className="text-3xl font-black text-[#212529]">{(selectedOrder.total || 0).toLocaleString()} FCFA</span>
             </div>
 
-            {selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'COMPLETED' && (
-              <div className="mt-6 flex gap-3 border-t border-[#dee2e6] pt-6">
-                <button
-                  onClick={() => handleCancelOrder(selectedOrder.id)}
-                  disabled={actionLoading}
-                  className="flex-1 rounded-2xl bg-[#fff5f5] text-[#e03131] hover:bg-[#ffe3e3] px-5 py-4 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 text-center"
-                >
-                  Annuler la commande
-                </button>
-                <button
-                  onClick={() => handleStartModification(selectedOrder)}
-                  disabled={actionLoading}
-                  className="flex-1 rounded-2xl bg-[#e7f5ff] text-[#339af0] hover:bg-[#d0ebff] px-5 py-4 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 text-center"
-                >
-                  Modifier la commande
-                </button>
+            {hasRefundedPayment(selectedOrder) && (
+              <div className="mt-6 rounded-2xl border border-[#d0ebff] bg-[#e7f5ff] p-4 text-xs font-bold text-[#1c7ed6]">
+                Remboursement enregistré. Cette vente ne sera plus comptabilisée comme paiement réussi.
+              </div>
+            )}
+
+            {(canCancelOrder(selectedOrder) || canRefundOrder(selectedOrder)) && (
+              <div className="mt-6 grid gap-3 border-t border-[#dee2e6] pt-6 sm:grid-cols-2">
+                {canCancelOrder(selectedOrder) && (
+                  <button
+                    onClick={() => handleCancelOrder(selectedOrder)}
+                    disabled={actionLoading}
+                    className="rounded-2xl bg-[#fff5f5] px-5 py-4 text-center text-xs font-black uppercase tracking-widest text-[#e03131] transition-all hover:bg-[#ffe3e3] disabled:opacity-50"
+                  >
+                    {hasSucceededPayment(selectedOrder) ? 'Annuler sans rembourser' : 'Annuler la commande'}
+                  </button>
+                )}
+                {canRefundOrder(selectedOrder) && (
+                  <button
+                    onClick={() => handleRefundOrder(selectedOrder)}
+                    disabled={actionLoading}
+                    className="rounded-2xl bg-[#ebfbee] px-5 py-4 text-center text-xs font-black uppercase tracking-widest text-[#2f9e44] transition-all hover:bg-[#d3f9d8] disabled:opacity-50"
+                  >
+                    {selectedOrder.status === 'CANCELLED'
+                      ? 'Rembourser maintenant'
+                      : selectedOrder.status === 'COMPLETED'
+                        ? 'Rembourser la vente'
+                        : 'Annuler & rembourser'}
+                  </button>
+                )}
+                {canCancelOrder(selectedOrder) && (
+                  <button
+                    onClick={() => handleStartModification(selectedOrder)}
+                    disabled={actionLoading}
+                    className="rounded-2xl bg-[#e7f5ff] px-5 py-4 text-center text-xs font-black uppercase tracking-widest text-[#339af0] transition-all hover:bg-[#d0ebff] disabled:opacity-50 sm:col-span-2"
+                  >
+                    Modifier la commande
+                  </button>
+                )}
               </div>
             )}
           </div>

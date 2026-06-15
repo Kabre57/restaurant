@@ -22,7 +22,6 @@ const BILL_DEFINITIONS = [
   { value: 2000, label: '2 000', color: 'from-[#553096] to-[#3C1E6E]', textColor: 'text-[#f3e8ff]', shadow: 'shadow-[#3C1E6E]/20' },
   { value: 5000, label: '5 000', color: 'from-[#14754E] to-[#0A4D32]', textColor: 'text-[#e6fffa]', shadow: 'shadow-[#0A4D32]/20' },
   { value: 10000, label: '10 000', color: 'from-[#1D5E9E] to-[#113E6B]', textColor: 'text-[#ebf8ff]', shadow: 'shadow-[#113E6B]/20' },
-  { value: 20000, label: '20 000', color: 'from-[#BD8A1B] to-[#8C630D]', textColor: 'text-[#fffdf5]', shadow: 'shadow-[#8C630D]/20' },
 ]
 
 export function PaymentCardPanel({
@@ -70,6 +69,7 @@ export function PaymentCardPanel({
             <button
               onClick={() => {
                 setUseFallback(false)
+                onClear()
                 onResetBills?.()
               }}
               className="text-[9px] font-black text-[#339af0] uppercase tracking-wider hover:underline"
@@ -84,7 +84,10 @@ export function PaymentCardPanel({
               <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.25em]">Montant Reçu (Carte Alternative)</span>
               {numericAmount > 0 && (
                 <button
-                  onClick={() => onResetBills?.()}
+                  onClick={() => {
+                    onClear()
+                    onResetBills?.()
+                  }}
                   className="text-[#ff6b6b] hover:text-[#fa5252] transition-colors p-1.5 rounded-lg hover:bg-white/5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider"
                 >
                   <RotateCcw className="w-3 h-3 stroke-[2.5px]" />
@@ -132,7 +135,10 @@ export function PaymentCardPanel({
               <div className="flex justify-between items-center">
                 <span className="text-[9.5px] font-black uppercase tracking-[0.2em] text-[#868e96]">Liasse déposée ({selectedBills.length})</span>
                 <button
-                  onClick={() => onResetBills?.()}
+                  onClick={() => {
+                    onClear()
+                    onResetBills?.()
+                  }}
                   className="text-[8.5px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest hover:underline"
                 >
                   Vider la liasse

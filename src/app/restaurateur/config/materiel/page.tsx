@@ -26,8 +26,8 @@ import {
   deletePrinter, 
   testPrinterConnection,
   discoverPrinters
-} from '@/app/actions/printers'
-import { getCategoriesByStore } from '@/app/actions/products'
+} from '@/app/actions/caisse/printers'
+import { getCategoriesByStore } from '@/app/actions/catalog/products'
 
 type PrinterData = {
   id: string

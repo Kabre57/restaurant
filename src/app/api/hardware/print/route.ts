@@ -5,11 +5,30 @@ import { sendHardwareCommand } from '@/lib/hardware/agent'
 import { prisma } from '@/lib/db'
 import { generateEscPosBuffer } from '@/lib/printService'
 
+interface PrintItemPayload {
+  name?: string
+  quantity?: number
+  price?: number
+}
+
+interface PrintOrderPayload {
+  items?: PrintItemPayload[]
+  paymentMode?: string
+  total?: number
+  displayId?: string | number
+  id?: string | number
+  table?: string
+}
+
+interface PrintPayload {
+  order?: PrintOrderPayload
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const payload = await req.json()
+  const payload = (await req.json()) as PrintPayload
   const order = payload.order || {}
 
   // 1. Récupération des paramètres personnalisés du magasin
@@ -22,14 +41,14 @@ export async function POST(req: NextRequest) {
     try {
       const parsed = JSON.parse(settings.receiptLogo)
       logoEscPos = parsed.escpos || null
-    } catch (e) {
+    } catch {
       // Rétrocompatibilité
       logoEscPos = settings.receiptLogo
     }
   }
 
   // 2. Compilation des articles pour le buffer d'impression
-  const items = (order.items || []).map((item: any) => ({
+  const items = (order.items || []).map((item) => ({
     name: item.name || 'Produit',
     qty: item.quantity || 1,
     price: item.price || 0,

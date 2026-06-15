@@ -11,7 +11,7 @@ export type PaymentCustomer = {
 }
 
 export type PaymentModalProps = {
-  paymentMethods: { id: string; name: string; type: string; icon: string | null; isDefault?: boolean }[]
+  paymentMethods: { id: string; name: string; type: string; icon: string | null; isDefault?: boolean; isActive?: boolean }[]
   total: number
   title?: string
   showCustomerSection?: boolean
@@ -28,6 +28,9 @@ export type PaymentModalProps = {
   onPromoChange: (value: string) => void
   onApplyPromo: () => void
   discount: number
+  loyaltyPointsRedeemed?: number
+  onLoyaltyPointsRedeemedChange?: (points: number) => void
+  loyaltyDiscount?: number
   selectedCustomer: PaymentCustomer | null
   onCustomerSearch: (query: string) => void
   customerResults: PaymentCustomer[]
@@ -38,5 +41,16 @@ export type PaymentModalProps = {
   onResetBills?: () => void
   roundedTotal?: number | null
   roundingDiff?: number
+  orderType?: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'
+  onOrderTypeChange?: (type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY') => void
+  deliveryAddress?: string
+  onDeliveryAddressChange?: (address: string) => void
+  deliveryClientName?: string
+  onDeliveryClientNameChange?: (name: string) => void
+  deliveryClientPhone?: string
+  onDeliveryClientPhoneChange?: (phone: string) => void
+  deliveryFee?: number
+  deliveryDistanceKm?: number | null
+  deliveryDurationMins?: number | null
+  handleAddressSelect?: (address: string) => void
 }
-

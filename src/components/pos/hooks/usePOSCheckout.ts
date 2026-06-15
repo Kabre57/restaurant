@@ -1,13 +1,13 @@
 // src/components/pos/hooks/usePOSCheckout.ts
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Table } from '@prisma/client'
 
-import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders'
-import { searchCustomer, validatePromotion } from '@/app/actions/loyalty'
-import { getRoundedTotal } from '@/app/actions/storeSettings'
-import { getPaymentMethods } from '@/app/actions/paymentMethods'
+import { addItemsToOrder, createOrder, settleOrderPayment } from '@/app/actions/orders/orders'
+import { searchCustomer, validatePromotion } from '@/app/actions/clients/loyalty'
+import { getRoundedTotal } from '@/app/actions/store/storeSettings'
+import { getPaymentMethods } from '@/app/actions/orders/paymentMethods'
 import { addOrderToSyncQueue } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
@@ -17,6 +17,7 @@ import {
   buildCashReceiptMeta,
   buildReceiptItemsFromCart,
   buildReceiptItemsFromOrder,
+  isCashPaymentMode,
   type AlertPayload,
   type PaymentContext,
   type PaymentCustomer,
@@ -24,6 +25,13 @@ import {
 import { submitServerOrderFlow } from './serverOrderFlow'
 
 type POSOperatorRole = 'CASHIER' | 'SERVER'
+type POSPaymentMethod = { id: string; name: string; type: string; icon: string | null; isDefault: boolean; isActive?: boolean }
+
+const DEFAULT_PAYMENT_METHODS: POSPaymentMethod[] = [
+  { id: 'default-cash', name: 'Espèces', type: 'CASH', icon: '💵', isDefault: true },
+  { id: 'default-card', name: 'Carte Bancaire', type: 'CARD', icon: '💳', isDefault: false },
+  { id: 'default-mobile', name: 'Mobile Money', type: 'MOBILE_MONEY', icon: '📱', isDefault: false },
+]
 
 type UsePOSCheckoutOptions = {
   cashierId: string
@@ -46,6 +54,16 @@ type UsePOSCheckoutOptions = {
   operatorRole?: POSOperatorRole
 }
 
+function createBillSelectionId(value: number) {
+  return `${value}-${Date.now()}-${Math.random()}`
+}
+
+function mergeMissingDefaultPaymentMethods(activeMethods: POSPaymentMethod[], configuredMethods: POSPaymentMethod[]) {
+  const existingTypes = new Set(configuredMethods.map((method) => method.type))
+  const missingDefaults = DEFAULT_PAYMENT_METHODS.filter((method) => !existingTypes.has(method.type))
+  return [...activeMethods, ...missingDefaults]
+}
+
 export function usePOSCheckout({
   cashierId,
   storeId,
@@ -66,16 +84,29 @@ export function usePOSCheckout({
   onAlert,
   operatorRole = 'CASHIER',
 }: UsePOSCheckoutOptions) {
-  const [paymentMethods, setPaymentMethods] = useState<{ id: string; name: string; type: string; icon: string | null; isDefault: boolean }[]>([])
-  
-  // Fetch payment methods once on mount
-  useState(() => {
+  const [paymentMethods, setPaymentMethods] = useState<POSPaymentMethod[]>(DEFAULT_PAYMENT_METHODS)
+
+  useEffect(() => {
+    if (!storeId) return
+
+    let isCancelled = false
+
     getPaymentMethods(storeId).then((res) => {
+      if (isCancelled) return
       if (res.success && res.methods) {
-        setPaymentMethods(res.methods as any[])
+        const configuredMethods = res.methods as POSPaymentMethod[]
+        const activeMethods = configuredMethods.filter((method) => method.isActive !== false)
+        const completedMethods = mergeMissingDefaultPaymentMethods(activeMethods, configuredMethods)
+        setPaymentMethods(completedMethods.length > 0 ? completedMethods : DEFAULT_PAYMENT_METHODS)
+      } else {
+        setPaymentMethods(DEFAULT_PAYMENT_METHODS)
       }
     })
-  })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [storeId])
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [showReceipt, setShowReceipt] = useState(false)
@@ -86,6 +117,7 @@ export function usePOSCheckout({
   const [selectedBills, setSelectedBills] = useState<{ id: string; value: number }[]>([])
   const [promoCode, setPromoCode] = useState('')
   const [discount, setDiscount] = useState(0)
+  const [loyaltyPointsRedeemed, setLoyaltyPointsRedeemed] = useState(0)
   const [appliedPromoId, setAppliedPromoId] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<PaymentCustomer | null>(null)
   const [customerResults, setCustomerResults] = useState<PaymentCustomer[]>([])
@@ -93,12 +125,33 @@ export function usePOSCheckout({
   const [roundedTotal, setRoundedTotal] = useState<number | null>(null)
   const [roundingDiff, setRoundingDiff] = useState(0)
 
+  const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'>('DINE_IN')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [deliveryClientName, setDeliveryClientName] = useState('')
+  const [deliveryClientPhone, setDeliveryClientPhone] = useState('')
+  const [deliveryDistanceKm, setDeliveryDistanceKm] = useState<number | null>(null)
+  const [deliveryDurationMins, setDeliveryDurationMins] = useState<number | null>(null)
+  const [deliveryFee, setDeliveryFee] = useState(0)
+
+  const handleAddressSelect = (address: string) => {
+    setDeliveryAddress(address)
+    const distance = 2 + (address.length % 5) + Math.random() * 2
+    const duration = Math.round(distance * 3 + 5)
+    const fee = Math.round(500 + distance * 250)
+    setDeliveryDistanceKm(distance)
+    setDeliveryDurationMins(duration)
+    setDeliveryFee(fee)
+  }
+
   const isSettlementFlow = paymentContext.kind === 'SETTLEMENT'
   const grossTotal = getTotal()
-  const newOrderNetTotal = Math.max(0, grossTotal - discount)
-  const paymentTotal = isSettlementFlow
+  const loyaltyDiscount = loyaltyPointsRedeemed * 10
+  const totalDiscount = discount + loyaltyDiscount
+  const newOrderNetTotal = Math.max(0, grossTotal - totalDiscount)
+  const deliveryExtra = orderType === 'DELIVERY' ? deliveryFee : 0
+  const paymentTotal = (isSettlementFlow
     ? Number(paymentContext.order.total || 0)
-    : newOrderNetTotal
+    : newOrderNetTotal) + deliveryExtra
 
   // Fonction d'impression automatique du ticket et ouverture du tiroir-caisse
   const triggerAutoPrint = async (orderData: ReceiptOrder) => {
@@ -115,7 +168,7 @@ export function usePOSCheckout({
         body: JSON.stringify({ order: orderData }),
       })
 
-      if (orderData.paymentMode === 'ESPECES') {
+      if (isCashPaymentMode(orderData.paymentMode, orderData.paymentType)) {
         await fetch('/api/hardware/cash-drawer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,6 +199,7 @@ export function usePOSCheckout({
     setSelectedBills([])
     setPromoCode('')
     setDiscount(0)
+    setLoyaltyPointsRedeemed(0)
     setAppliedPromoId(null)
     setSelectedCustomer(null)
     setCustomerResults([])
@@ -161,7 +215,7 @@ export function usePOSCheckout({
 
   const handleAddBill = (value: number) => {
     const newBill = {
-      id: `${value}-${Date.now()}-${Math.random()}`,
+      id: createBillSelectionId(value),
       value,
     }
     const newBills = [...selectedBills, newBill]
@@ -199,13 +253,14 @@ export function usePOSCheckout({
     const received = parseFloat(value)
     // Utiliser le total arrondi pour le calcul du rendu de monnaie si disponible
     const effectiveTotal = roundedTotal ?? paymentTotal
-    setChangeAmount(Math.max(0, received - effectiveTotal))
+    // On conserve la valeur négative éventuelle pour bloquer la validation si le montant est insuffisant
+    setChangeAmount(received - effectiveTotal)
   }
 
   const handleApplyPromo = async () => {
     if (!promoCode || isSettlementFlow) return
 
-    const result = await validatePromotion(promoCode, storeId, grossTotal)
+    const result = await validatePromotion(promoCode, storeId, grossTotal, items)
     if (result.success) {
       setDiscount(result.discount || 0)
       setAppliedPromoId(result.promoId || null)
@@ -230,8 +285,12 @@ export function usePOSCheckout({
     setCustomerResults(results as PaymentCustomer[])
   }
 
-  const getReceiptPaymentMeta = (mode: PaymentMode, total: number) =>
-    buildCashReceiptMeta(mode, total, amountReceived, changeAmount)
+  const getPaymentMethodType = (mode: PaymentMode) => paymentMethods.find((method) => method.name === mode)?.type || null
+
+  const getReceiptPaymentMeta = (mode: PaymentMode, total: number) => {
+    const paymentType = getPaymentMethodType(mode)
+    return buildCashReceiptMeta(mode, total, amountReceived, changeAmount, paymentType)
+  }
 
   const openSettlementForOrder = (order: RealtimeOrder) => {
     setPaymentContext({ kind: 'SETTLEMENT', order })
@@ -354,8 +413,10 @@ export function usePOSCheckout({
   // Gere la creation locale, distante et offline d'une commande encaissee a la caisse.
   const finalizeNewPaidOrder = async (mode: PaymentMode) => {
     const currentTotal = newOrderNetTotal
+    const paymentType = getPaymentMethodType(mode)
+    const isCashPayment = isCashPaymentMode(mode, paymentType)
     // Appliquer l'arrondi uniquement pour les paiements espèces
-    const cashTotal = mode === 'ESPECES' && roundedTotal !== null ? roundedTotal : currentTotal
+    const cashTotal = isCashPayment && roundedTotal !== null ? roundedTotal : currentTotal
     const paymentMode = mode
 
     setIsProcessing(true)
@@ -413,20 +474,28 @@ export function usePOSCheckout({
         storeId,
         cashierId,
         total: cashTotal,
-        discount,
+        discount: discount + loyaltyDiscount,
         promotionId: appliedPromoId || undefined,
         customerId: selectedCustomer?.id || undefined,
+        loyaltyPointsRedeemed: loyaltyPointsRedeemed,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
           name: item.name,
         })),
-        type: 'DINE_IN' as const,
+        type: orderType,
         paymentMode,
+        paymentStatus: 'REUSSIE' as const,
         tableId: selectedTable?.id || undefined,
         externalPayload: {
-          selectedBills: selectedBills.map(b => b.value)
+          selectedBills: selectedBills.map(b => b.value),
+          deliveryAddress,
+          deliveryClientName,
+          deliveryClientPhone,
+          deliveryDistanceKm,
+          deliveryDurationMins,
+          deliveryFee,
         }
       }
 
@@ -486,20 +555,28 @@ export function usePOSCheckout({
         storeId,
         cashierId,
         total: currentTotal,
-        discount,
+        discount: discount + loyaltyDiscount,
         promotionId: appliedPromoId || undefined,
         customerId: selectedCustomer?.id || undefined,
+        loyaltyPointsRedeemed: loyaltyPointsRedeemed,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
           name: item.name,
         })),
-        type: 'DINE_IN' as const,
+        type: orderType,
         paymentMode,
+        paymentStatus: 'REUSSIE' as const,
         tableId: selectedTable?.id || undefined,
         externalPayload: {
-          selectedBills: selectedBills.map(b => b.value)
+          selectedBills: selectedBills.map(b => b.value),
+          deliveryAddress,
+          deliveryClientName,
+          deliveryClientPhone,
+          deliveryDistanceKm,
+          deliveryDurationMins,
+          deliveryFee,
         }
       }
 
@@ -528,6 +605,42 @@ export function usePOSCheckout({
   }
 
   const handleCheckout = async (mode: PaymentMode) => {
+    const activeMethod = paymentMethods.find(m => m.name === mode)
+    const activeMethodType = activeMethod?.type || 'OTHER'
+    const effectiveTotal = roundedTotal ?? paymentTotal
+
+    // 1. Empêcher la validation d'une commande de 0 FCFA ou moins
+    if (effectiveTotal <= 0) {
+      onAlert({
+        title: 'Montant Invalide',
+        message: 'Le montant total de la commande ne peut pas être inférieur ou égal à 0 FCFA.',
+        type: 'error',
+      })
+      return
+    }
+
+    // 2. Empêcher la validation si le montant reçu est insuffisant ou égal à 0 en espèces ou billets
+    const isCashOrFallback = activeMethodType === 'CASH' || selectedBills.length > 0 || parseFloat(amountReceived) > 0
+    if (isCashOrFallback) {
+      const received = parseFloat(amountReceived) || 0
+      if (received <= 0) {
+        onAlert({
+          title: 'Montant Reçu Requis',
+          message: 'Veuillez saisir un montant reçu supérieur à 0 FCFA.',
+          type: 'error',
+        })
+        return
+      }
+      if (received < effectiveTotal) {
+        onAlert({
+          title: 'Paiement Insuffisant',
+          message: `Le montant reçu (${received.toLocaleString()} FCFA) est inférieur au total de la commande (${effectiveTotal.toLocaleString()} FCFA).`,
+          type: 'error',
+        })
+        return
+      }
+    }
+
     if (isSettlementFlow) {
       await finalizeSettlement(mode)
       return
@@ -552,6 +665,9 @@ export function usePOSCheckout({
     promoCode,
     setPromoCode,
     discount,
+    loyaltyPointsRedeemed,
+    setLoyaltyPointsRedeemed,
+    loyaltyDiscount,
     selectedCustomer,
     setSelectedCustomer,
     customerResults,
@@ -568,5 +684,17 @@ export function usePOSCheckout({
     roundedTotal,
     roundingDiff,
     paymentMethods,
+    orderType,
+    setOrderType,
+    deliveryAddress,
+    setDeliveryAddress,
+    deliveryClientName,
+    setDeliveryClientName,
+    deliveryClientPhone,
+    setDeliveryClientPhone,
+    deliveryDistanceKm,
+    deliveryDurationMins,
+    deliveryFee,
+    handleAddressSelect,
   }
 }

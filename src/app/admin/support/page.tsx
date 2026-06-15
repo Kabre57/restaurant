@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Priority, TicketStatus } from '@prisma/client'
 import { LifeBuoy, Plus, Search, Filter, MessageSquare, AlertTriangle, Clock, Loader2 } from 'lucide-react'
-import { createSupportTicket, getSupportStats, getSupportTickets, updateSupportTicketStatus } from '@/app/actions/support'
+import { createSupportTicket, getSupportStats, getSupportTickets, updateSupportTicketStatus } from '@/app/actions/support/support'
 
 type TicketRow = Awaited<ReturnType<typeof getSupportTickets>>[number]
 type SupportStats = Awaited<ReturnType<typeof getSupportStats>>

@@ -68,15 +68,18 @@ export const orderCreateSchema = z.object({
   storeId: z.string().min(1, 'storeId requis'),
   type: z.nativeEnum(OrderType),
   paymentMode: z.string().optional(),
+  paymentStatus: z.string().optional(),
   tableId: z.string().optional(),
   promotionId: z.string().optional(),
   discount: z.number().min(0).optional(),
   customerId: z.string().optional(),
+  loyaltyPointsRedeemed: z.number().int().min(0).optional(),
   items: z.array(z.object({
     productId: z.string().min(1),
     quantity: z.number().int().positive('Quantité doit être ≥ 1'),
     options: z.string().optional(),
   })).min(1, 'La commande doit contenir au moins un article'),
+  externalPayload: z.any().optional(),
 })
 
 /** Schéma pour l'impression de ticket via l'agent hardware local */
@@ -139,4 +142,23 @@ export const updateInventorySchema = z.object({
   quantity: z.number().min(0, 'La quantité doit être positive ou nulle'),
   minStock: z.number().min(0, 'Le stock minimum doit être positif ou nulle'),
 })
+
+export const createLoyaltyCustomerSchema = z.object({
+  phone: z.string().min(5, 'Le numéro de téléphone doit comporter au moins 5 caractères').max(20),
+  nom: z.string().trim().max(100).optional().nullable(),
+  email: z.string().trim().email('Email invalide').optional().or(z.literal('')).nullable(),
+})
+
+export const earnLoyaltyPointsSchema = z.object({
+  orderId: z.string().min(1, 'orderId requis'),
+  customerId: z.string().min(1, 'customerId requis'),
+  totalAmount: z.coerce.number().min(0, 'Le montant total doit être positif ou nul'),
+})
+
+export const redeemLoyaltyPointsSchema = z.object({
+  customerId: z.string().min(1, 'customerId requis'),
+  rewardId: z.string().min(1, 'rewardId requis'),
+  orderId: z.string().optional().nullable(),
+})
+
 

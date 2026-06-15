@@ -397,3 +397,43 @@ restaurant/
 ├── 📁 types/                      
 │   └── next-auth.d.ts                
 ```
+
+## Analyse & Cartographie Détaillée du Projet
+
+Cette section détaille les rôles, les responsabilités de chaque dossier clé et répond aux nuances architecturales du projet **Parabellum POS**.
+
+---
+
+### 1. Fichiers Générés et Rapports de Tests (`coverage/`)
+* **`coverage/` & `.nyc_output/`** *(non commités)* : Contiennent les rapports de couverture de code générés lors de l'exécution des suites de tests unitaires et d'intégration via Vitest.
+* **`📁 tests/`** : 
+  * `e2e/` : Scénarios complets d'interface (flux de caisse, commande client, cycle KDS) orchestrés par Playwright.
+  * `unit/` : Tests de logique métier isolée (calculs de fidélité, fiscalité ivoirienne).
+
+---
+
+### 2. Services : Client (`src/lib/`) vs Server Actions (`src/app/actions/`)
+Pour éviter toute redondance et respecter la frontière d'exécution Next.js :
+* **Wrappers API Client (`src/lib/`)** : Les fichiers comme `orderService.ts` et `printService.ts` contiennent les appels API client-side, les requêtes `fetch`, les interactions avec le cache `IndexedDB` local et les interfaces d'intégration matérielle.
+* **Logique Métier Serveur (`src/app/actions/`)** : Les Server Actions (ex: `orders.ts`, `inventory.ts`, `loyalty.ts`) s'exécutent exclusivement côté serveur. Ils interagissent directement avec la base de données via Prisma, gèrent les transactions complexes, la validation Zod et la sécurité d'accès.
+
+---
+
+### 3. Hooks Personnalisés (`src/hooks/`)
+Ce dossier centralise la logique d'état et les effets réutilisables à travers l'application :
+* **`usePrintTicket.ts`** : Gère l'envoi asynchrone des requêtes d'impression physique vers l'agent d'impression local.
+* **`useRealtimeOrders.ts`** : Établit la connexion SSE (Server-Sent Events) pour la synchronisation en temps réel des flux de commandes.
+* **`useCart.ts`** *(sous `src/store/`)* : Hook de gestion d'état global du panier utilisateur basé sur Zustand.
+
+---
+
+### 4. Déclarations de Types (`src/types/`)
+* Contient les extensions de types globaux TypeScript pour le projet (ex: `next-auth.d.ts` pour enrichir la session utilisateur avec les rôles et permissions du personnel).
+* Les entités métier principales (Order, Product, Ingredient) sont directement dérivées et générées via le client `@prisma/client`.
+
+---
+
+### 5. Fichiers de Documentation de Référence (Racine)
+* **`DOCUMENTATION.md`** : Guide technique complet détaillant l'architecture globale, les schémas de base de données, l'infrastructure Kubernetes (`k8s/`) et les API d'intégration matérielle.
+* **`GUIDE_FORMATION.md`** : Support opérationnel destiné à la formation des différents profils d'utilisateurs (Caissiers, Serveurs, Chefs de cuisine KDS et Restaurateurs/Gérants).
+

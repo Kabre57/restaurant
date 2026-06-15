@@ -17,7 +17,7 @@ import {
   generateTokenAction,
   listTokensAction,
   revokeTokenAction,
-} from '@/app/actions/apiTokens'
+} from '@/app/actions/auth/apiTokens'
 
 interface ApiTokenItem {
   id: string
@@ -221,29 +221,6 @@ export default function ApiTokensPage() {
                 Générer la Clé
               </button>
             </form>
-          </div>
-
-          {/* DOCUMENTATION API RAPIDE */}
-          <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-xl space-y-4">
-            <h2 className="text-sm font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-3 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Authentification
-            </h2>
-            <p className="text-xs text-gray-500 leading-relaxed font-medium">
-              Toutes les requêtes API vers Gourmet POS doivent inclure le jeton d&apos;accès dans l&apos;en-tête HTTP d&apos;autorisation :
-            </p>
-            <div className="bg-gray-900 rounded-xl p-4 font-mono text-[10px] text-gray-300 overflow-x-auto whitespace-pre">
-              {`Authorization: Bearer GLP_votre_token`}
-            </div>
-            <a
-              href="https://help.loyverse.com/api"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-bold uppercase tracking-wider"
-            >
-              Consulter l&apos;API de référence
-              <ExternalLink className="w-3 h-3" />
-            </a>
           </div>
         </div>
 

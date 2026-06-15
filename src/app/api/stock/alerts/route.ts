@@ -1,14 +1,27 @@
 import { NextRequest } from 'next/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions, checkUserStoreAccess } from "@/lib/auth";
 import { redis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return new Response("Authentification requise", { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
-  const storeId = searchParams.get('storeId');
+  const storeId = searchParams.get('storeId') || session.user.storeId;
 
   if (!storeId) {
     return new Response('Missing storeId', { status: 400 });
+  }
+
+  // Isolation multi-tenant
+  const hasAccess = await checkUserStoreAccess(session.user.id, session.user.role, storeId);
+  if (!hasAccess) {
+    return new Response("Accès refusé à cet établissement", { status: 403 });
   }
 
   const encoder = new TextEncoder();
@@ -66,6 +79,7 @@ export async function GET(req: NextRequest) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   });
 }

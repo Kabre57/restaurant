@@ -12,10 +12,10 @@ const originalResolveFilename = (Module as any)._resolveFilename
 
 import { PrismaClient } from '@prisma/client'
 import { applyRounding } from './src/lib/roundingUtils'
-import { getStoreSettings, updateStoreSettings } from './src/app/actions/storeSettings'
-import { getActiveShift, openShift, closeShift, payIn, payOut } from './src/app/actions/cashDrawer'
-import { generateTokenAction, listTokensAction, revokeTokenAction } from './src/app/actions/apiTokens'
-import { getPrinters, savePrinter, deletePrinter, testPrinterConnection } from './src/app/actions/printers'
+import { getStoreSettings, updateStoreSettings } from './src/app/actions/store/storeSettings'
+import { getActiveShift, openShift, closeShift, payIn, payOut } from './src/app/actions/caisse/cashDrawer'
+import { generateTokenAction, listTokensAction, revokeTokenAction } from './src/app/actions/auth/apiTokens'
+import { getPrinters, savePrinter, deletePrinter, testPrinterConnection } from './src/app/actions/caisse/printers'
 
 const prisma = new PrismaClient()
 

@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertCircle, Trash2 } from 'lucide-react'
+import { AlertCircle, Trash2, Coins, Lock } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import type { Reservation, Table } from '@prisma/client'
-import { markOrderServed } from '@/app/actions/orders'
+import { markOrderServed } from '@/app/actions/orders/orders'
+import { openShift, closeShift } from '@/app/actions/caisse/cashDrawer'
 
 import type { CachedCategory, CachedProduct } from '@/lib/idb'
 import { useCart } from '@/store/useCart'
@@ -26,6 +27,14 @@ import { POSWorkspace } from './subcomponents/POSWorkspace'
 import { Sidebar } from './subcomponents/Sidebar'
 import { POSModals } from './subcomponents/POSModals'
 import { BarcodeScannerModal } from './subcomponents/BarcodeScannerModal'
+
+// ── Types Shift ─────────────────────────────────────────────────────────────
+type ActiveShift = {
+  id: string
+  startAmount: number
+  openedByName: string
+  openedAt: Date | string
+}
 
 type LiveOrder = {
   id: string
@@ -64,6 +73,7 @@ interface POSClientProps {
   flowModeLocked?: boolean
   initialFlowMode?: OrderFlowMode
   initialViewMode?: POSViewMode
+  initialActiveShift?: ActiveShift | null
 }
 
 export default function POSClient({
@@ -78,9 +88,44 @@ export default function POSClient({
   flowModeLocked = false,
   initialFlowMode = 'DIRECT',
   initialViewMode = 'POS',
+  initialActiveShift = null,
 }: POSClientProps) {
   const { data: session } = useSession()
   const isRestaurateur = session?.user?.role === 'RESTAURATEUR'
+
+  // ── Shift (Rotation de caisse) ──────────────────────────────────────────
+  const [activeShift, setActiveShift] = useState<ActiveShift | null>(initialActiveShift)
+  const [shiftStartInput, setShiftStartInput] = useState('')
+  const [shiftLoading, setShiftLoading] = useState(false)
+  const [shiftError, setShiftError] = useState<string | null>(null)
+
+  const handleOpenShift = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const amount = parseFloat(shiftStartInput)
+    if (isNaN(amount) || amount < 0) {
+      setShiftError('Veuillez entrer un montant valide.')
+      return
+    }
+    setShiftLoading(true)
+    setShiftError(null)
+    const res = await openShift(storeId, cashierId, session?.user?.name || 'Caissier', amount)
+    setShiftLoading(false)
+    if (res.success && res.shift) {
+      setActiveShift(res.shift as unknown as ActiveShift)
+      setShiftStartInput('')
+    } else {
+      setShiftError(res.error || "Erreur lors de l'ouverture.")
+    }
+  }
+
+  const handleCloseShift = async (endAmount: number) => {
+    if (!activeShift) return
+    const res = await closeShift(activeShift.id, cashierId, session?.user?.name || 'Caissier', endAmount)
+    if (res.success) {
+      setActiveShift(null)
+    }
+    return res
+  }
 
   const [categories, setCategories] = useState(initialCategories)
   const [products, setProducts] = useState(initialProducts)
@@ -88,6 +133,7 @@ export default function POSClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [orderFlowMode, setOrderFlowMode] = useState<OrderFlowMode>(initialFlowMode)
   const [viewMode, setViewMode] = useState<POSViewMode>(initialViewMode)
+
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [tableForReservation, setTableForReservation] = useState<Table | null>(null)
   const [showReservationModal, setShowReservationModal] = useState(false)
@@ -263,6 +309,45 @@ export default function POSClient({
     onAlert: (alert) => setAlertState(alert),
   })
 
+  // ── Écran de blocage si le caissier n'a pas ouvert sa caisse ────────────
+  if (operatorRole === 'CASHIER' && !activeShift) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-[#1a1d24] z-[200]">
+        <div className="w-full max-w-sm rounded-[2.5rem] bg-white p-10 shadow-2xl text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 ring-4 ring-orange-100">
+            <Lock className="h-9 w-9 text-[#FF6D00]" />
+          </div>
+          <h2 className="text-2xl font-black uppercase tracking-tight text-[#212529] mb-1">Caisse Fermée</h2>
+          <p className="text-xs font-medium text-[#adb5bd] mb-8">Saisissez le fond de caisse initial pour démarrer votre service</p>
+
+          <form onSubmit={handleOpenShift} className="flex flex-col gap-4">
+            <div className="relative">
+              <Coins className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#adb5bd]" />
+              <input
+                type="number"
+                min="0"
+                step="500"
+                value={shiftStartInput}
+                onChange={(e) => setShiftStartInput(e.target.value)}
+                placeholder="Fond initial (FCFA)"
+                className="w-full rounded-2xl border border-[#e9ecef] bg-[#f8f9fa] py-4 pl-12 pr-4 text-sm font-semibold text-[#212529] outline-none focus:border-[#FF6D00] focus:ring-2 focus:ring-[#FF6D00]/20"
+                required
+              />
+            </div>
+            {shiftError && <p className="text-xs font-bold text-red-500">{shiftError}</p>}
+            <button
+              type="submit"
+              disabled={shiftLoading}
+              className="w-full rounded-2xl bg-[#FF6D00] py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 disabled:opacity-60"
+            >
+              {shiftLoading ? 'Ouverture...' : 'Ouvrir la Caisse'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   const cartEstimatedPrepMinutes = computeEstimatedPrepMinutes(items, products)
   const cartEstimatedReadyLabel = formatEstimatedReadyTime(cartEstimatedPrepMinutes)
   const activeTableOrder = showTableStatusModal
@@ -320,6 +405,7 @@ export default function POSClient({
           else if (tab === 'PLAN') setViewMode('FLOOR_PLAN')
           else if (tab === 'RESERVATIONS') setViewMode('RESERVATIONS')
         }}
+        flowModeLocked={flowModeLocked}
       />
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden xl:h-full">
@@ -384,6 +470,7 @@ export default function POSClient({
             filteredProducts={filteredProducts}
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
+            storeId={storeId}
             onProductAdd={(product) => {
               addItem({
                 productId: product.id,
@@ -493,6 +580,8 @@ export default function POSClient({
         handleMarkOrderServed={() => void handleMarkOrderServed()}
         alertState={alertState}
         setAlertState={setAlertState}
+        activeShift={activeShift}
+        onCloseShift={handleCloseShift}
         onAddItems={(table) => {
           setOrderFlowMode('TABLE_SERVICE')
           setSelectedTable(table)

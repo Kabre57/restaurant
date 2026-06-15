@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { X, Loader2, Check } from 'lucide-react'
-import { createUser } from '@/app/actions/users'
+import { createUser } from '@/app/actions/auth/users'
 
 interface Props {
   stores: { id: string, name: string }[]

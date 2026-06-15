@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Plus, Trash2, Edit3, Package, X, Loader2, AlertCircle, Search } from 'lucide-react'
-import { getProductsByStore, createProduct, updateProduct, deleteProduct, getCategories } from '@/app/actions/products'
+import { getProductsByStore, createProduct, updateProduct, deleteProduct, getCategories } from '@/app/actions/catalog/products'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
 

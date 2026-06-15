@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     order.status,
     order.total,
     order.payments[0]?.paymentMethod?.name || 'N/A',
-    order.items.map((i: any) => `${i.quantity}x ${i.product.name}`).join(' | '),
+    order.items.map((item) => `${item.quantity}x ${item.product.name}`).join(' | '),
   ])
 
   if (exportFormat === 'pdf') {
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       type: o.type,
       total: o.total,
       payment: o.payments[0]?.paymentMethod?.name,
-      items: o.items.map((i: any) => ({ name: i.product.name, qty: i.quantity, price: i.price })),
+      items: o.items.map((item) => ({ name: item.product.name, qty: item.quantity, price: item.price })),
     })), null, 2)
     return fileResponse(json, 'application/json', `${fileBase}.json`)
   }
@@ -106,5 +106,4 @@ function fileResponse(content: string, contentType: string, filename: string) {
     },
   })
 }
-
 

@@ -46,6 +46,11 @@ graph TD
 3. Cliquez sur le numéro de table souhaité pour y rattacher la commande.
 
 ### 💳 Étape 4 : Encaisser et Choisir le mode de paiement
+> [!NOTE]
+> **Configuration des modes de paiement**
+> Avant l'utilisation en caisse, un administrateur peut choisir les modes visibles dans le POS depuis **Admin → Paiements** pour le restaurant actif.
+> Le restaurateur peut faire la même configuration dans **Réglages → Paiements**. Les modes désactivés sont masqués de la caisse sans supprimer l'historique des ventes.
+
 1. Cliquez sur le bouton orange **Encaisser** (ou *Valider la commande*).
 2. Sélectionnez le mode de règlement : **Espèces**, **Mobile Money** (Orange, Wave, MTN), ou **Carte Bancaire**.
 3. Saisissez le montant reçu si le client paie en espèces : la caisse calcule automatiquement le rendu de monnaie.

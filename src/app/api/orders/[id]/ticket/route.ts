@@ -1,7 +1,9 @@
 // src/app/api/orders/[id]/ticket/route.ts — Génération ticket PDF (format 80mm)
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOrderStore } from "@/lib/orderService";
+import { getServerSession } from "next-auth/next";
+import { authOptions, checkUserStoreAccess } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -9,44 +11,53 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const store  = getOrderStore();
-  const order  = store.get(id);
-
-  if (!order) {
-    // Essai DB
-    try {
-      const { prisma } = await import("@/lib/db");
-      if (prisma) {
-        const dbOrder = await prisma.order.findUnique({
-          where: { id },
-          include: { items: { include: { product: true } }, table: true },
-        });
-        if (!dbOrder) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
-
-        return generateTicketHTML({
-          id:          dbOrder.id,
-          orderNumber: `#${dbOrder.id.slice(-4).toUpperCase()}`,
-          tableNumber: dbOrder.table?.number.toString() ?? null,
-          type:        dbOrder.type,
-          totalAmount: dbOrder.total,
-          createdAt:   dbOrder.createdAt.toISOString(),
-          items:       dbOrder.items.map((i: any) => ({ name: i.product.name, quantity: i.quantity, unitPrice: i.price })),
-        });
-      }
-    } catch { /* fallback */ }
-    return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return new NextResponse("Authentification requise", { status: 401 });
   }
 
-  return generateTicketHTML({
-    id:          order.id,
-    orderNumber: order.orderNumber,
-    tableNumber: order.tableNumber ?? null,
-    type:        order.type,
-    totalAmount: order.totalAmount,
-    createdAt:   order.createdAt,
-    items:       order.items.map((i) => ({ name: i.productName, quantity: i.quantity, unitPrice: i.unitPrice })),
-  });
+  const { id } = await params;
+
+  try {
+    const dbOrder = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        table: true,
+      },
+    });
+
+    if (!dbOrder) {
+      return new NextResponse("Commande introuvable", { status: 404 });
+    }
+
+    // Validation multi-tenant
+    const hasAccess = await checkUserStoreAccess(session.user.id, session.user.role, dbOrder.storeId);
+    if (!hasAccess) {
+      return new NextResponse("Accès refusé à cet établissement", { status: 403 });
+    }
+
+    return generateTicketHTML({
+      id:          dbOrder.id,
+      orderNumber: `#${dbOrder.id.slice(-4).toUpperCase()}`,
+      tableNumber: dbOrder.table?.number.toString() ?? null,
+      type:        dbOrder.type,
+      totalAmount: dbOrder.total,
+      createdAt:   dbOrder.createdAt.toISOString(),
+      items:       dbOrder.items.map((item) => ({
+        name:      item.product.name,
+        quantity:  item.quantity,
+        unitPrice: item.price,
+      })),
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Erreur interne du serveur";
+    return new NextResponse(msg, { status: 500 });
+  }
 }
 
 interface TicketData {

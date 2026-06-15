@@ -27,6 +27,7 @@ type POSWorkspaceProps = {
   onTableSelect: (table: Table) => void
   onTableBook: (table: Table) => void
   onChooseTable: () => void
+  storeId: string
 }
 
 export function POSWorkspace({
@@ -45,6 +46,7 @@ export function POSWorkspace({
   onTableSelect,
   onTableBook,
   onChooseTable,
+  storeId,
 }: POSWorkspaceProps) {
   if (viewMode === 'FLOOR_PLAN') {
     return (
@@ -60,7 +62,7 @@ export function POSWorkspace({
   }
 
   if (viewMode === 'RESERVATIONS') {
-    return <ReservationsList reservations={reservations} />
+    return <ReservationsList reservations={reservations} storeId={storeId} />
   }
 
   // En mode serveur, on force d'abord le choix de la table avant d'afficher la carte.

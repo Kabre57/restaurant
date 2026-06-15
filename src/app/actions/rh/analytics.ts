@@ -1,48 +1,26 @@
 'use server'
 
-import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth-guard'
+import { StaffRepository } from '@/modules/staff/repositories/staff.repository'
 
 export async function getHrDashboardMetrics() {
   const { storeId } = await requireAuth(["ADMIN", "RESTAURATEUR"])
 
   try {
     // 1. Total employees
-    const totalEmployees = await prisma.user.count({
-      where: { storeId, status: { not: 'INACTIVE' } }
-    })
+    const totalEmployees = await StaffRepository.countActiveEmployees(storeId)
 
     // 2. Active Contracts
-    const activeContractsCount = await prisma.contract.count({
-      where: { 
-        user: { storeId },
-        status: 'ACTIVE'
-      }
-    })
+    const activeContractsCount = await StaffRepository.countActiveContracts(storeId)
 
     // 3. Contracts ending soon (in the next 30 days)
     const thirtyDaysFromNow = new Date()
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
     
-    const expiringContracts = await prisma.contract.count({
-      where: {
-        user: { storeId },
-        status: 'ACTIVE',
-        endDate: {
-          lte: thirtyDaysFromNow,
-          gte: new Date()
-        }
-      }
-    })
+    const expiringContracts = await StaffRepository.countExpiringContracts(storeId, thirtyDaysFromNow)
 
     // 4. Total Base Salary (Masse salariale théorique)
-    const activeContracts = await prisma.contract.findMany({
-      where: {
-        user: { storeId },
-        status: 'ACTIVE'
-      },
-      select: { baseSalary: true }
-    })
+    const activeContracts = await StaffRepository.findActiveContractsBaseSalary(storeId)
     
     const totalBaseSalary = activeContracts.reduce((sum, c) => sum + c.baseSalary, 0)
 
@@ -50,12 +28,7 @@ export async function getHrDashboardMetrics() {
     const now = new Date()
     const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     
-    const processedPayrolls = await prisma.payroll.count({
-      where: {
-        user: { storeId },
-        period: currentPeriod
-      }
-    })
+    const processedPayrolls = await StaffRepository.countProcessedPayrollsByPeriod(storeId, currentPeriod)
 
     return {
       success: true,

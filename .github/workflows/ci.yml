@@ -73,6 +73,19 @@ jobs:
         working-directory: restaurant
         run: npx tsc --noEmit
 
+      - name: Run Unit Tests (Vitest)
+        working-directory: restaurant
+        run: npm run test:unit
+
+      - name: Install Playwright Browsers
+        working-directory: restaurant
+        run: npx playwright install --with-deps
+
+      - name: Run E2E Tests (Playwright)
+        working-directory: restaurant
+        run: npm run test:e2e
+
       - name: Next.js Production Build
         working-directory: restaurant
         run: npm run build
+

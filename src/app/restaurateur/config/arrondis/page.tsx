@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Coins, Check, ArrowUpCircle, ArrowDownCircle, Circle, Ban } from 'lucide-react'
-import { getStoreSettings, updateStoreSettings } from '@/app/actions/storeSettings'
+import { getStoreSettings, updateStoreSettings } from '@/app/actions/store/storeSettings'
 import { applyRounding } from '@/lib/roundingUtils'
 import type { RoundingType } from '@prisma/client'
 

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Priority } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { Loader2, Plus } from 'lucide-react'
-import { createSupportTicket, getSupportTicketsByUser } from '@/app/actions/support'
+import { createSupportTicket, getSupportTicketsByUser } from '@/app/actions/support/support'
 
 type TicketRow = Awaited<ReturnType<typeof getSupportTicketsByUser>>[number]
 type SupportForm = { subject: string; description: string; priority: Priority }

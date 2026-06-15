@@ -10,7 +10,7 @@ import {
   BarChart3,
   TrendingUp
 } from 'lucide-react'
-import { getAdminAnalytics } from '@/app/actions/analytics'
+import { getAdminAnalytics } from '@/app/actions/analytics/analytics'
 
 type AnalyticsData = NonNullable<Awaited<ReturnType<typeof getAdminAnalytics>>>
 
@@ -102,68 +102,68 @@ export default function AdminAnalytics() {
   })
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn text-slate-900 dark:text-slate-100">
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-black text-[#171717]">Analyses et statistiques</h1>
-        <p className="mt-1.5 text-sm font-semibold text-[#868e96]">Analysez les performances de vos restaurants en temps réel.</p>
+        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">Analyses et statistiques</h1>
+        <p className="mt-1.5 text-sm font-semibold text-slate-400 dark:text-slate-500">Analysez les performances de vos restaurants en temps réel.</p>
       </div>
 
       {/* KPI 4 Columns */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {/* Card 1 */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col justify-between h-36">
+        <div className="bg-white dark:bg-[#181a20] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between h-36">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#868e96]">Commandes aujourd&apos;hui</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#FF6D00]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Commandes aujourd&apos;hui</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30 text-[#FF6D00]">
               <ShoppingBag className="w-5 h-5 stroke-[2.5]" />
             </div>
           </div>
           <div>
-            <span className="text-3xl font-black text-[#171717]">{totalOrders}</span>
-            <span className="text-[10px] font-bold text-[#2f9e44] block mt-1">+12% par rapport à hier</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{totalOrders}</span>
+            <span className="text-[10px] font-bold text-[#2f9e44] dark:text-emerald-450 block mt-1">+12% par rapport à hier</span>
           </div>
         </div>
 
         {/* Card 2 */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col justify-between h-36">
+        <div className="bg-white dark:bg-[#181a20] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between h-36">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#868e96]">Clients uniques</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Clients uniques</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30 text-blue-500">
               <Users className="w-5 h-5 stroke-[2.5]" />
             </div>
           </div>
           <div>
-            <span className="text-3xl font-black text-[#171717]">{uniqueClients}</span>
-            <span className="text-[10px] font-bold text-[#868e96] block mt-1">Ce mois</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{uniqueClients}</span>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block mt-1">Ce mois</span>
           </div>
         </div>
 
         {/* Card 3 */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col justify-between h-36">
+        <div className="bg-white dark:bg-[#181a20] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between h-36">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#868e96]">Heure de pointe</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-50 text-[#2f9e44]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Heure de pointe</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-50 dark:bg-emerald-950/30 text-[#2f9e44] dark:text-emerald-450">
               <Clock className="w-5 h-5 stroke-[2.5]" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-black text-[#171717]">{peakHour}</span>
-            <span className="text-[10px] font-bold text-[#868e96] block mt-1">90 commandes/h max</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-slate-100">{peakHour}</span>
+            <span className="text-[10px] font-bold text-slate-450 dark:text-slate-500 block mt-1">90 commandes/h max</span>
           </div>
         </div>
 
         {/* Card 4 */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-sm flex flex-col justify-between h-36">
+        <div className="bg-white dark:bg-[#181a20] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between h-36">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#868e96]">Note moyenne</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-50 text-yellow-500">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Note moyenne</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-50 dark:bg-yellow-950/30 text-yellow-500">
               <Star className="w-5 h-5 fill-yellow-500 stroke-yellow-500" />
             </div>
           </div>
           <div>
-            <span className="text-3xl font-black text-[#171717]">{rating}</span>
-            <span className="text-[10px] font-bold text-[#868e96] block mt-1">Sur 312 avis</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{rating}</span>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block mt-1">Sur 312 avis</span>
           </div>
         </div>
       </div>
@@ -171,13 +171,13 @@ export default function AdminAnalytics() {
       {/* Row 2: Hourly Traffic & Branch Performance */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Hourly Traffic Chart (2/3 width) */}
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-7 shadow-sm lg:col-span-2">
+        <div className="bg-white dark:bg-[#181a20] border border-slate-200 dark:border-slate-800 rounded-2xl p-7 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-base font-black text-[#171717]">Trafic par heure</h3>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#adb5bd] mt-1">Commandes par tranche horaire — Aujourd&apos;hui</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Trafic par heure</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-1">Commandes par tranche horaire — Aujourd&apos;hui</p>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#ebfbee] text-[#2f9e44] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-1.5 bg-[#ebfbee] dark:bg-emerald-950/30 text-[#2f9e44] dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
               <TrendingUp className="w-3.5 h-3.5" />
               +12% par rapport à hier
             </div>
@@ -200,7 +200,7 @@ export default function AdminAnalytics() {
                   y1={chartHeight * p}
                   x2={chartWidth}
                   y2={chartHeight * p}
-                  stroke="#F1F3F5"
+                  className="stroke-slate-100 dark:stroke-slate-800/80"
                   strokeWidth="1.5"
                   strokeDasharray="4 4"
                 />
@@ -241,7 +241,7 @@ export default function AdminAnalytics() {
             {/* Labels */}
             <div className="flex justify-between mt-4 px-1">
               {trafficPoints.map((p, i) => (
-                <span key={i} className="text-[9px] font-black uppercase tracking-widest text-[#adb5bd]">
+                <span key={i} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   {p.hour}
                 </span>
               ))}
@@ -250,24 +250,24 @@ export default function AdminAnalytics() {
         </div>
 
         {/* Branch Performance (1/3 width) */}
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-7 shadow-sm">
-          <h3 className="text-base font-black text-[#171717]">Spectacle / Restaurant</h3>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#adb5bd] mt-1 mb-8">Ce mois</p>
+        <div className="bg-white dark:bg-[#181a20] border border-slate-200 dark:border-slate-800 rounded-2xl p-7 shadow-sm">
+          <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Spectacle / Restaurant</h3>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-1 mb-8">Ce mois</p>
 
           <div className="space-y-6">
             {storePerformances.map((perf, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex justify-between text-xs font-black">
-                  <span className="text-[#171717]">{perf.name.split(' - ')[1] || perf.name}</span>
+                  <span className="text-slate-900 dark:text-slate-100">{perf.name.split(' - ')[1] || perf.name}</span>
                   <span className="text-[#FF6D00]">{perf.percentage}%</span>
                 </div>
-                <div className="h-2.5 bg-[#F1F3F5] rounded-full overflow-hidden">
+                <div className="h-2.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[#FF6D00] rounded-full transition-all duration-500"
                     style={{ width: `${perf.percentage}%` }}
                   />
                 </div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#868e96] block">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
                   {perf.orders} commandes
                 </span>
               </div>
@@ -277,35 +277,35 @@ export default function AdminAnalytics() {
       </div>
 
       {/* Row 3: Top Products Table */}
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-7 border-b border-[#F1F3F5] flex items-center gap-3">
+      <div className="bg-white dark:bg-[#181a20] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-7 border-b border-slate-250 dark:border-slate-800 flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-[#FF6D00]" />
-          <h3 className="text-base font-black text-[#171717]">Meilleurs produits du mois</h3>
+          <h3 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Meilleurs produits du mois</h3>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px]">
             <thead>
-              <tr className="bg-[#F8F9FA] text-left border-b border-[#F1F3F5]">
-                <th className="px-8 py-4 text-[9px] font-black text-[#adb5bd] uppercase tracking-widest w-20">#</th>
-                <th className="px-8 py-4 text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Produit</th>
-                <th className="px-8 py-4 text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Commandes</th>
-                <th className="px-8 py-4 text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Revenus</th>
-                <th className="px-8 py-4 text-[9px] font-black text-[#adb5bd] uppercase tracking-widest">Popularité</th>
+              <tr className="bg-slate-50 dark:bg-slate-900/50 text-left border-b border-slate-200 dark:border-slate-800">
+                <th className="px-8 py-4 text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest w-20">#</th>
+                <th className="px-8 py-4 text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">Produit</th>
+                <th className="px-8 py-4 text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">Commandes</th>
+                <th className="px-8 py-4 text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">Revenus</th>
+                <th className="px-8 py-4 text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">Popularité</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F1F3F5]">
+            <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
               {topProductsList.map((prod, idx) => (
-                <tr key={idx} className="hover:bg-[#F8F9FA]/50 transition-colors">
+                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
                   <td className="px-8 py-4.5">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50 text-[10px] font-black text-[#FF6D00]">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30 text-[10px] font-black text-[#FF6D00]">
                       {idx + 1}
                     </span>
                   </td>
-                  <td className="px-8 py-4.5 text-xs font-black text-[#171717]">
+                  <td className="px-8 py-4.5 text-xs font-black text-slate-900 dark:text-slate-100 uppercase">
                     {prod.name}
                   </td>
-                  <td className="px-8 py-4.5 text-xs font-semibold text-[#495057]">
+                  <td className="px-8 py-4.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {prod.orders}
                   </td>
                   <td className="px-8 py-4.5 text-xs font-black text-[#FF6D00]">
@@ -313,13 +313,13 @@ export default function AdminAnalytics() {
                   </td>
                   <td className="px-8 py-4.5 w-64">
                     <div className="flex items-center gap-3">
-                      <div className="h-2 w-32 bg-[#F1F3F5] rounded-full overflow-hidden shrink-0">
+                      <div className="h-2 w-32 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden shrink-0">
                         <div
                           className="h-full bg-[#FF6D00] rounded-full"
                           style={{ width: `${prod.popularity}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-bold text-[#adb5bd] w-10">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 w-10">
                         {prod.popularity}%
                       </span>
                     </div>

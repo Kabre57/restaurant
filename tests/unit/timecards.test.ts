@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { clockInUser, clockOutUser, getPresenceLogs, saveManualTimecard, getHoursWorkedReport } from '@/app/actions/timecards'
+import { clockInUser, clockOutUser, getPresenceLogs, saveManualTimecard, getHoursWorkedReport } from '@/app/actions/rh/timecards'
 import { prisma } from '@/lib/db'
 
 vi.mock('@/lib/db', () => {

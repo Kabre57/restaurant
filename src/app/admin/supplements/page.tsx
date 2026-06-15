@@ -1,22 +1,26 @@
-import React from 'react'
-import { prisma } from '@/lib/db'
-import AdminSupplementsClient from './AdminSupplementsClient'
+import { cookies } from 'next/headers'
+import ProductOptionsManager from '@/components/catalog/ProductOptionsManager'
+import { getStores } from '@/app/actions/store/stores'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminSupplementsPage() {
-  // Load categories to allow linking options to categories
-  const categories = await prisma.category.findMany({
-    select: { id: true, name: true, storeId: true, store: { select: { name: true } } },
-    orderBy: { name: 'asc' },
-  })
-
-  const stores = await prisma.store.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+  const cookieStore = await cookies()
+  const activeStoreId = cookieStore.get('admin_active_store_id')?.value
+  const stores = await getStores()
+  const storeOptions = stores.map((store) => ({ id: store.id, name: store.name }))
+  const initialStoreId = storeOptions.some((store) => store.id === activeStoreId)
+    ? activeStoreId
+    : storeOptions[0]?.id
 
   return (
-    <AdminSupplementsClient categories={categories} stores={stores} />
+    <ProductOptionsManager
+      mode="admin"
+      initialStoreId={initialStoreId}
+      stores={storeOptions}
+      title="Modificateurs"
+      description="Gérez les suppléments et retraits du restaurant actif"
+      createLabel="Ajouter Modificateur"
+    />
   )
 }

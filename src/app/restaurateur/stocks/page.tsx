@@ -11,11 +11,11 @@ import {
   Loader2,
   Package2
 } from 'lucide-react'
-import { getProductsByStore } from '@/app/actions/products'
+import { getProductsByStore } from '@/app/actions/catalog/products'
 import {
   getInventoryByStore,
   getAllIngredients
-} from '@/app/actions/inventory'
+} from '@/app/actions/inventory/inventory'
 import { useSession } from 'next-auth/react'
 
 // Modular Tabs import
@@ -26,6 +26,8 @@ import { RecipesTab } from './RecipesTab'
 type StockProduct = {
   id: string
   name: string
+  price: number
+  costPrice: number
   image: string | null
   trackStock: boolean
   stockQuantity: number
@@ -72,7 +74,7 @@ export default function RestaurateurStocks() {
 
       // Load raw inventory
       const rawInventory = await getInventoryByStore(storeId)
-      setInventoryList(rawInventory as any[])
+      setInventoryList(rawInventory as IngredientInventory[])
 
       // Load global ingredients list
       const rawGlobal = await getAllIngredients()
@@ -87,15 +89,41 @@ export default function RestaurateurStocks() {
   useEffect(() => {
     if (status === 'loading') return
 
-    if (storeId) {
-      void loadData()
-    } else {
-      setLoading(false)
+    if (!storeId) return
+
+    let isCancelled = false
+
+    async function loadInitialData() {
+      try {
+        setLoading(true)
+
+        const rawProducts = await getProductsByStore(storeId)
+        const rawInventory = await getInventoryByStore(storeId)
+        const rawGlobal = await getAllIngredients()
+
+        if (isCancelled) return
+
+        setProducts(rawProducts as StockProduct[])
+        setInventoryList(rawInventory as IngredientInventory[])
+        setGlobalIngredients(rawGlobal as GlobalIngredient[])
+      } catch (err) {
+        console.error("Failed to load inventory data:", err)
+      } finally {
+        if (!isCancelled) setLoading(false)
+      }
+    }
+
+    void loadInitialData()
+
+    return () => {
+      isCancelled = true
     }
   }, [storeId, status])
 
   const lowStockProductsCount = products.filter(p => p.trackStock && p.stockQuantity <= p.minStockLevel).length
   const lowStockIngredientsCount = inventoryList.filter(item => item.quantity <= item.minStock).length
+  const productsRevision = products.map((product) => `${product.id}:${product.stockQuantity}`).join('|')
+  const isLoading = status === 'loading' || (Boolean(storeId) && loading)
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
@@ -110,7 +138,7 @@ export default function RestaurateurStocks() {
           onClick={loadData}
           className="rounded-2xl border border-[#dee2e6] bg-white p-3 text-[#adb5bd] transition-all hover:bg-[#f8f9fa] hover:text-[#212529] self-start"
         >
-          <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCcw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -173,20 +201,20 @@ export default function RestaurateurStocks() {
       </div>
 
       {/* Loading indicator */}
-      {loading && (
+      {isLoading && (
         <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-[#adb5bd]" /></div>
       )}
 
       {/* Tab Panels */}
-      {!loading && activeTab === 'products' && (
-        <ProductsTab products={products} onRefresh={loadData} />
+      {!isLoading && activeTab === 'products' && (
+        <ProductsTab key={productsRevision} products={products} onRefresh={loadData} />
       )}
 
-      {!loading && activeTab === 'ingredients' && (
+      {!isLoading && activeTab === 'ingredients' && (
         <IngredientsTab storeId={storeId} inventoryList={inventoryList} onRefresh={loadData} />
       )}
 
-      {!loading && activeTab === 'recipes' && (
+      {!isLoading && activeTab === 'recipes' && (
         <RecipesTab products={products} globalIngredients={globalIngredients} />
       )}
 

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, X, Loader2, AlertCircle, Calendar, Clock, LogIn, LogOut, FileText } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getStoreStaff } from '@/app/actions/staff'
-import { getPresenceLogs, saveManualTimecard, deleteTimecard, clockInUser, clockOutUser } from '@/app/actions/timecards'
+import { getStoreStaff } from '@/app/actions/rh/staff'
+import { getPresenceLogs, saveManualTimecard, deleteTimecard, clockInUser, clockOutUser } from '@/app/actions/rh/timecards'
 import { CrudActionButton, CrudFilterBar, CrudPrimaryButton, CrudTable } from '@/components/ui/ParabellumCrudTable'
 
 type StaffMember = {

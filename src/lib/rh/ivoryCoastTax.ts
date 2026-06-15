@@ -8,6 +8,31 @@ export interface SalaryCalculationResult {
   netSalary: number;
   cnpsPatronal: number;
   employerCost: number;
+  bonus13thMonth?: number;
+}
+
+type TaxBracket = {
+  min: number;
+  max?: number;
+  rate: number;
+  deduction?: number;
+}
+
+type TaxPartRule = {
+  base: number;
+  withChildrenBase: number;
+  perChild: number;
+}
+
+type TaxPartsConfig = {
+  maxParts?: number;
+  [status: string]: TaxPartRule | number | undefined;
+}
+
+type TaxRatesConfig = {
+  cnBrackets?: TaxBracket[];
+  igrBrackets?: TaxBracket[];
+  partsConfig?: TaxPartsConfig;
 }
 
 /**
@@ -16,7 +41,7 @@ export interface SalaryCalculationResult {
 export function calculateTaxParts(
   maritalStatus: string | null | undefined, 
   children: number,
-  config?: any
+  config?: TaxPartsConfig
 ): number {
   const status = maritalStatus?.toUpperCase() || 'SINGLE';
   if (!config || Object.keys(config).length === 0) {
@@ -24,7 +49,9 @@ export function calculateTaxParts(
   }
   const rules = config;
 
-  const statusRules = rules[status] || rules['SINGLE'];
+  const statusRules = (rules[status] || rules['SINGLE']) as TaxPartRule | undefined;
+  if (!statusRules) return 1;
+
   let parts = statusRules.base;
   
   if (children > 0) {
@@ -47,6 +74,7 @@ export function calculateTaxParts(
  * @param maritalStatus Statut marital (ex: 'SINGLE', 'MARRIED')
  * @param numberOfChildren Nombre d'enfants à charge
  * @param rates Taux configurables de la base de données
+ * @param bonus13thMonth Gratification / 13ème mois
  */
 export function calculateIvoryCoastSalary(
   baseSalary: number,
@@ -59,8 +87,9 @@ export function calculateIvoryCoastSalary(
     baseImposableRate?: number;
     cnpsCeiling?: number;
     igrBaseRate?: number;
-    taxRates?: any;
-  } = {}
+    taxRates?: TaxRatesConfig;
+  } = {},
+  bonus13thMonth: number = 0
 ): SalaryCalculationResult {
   // Extraction des taux avec valeurs par défaut ivoiriennes
   const cnpsEmployeeRate = (rates.cnpsEmployeeRate ?? 6.3) / 100;
@@ -74,20 +103,21 @@ export function calculateIvoryCoastSalary(
   const igrBrackets = rates.taxRates?.igrBrackets || [];
   const partsConfig = rates.taxRates?.partsConfig;
 
+  // Calcul du brut total imposable (Brut mensuel + Gratification/13ème mois)
+  const totalBrut = baseSalary + bonus13thMonth;
+
   // 1. CNPS Salariale (par défaut 6.3% du salaire brut, plafonné à 1 647 315 FCFA)
-  const cnpsBase = Math.min(baseSalary, cnpsCeiling);
+  const cnpsBase = Math.min(totalBrut, cnpsCeiling);
   const cnpsSalarial = Math.round(cnpsBase * cnpsEmployeeRate);
 
   // 2. Base imposable (par défaut 80% du salaire brut)
-  const baseImposable = baseSalary * baseImposableRate;
+  const baseImposable = totalBrut * baseImposableRate;
 
   // 3. ITS (Impôt sur les Traitements et Salaires) - par défaut 1.2% de la base imposable
   const its = Math.round(baseImposable * itsRate);
 
   // 4. CN (Contribution Nationale)
   let contributionNationale = 0;
-  // Les tranches doivent être traitées de la plus haute à la plus basse pour ce type de calcul
-  // ou on calcule par tranche : (Math.min(base, max) - min) * rate
   for (const bracket of cnBrackets) {
     if (baseImposable > bracket.min) {
       const taxableInBracket = Math.min(baseImposable, bracket.max || Infinity) - bracket.min;
@@ -102,11 +132,11 @@ export function calculateIvoryCoastSalary(
   const q = baseIGR / parts;
   let igrPart = 0;
 
-  // Barème mensuel Q pour l'IGR (trouver la première tranche qui correspond, en supposant qu'elles sont triées en ordre décroissant)
+  // Barème mensuel Q pour l'IGR
   const sortedIgr = [...igrBrackets].sort((a, b) => b.min - a.min);
   for (const bracket of sortedIgr) {
     if (q > bracket.min) {
-      igrPart = q * bracket.rate - bracket.deduction;
+      igrPart = q * bracket.rate - (bracket.deduction ?? 0);
       break;
     }
   }
@@ -115,10 +145,10 @@ export function calculateIvoryCoastSalary(
   igr = Math.max(0, igr);
 
   const totalTaxes = cnpsSalarial + its + contributionNationale + igr;
-  const netSalary = baseSalary - totalTaxes;
+  const netSalary = totalBrut - totalTaxes;
 
   const cnpsPatronal = Math.round(cnpsBase * cnpsEmployerRate);
-  const employerCost = baseSalary + cnpsPatronal;
+  const employerCost = totalBrut + cnpsPatronal;
 
   return {
     baseSalary,
@@ -129,6 +159,8 @@ export function calculateIvoryCoastSalary(
     totalTaxes,
     netSalary,
     cnpsPatronal,
-    employerCost
+    employerCost,
+    bonus13thMonth
   };
 }
+

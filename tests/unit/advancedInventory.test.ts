@@ -4,17 +4,17 @@ import {
   createSupplier, 
   createPurchaseOrder, 
   receivePurchaseOrder 
-} from '@/app/actions/purchaseOrders';
+} from '@/app/actions/inventory/purchaseOrders';
 import { 
   createTransferOrder, 
   shipTransferOrder, 
   receiveTransferOrder 
-} from '@/app/actions/transferOrders';
+} from '@/app/actions/inventory/transferOrders';
 import { 
   createPhysicalInventory, 
   updatePhysicalCount, 
   completePhysicalInventory 
-} from '@/app/actions/physicalInventory';
+} from '@/app/actions/inventory/physicalInventory';
 
 // Mock Prisma
 vi.mock('@/lib/db', () => {

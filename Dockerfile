@@ -11,8 +11,8 @@ RUN npx prisma generate
 FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat openssl ca-certificates
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 
 # Variables d'environnement pour le build
 ENV NEXT_TELEMETRY_DISABLED 1

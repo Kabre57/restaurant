@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Plus, Trash2, Move, Grid3X3, Circle, Square, Loader2, X, AlertCircle } from 'lucide-react';
 import { Table, TableShape } from '@prisma/client';
-import { createTable, updateTablePosition, updateTableDetails, deleteTable } from '@/app/actions/tables';
+import { createTable, updateTablePosition, updateTableDetails, deleteTable } from '@/app/actions/store/tables';
 
 interface FloorPlanDesignerProps {
   initialTables: Table[];

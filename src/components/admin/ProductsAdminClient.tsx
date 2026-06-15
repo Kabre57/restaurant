@@ -3,9 +3,8 @@
 import React, { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, Package, ToggleLeft, ToggleRight, Pencil, Check, X, Search, Plus, MoreVertical, Filter } from 'lucide-react'
-import { toggleProductAvailability, updateProductPrice, updateProductBarcode } from '@/app/actions/admin'
+import { toggleProductAvailability, updateProductPrice, updateProductBarcode } from '@/app/actions/analytics/admin'
 import Image from 'next/image'
-import { useSession } from 'next-auth/react'
 import { AddProductModal } from './subcomponents/AddProductModal'
 
 type Category = { id: string; name: string; imageUrl?: string | null }
@@ -24,10 +23,10 @@ type Product = {
 interface Props {
   products: Product[]
   categories: Category[]
+  activeStoreId?: string
 }
 
-export default function ProductsAdminClient({ products: initialProducts, categories }: Props) {
-  const { data: session } = useSession()
+export default function ProductsAdminClient({ products: initialProducts, categories, activeStoreId }: Props) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPrice, setEditPrice]  = useState<string>("")
@@ -129,7 +128,8 @@ export default function ProductsAdminClient({ products: initialProducts, categor
             <div className="hidden h-8 w-px bg-[#dee2e6] xl:block" />
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#212529] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-black sm:w-auto"
+              disabled={!activeStoreId}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#212529] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:bg-[#adb5bd] sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               Ajouter un Produit
@@ -139,10 +139,10 @@ export default function ProductsAdminClient({ products: initialProducts, categor
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-        {isAddModalOpen && session?.user?.storeId && (
+        {isAddModalOpen && activeStoreId && (
           <AddProductModal 
             categories={categories} 
-            storeId={session.user.storeId}
+            storeId={activeStoreId}
             onClose={() => setIsAddModalOpen(false)}
             onSuccess={(newProduct) => setProducts([newProduct, ...products])}
           />

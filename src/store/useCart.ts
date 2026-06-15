@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
 
 export type CartItem = {
   id: string
@@ -12,7 +13,7 @@ export type CartItem = {
 
 interface CartStore {
   items: CartItem[]
-  /** Taux de TVA en décimal (ex: 0.18 pour 18%). Défaut 0 = prix TTC inclus */
+  /** Taux de TVA en décimal (ex: 0.18 pour 18%). */
   taxRate: number
   addItem: (item: Omit<CartItem, 'id'>) => void
   removeItem: (id: string) => void
@@ -28,7 +29,7 @@ interface CartStore {
 
 export const useCart = create<CartStore>((set, get) => ({
   items: [],
-  taxRate: 0, // ✅ Plus de TVA hardcodée — configurable via setTaxRate(store.taxRate)
+  taxRate: DEFAULT_VAT_RATE,
   addItem: (item) => set((state) => {
     const existingItem = state.items.find(
       i => i.productId === item.productId && i.options === item.options
@@ -58,12 +59,10 @@ export const useCart = create<CartStore>((set, get) => ({
     return items.reduce((total, item) => total + (item.price * item.quantity), 0)
   },
   getTax: () => {
-    // Taux provenant de la config du store — jamais hardcodé
-    return get().getSubtotal() * get().taxRate
+    return computeTaxFromNetAmount(get().getSubtotal(), get().taxRate).taxAmount
   },
   getTotal: () => {
-    return get().getSubtotal() + get().getTax()
+    return computeTaxFromNetAmount(get().getSubtotal(), get().taxRate).totalIncludingTax
   }
 }))
-
 

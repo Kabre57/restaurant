@@ -27,7 +27,6 @@ const BILL_DEFINITIONS = [
   { value: 2000, label: '2 000', color: 'from-[#553096]/10 to-[#3C1E6E]/15 border-[#553096]/30 text-[#3C1E6E]' },
   { value: 5000, label: '5 000', color: 'from-[#14754E]/10 to-[#0A4D32]/15 border-[#14754E]/30 text-[#0A4D32]' },
   { value: 10000, label: '10 000', color: 'from-[#1D5E9E]/10 to-[#113E6B]/15 border-[#1D5E9E]/30 text-[#113E6B]' },
-  { value: 20000, label: '20 000', color: 'from-[#BD8A1B]/10 to-[#8C630D]/15 border-[#BD8A1B]/30 text-[#8C630D]' },
 ]
 
 export function PaymentCashPanel({
@@ -67,7 +66,7 @@ export function PaymentCashPanel({
     }
   }
 
-  const isPaymentValid = selectedBills.length > 0 && changeAmount !== null && changeAmount >= 0
+  const isPaymentValid = selectedBills.length > 0 && changeAmount !== null && changeAmount >= 0 && (roundedTotal ?? total) > 0
 
   return (
     <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e9ecef] shadow-md space-y-3.5 animate-in fade-in duration-300">

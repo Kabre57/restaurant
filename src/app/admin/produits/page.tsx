@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
-import { getCategories, getProductsForAdmin } from "@/app/actions/admin"
+import { getCategories, getProductsForAdmin } from "@/app/actions/analytics/admin"
 import ProductsAdminClient from "@/components/admin/ProductsAdminClient"
 
 export const metadata = {
@@ -25,5 +25,5 @@ export default async function AdminProduitsPage() {
     getCategories(activeStoreId)
   ])
 
-  return <ProductsAdminClient products={products} categories={categories} />
+  return <ProductsAdminClient products={products} categories={categories} activeStoreId={activeStoreId} />
 }
