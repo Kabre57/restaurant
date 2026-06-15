@@ -40,3 +40,7 @@ test_pass.js
 
 # Dossiers tiers
 Template/
+
+# Rapports de test
+playwright-report/
+test-results/
