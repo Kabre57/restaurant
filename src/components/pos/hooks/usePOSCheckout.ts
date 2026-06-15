@@ -386,6 +386,7 @@ export function usePOSCheckout({
           total: Number(result.order.total || paymentTotal),
           date: new Date(),
           estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+          tableId: result.order.tableId || paymentContext.order.tableId || undefined,
           ...getReceiptPaymentMeta(mode, Number(result.order.total || paymentTotal)),
         }
         setLastOrder(receiptData)
@@ -445,6 +446,7 @@ export function usePOSCheckout({
             total: currentTotal,
             date: new Date(),
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+            tableId: selectedTable?.id || undefined,
             ...getReceiptPaymentMeta(paymentMode, currentTotal),
           }
           setLastOrder(receiptData)
@@ -507,6 +509,7 @@ export function usePOSCheckout({
             ...orderData,
             id: result.order.id,
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+            tableId: selectedTable?.id || undefined,
             ...getReceiptPaymentMeta(paymentMode, currentTotal),
             items: buildReceiptItemsFromCart(items),
           }
@@ -535,6 +538,7 @@ export function usePOSCheckout({
           ...orderData,
           id: orderData.clientRequestId,
           isOffline: true,
+          tableId: selectedTable?.id || undefined,
           ...getReceiptPaymentMeta(paymentMode, currentTotal),
           items: buildReceiptItemsFromCart(items),
         }
@@ -587,6 +591,7 @@ export function usePOSCheckout({
         ...orderData,
         id: orderData.clientRequestId,
         isOffline: true,
+        tableId: selectedTable?.id || undefined,
         ...getReceiptPaymentMeta(paymentMode, currentTotal),
         items: buildReceiptItemsFromCart(items),
       }

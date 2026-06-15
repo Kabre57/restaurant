@@ -164,6 +164,55 @@ export default function KDSClient({ initialOrders, storeId, storeName }: { initi
     }))
   }
 
+  // Suivi des alertes sonores de retard déjà jouées pour éviter les signaux répétés en boucle
+  const triggeredAlertsRef = useRef<{ warning: Set<string>; critical: Set<string> }>({
+    warning: new Set(),
+    critical: new Set()
+  })
+
+  useEffect(() => {
+    const checkDelayedOrders = () => {
+      const activeTickets = orders.filter(o => o.status === 'EN_ATTENTE' || o.status === 'PREPARATION')
+      let shouldPlayAlert = false
+
+      activeTickets.forEach(order => {
+        const elapsedMinutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
+
+        // Alerte critique
+        if (elapsedMinutes >= criticalThreshold) {
+          if (!triggeredAlertsRef.current.critical.has(order.id)) {
+            triggeredAlertsRef.current.critical.add(order.id)
+            triggeredAlertsRef.current.warning.add(order.id)
+            shouldPlayAlert = true
+          }
+        }
+        // Alerte avertissement (warning)
+        else if (elapsedMinutes >= warningThreshold) {
+          if (!triggeredAlertsRef.current.warning.has(order.id)) {
+            triggeredAlertsRef.current.warning.add(order.id)
+            shouldPlayAlert = true
+          }
+        }
+      })
+
+      if (shouldPlayAlert) {
+        playNotificationSound('warning')
+      }
+
+      // Nettoyage des commandes terminées, annulées ou prêtes
+      const activeIds = new Set(activeTickets.map(o => o.id))
+      triggeredAlertsRef.current.warning.forEach(id => {
+        if (!activeIds.has(id)) triggeredAlertsRef.current.warning.delete(id)
+      })
+      triggeredAlertsRef.current.critical.forEach(id => {
+        if (!activeIds.has(id)) triggeredAlertsRef.current.critical.delete(id)
+      })
+    }
+
+    const interval = setInterval(checkDelayedOrders, 5000)
+    return () => clearInterval(interval)
+  }, [orders, warningThreshold, criticalThreshold])
+
   useEffect(() => {
     const refreshClock = () => {
       setCurrentTime(new Date().toLocaleTimeString('fr-FR'))

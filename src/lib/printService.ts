@@ -12,6 +12,7 @@ export interface PrintJobData {
   logoEscPos?: string | null; // Base64 du buffer ESC/POS du logo
   headerText?: string | null;
   footerText?: string | null;
+  qrData?: string | null;
 }
 
 /**
@@ -81,6 +82,31 @@ export function generateEscPosBuffer(data: PrintJobData): Uint8Array {
     commands.push(LF);
     commands.push(ESC, 0x61, 1); // Centré
     commands.push(...encodeText(data.footerText + "\n"));
+  }
+
+  // 8.5 Impression du Code QR si présent
+  if (data.qrData) {
+    commands.push(LF);
+    commands.push(ESC, 0x61, 1); // Centré
+    
+    const qrBytes = encodeText(data.qrData);
+    const storeLen = qrBytes.length + 3;
+    const pl = storeLen & 0xFF;
+    const ph = (storeLen >> 8) & 0xFF;
+
+    commands.push(
+      // 1. Définir le modèle de QR Code (Modèle 2)
+      0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00,
+      // 2. Définir la taille du module QR (taille 6)
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06,
+      // 3. Définir le niveau de correction d'erreur (M = 15%)
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x44, 0x31,
+      // 4. Stocker les données dans la mémoire symbole
+      0x1D, 0x28, 0x6B, pl, ph, 0x31, 0x50, 0x30, ...qrBytes,
+      // 5. Imprimer le symbole QR Code stocké
+      0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30
+    );
+    commands.push(LF);
   }
 
   // 9. Fin de ticket & Découpe automatique

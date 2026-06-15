@@ -18,6 +18,7 @@ interface PrintOrderPayload {
   displayId?: string | number
   id?: string | number
   table?: string
+  tableId?: string | null
 }
 
 interface PrintPayload {
@@ -56,6 +57,12 @@ export async function POST(req: NextRequest) {
 
   const isPendingSettlement = order.paymentMode === 'A regler en caisse'
 
+  let qrData: string | null = null
+  if (session.user.storeId && order.tableId) {
+    const origin = req.headers.get('origin') || req.nextUrl.origin
+    qrData = `${origin}/order/${session.user.storeId}/${order.tableId}`
+  }
+
   // 3. Génération du buffer ESC/POS
   const jobData = {
     title: isPendingSettlement ? 'Bon de Commande' : 'Ticket de Caisse',
@@ -66,6 +73,7 @@ export async function POST(req: NextRequest) {
     logoEscPos,
     headerText: settings?.receiptHeader || null,
     footerText: settings?.receiptFooter || null,
+    qrData,
   }
 
   const escposBuffer = generateEscPosBuffer(jobData)

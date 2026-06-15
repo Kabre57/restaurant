@@ -160,7 +160,17 @@ export function usePOSRealtime({ initialOrders, storeId, onReadyOrder, onServerC
       }
     }
 
-    orderSource.addEventListener('new-order', handleOrderStreamEvent as EventListener)
+    const handleNewOrderStreamEvent = (event: MessageEvent) => {
+      try {
+        const order = JSON.parse(event.data) as RealtimeOrder
+        playNotificationSound('info')
+        mergeLiveOrder(order)
+      } catch (error) {
+        console.error('Failed to parse new order stream event:', error)
+      }
+    }
+
+    orderSource.addEventListener('new-order', handleNewOrderStreamEvent as EventListener)
     orderSource.addEventListener('order-updated', handleOrderStreamEvent as EventListener)
     posAlertSource.addEventListener('server-call', (event) => {
       try {

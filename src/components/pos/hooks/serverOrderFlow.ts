@@ -60,12 +60,30 @@ async function queueServerOrder(ctx: ServerOrderFlowContext) {
   const orderData = buildServerOrderData(ctx)
   await addOrderToSyncQueue(orderData)
   await ctx.refreshSyncQueueCount()
-  ctx.setLastOrder({
+  const receiptData = {
     ...orderData,
     id: orderData.clientRequestId,
     isOffline: true,
     paymentMode: 'A regler en caisse',
-  })
+  }
+  ctx.setLastOrder(receiptData)
+  
+  // Déclenchement automatique de l'impression physique du ticket même hors-ligne
+  try {
+    ctx.onAlert({
+      title: 'Impression',
+      message: "Bon de commande en cours d'impression...",
+      type: 'info',
+    })
+    await fetch('/api/hardware/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: receiptData }),
+    })
+  } catch (err) {
+    console.error("Erreur lors de l'impression automatique du bon de commande:", err)
+  }
+
   ctx.setShowReceipt(true)
   ctx.clearCart()
   ctx.advanceOrderId()
@@ -89,7 +107,7 @@ export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {
 
       if (result.success && result.order) {
         ctx.mergeLiveOrder(result.order)
-        ctx.setLastOrder({
+        const receiptData = {
           id: result.order.id,
           displayId: ctx.orderId,
           items: buildReceiptItemsFromCart(ctx.items),
@@ -97,7 +115,26 @@ export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {
           date: new Date(),
           paymentMode: 'A regler en caisse',
           estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-        })
+          tableId: ctx.selectedTable?.id || undefined,
+        }
+        ctx.setLastOrder(receiptData)
+
+        // Déclenchement automatique de l'impression physique du ticket
+        try {
+          ctx.onAlert({
+            title: 'Impression',
+            message: "Bon de commande en cours d'impression...",
+            type: 'info',
+          })
+          await fetch('/api/hardware/print', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: receiptData }),
+          })
+        } catch (err) {
+          console.error("Erreur lors de l'impression automatique du bon de commande:", err)
+        }
+
         ctx.clearCart()
         ctx.setShowReceipt(true)
         ctx.advanceOrderId()
@@ -118,12 +155,30 @@ export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {
     const result = await createOrder(orderData)
     if (result.success && result.order) {
       ctx.mergeLiveOrder(result.order)
-      ctx.setLastOrder({
+      const receiptData = {
         ...orderData,
         id: result.order.id,
         paymentMode: 'A regler en caisse',
         estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
-      })
+      }
+      ctx.setLastOrder(receiptData)
+
+      // Déclenchement automatique de l'impression physique du ticket
+      try {
+        ctx.onAlert({
+          title: 'Impression',
+          message: "Bon de commande en cours d'impression...",
+          type: 'info',
+        })
+        await fetch('/api/hardware/print', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: receiptData }),
+        })
+      } catch (err) {
+        console.error("Erreur lors de l'impression automatique du bon de commande:", err)
+      }
+
       ctx.setShowReceipt(true)
       ctx.clearCart()
       ctx.advanceOrderId()

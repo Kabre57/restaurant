@@ -21,6 +21,7 @@ export type ReceiptOrder = {
   amountReceived?: number
   changeAmount?: number
   estimatedPrepMinutes?: number | null
+  tableId?: string | null
 }
 
 interface ReceiptModalProps {
@@ -163,6 +164,28 @@ export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
             <span>{order.total.toLocaleString()} FCFA</span>
           </div>
         </div>
+
+        {storeId && order.tableId && (
+          <div className="flex flex-col items-center justify-center border-t border-dashed border-[#dee2e6] pt-6 mb-6">
+            <p className="text-[9px] font-black text-[#adb5bd] uppercase tracking-widest mb-3 text-center">
+              Scanner pour commander / régler
+            </p>
+            <div className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                  typeof window !== 'undefined'
+                    ? `${window.location.origin}/order/${storeId}/${order.tableId}`
+                    : `/order/${storeId}/${order.tableId}`
+                )}`}
+                alt="QR Code Table"
+                className="w-28 h-28 object-contain"
+              />
+            </div>
+            <p className="text-[8px] font-bold text-[#adb5bd] uppercase tracking-wider mt-2">
+              Table / Commande en Ligne
+            </p>
+          </div>
+        )}
 
         <div className="bg-[#f8f9fa] rounded-2xl p-4 text-center mb-8 space-y-1">
           {footerText ? (
