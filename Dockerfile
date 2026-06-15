@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl ca-certificates
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY node_modules ./node_modules
+RUN npm ci
 COPY prisma ./prisma
 RUN npx prisma generate
 
