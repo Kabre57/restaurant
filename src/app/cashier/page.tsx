@@ -47,6 +47,7 @@ export default async function CashierPage() {
       initialActiveShift={(activeShiftRes.success && activeShiftRes.shift) ? activeShiftRes.shift as any : null}
       flowModeLocked={flowModeLocked}
       initialFlowMode={flowModeLocked ? 'DIRECT' : undefined}
+      operatorRole={role === 'SERVER' ? 'SERVER' : 'CASHIER'}
     />
   );
 }

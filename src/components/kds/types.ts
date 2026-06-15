@@ -1,24 +1,19 @@
-/**
- * Statuts possibles de la connexion SSE / temps réel
- */
+'use client'
+
+export type OrderStatus = 'EN_ATTENTE' | 'PREPARATION' | 'PRET' | 'COMPLETED' | 'CANCELLED'
+
 export type StreamStatus = 'connecting' | 'connected' | 'reconnecting'
 
-/**
- * Représente un article individuel dans une commande du KDS
- */
 export type OrderItem = {
   id: string
   quantity: number
   options: string | null
-  product: { 
+  product: {
     name: string
     category: { name: string }
   }
 }
 
-/**
- * Format d'une commande reçue par le système KDS
- */
 export type KDSOrder = {
   id: string
   status: string
@@ -36,18 +31,14 @@ export type KDSOrder = {
   customerNotes?: string | null
 }
 
-/**
- * Représente une alerte d'appel serveur à une table
- */
+export type Order = Omit<KDSOrder, 'status'> & { status: OrderStatus }
+
 export type ServerCallAlert = {
   tableId: string
   tableNumber?: number
   timestamp: string
 }
 
-/**
- * Représente une alerte générale en cuisine
- */
 export type KitchenAlert = {
   id: string
   message: string

@@ -22,6 +22,7 @@ interface POSHeaderProps {
   sessionTotal: number
   onViewPlan: () => void
   onFlowModeChange: (mode: 'DIRECT' | 'TABLE_SERVICE') => void
+  onViewCatalog?: () => void
   onOpenSidebar?: () => void
   onOpenCart?: () => void
   cartCount?: number
@@ -43,6 +44,7 @@ export function POSHeader({
   sessionTotal,
   onViewPlan,
   onFlowModeChange,
+  onViewCatalog,
   onOpenSidebar,
   onOpenCart,
   cartCount = 0,
@@ -126,6 +128,16 @@ export function POSHeader({
             >
               <MapIcon className="h-4 w-4" />
               {selectedTable ? `Table ${selectedTable.number}` : orderFlowMode === 'DIRECT' ? 'Attribuer table' : 'Choisir table'}
+            </button>
+          )}
+
+          {viewMode === 'FLOOR_PLAN' && orderFlowMode === 'TABLE_SERVICE' && onViewCatalog && (
+            <button
+              onClick={onViewCatalog}
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#FF6D00] text-white px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-orange-600 xl:justify-start shadow-lg shadow-orange-500/20"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Prendre Commande
             </button>
           )}
 

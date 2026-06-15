@@ -1,0 +1,6 @@
+export * from './order-validation.service'
+export * from './order-discount.service'
+export * from './order-fidelity.service'
+export * from './order-notification.service'
+export * from './order-persistence.service'
+export * from './order-merging.service'

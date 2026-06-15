@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Trash2, Coins, Lock } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import type { Reservation, Table } from '@prisma/client'
+import type { Table } from '@prisma/client'
 import { markOrderServed } from '@/app/actions/orders/orders'
-import { openShift, closeShift } from '@/app/actions/caisse/cashDrawer'
 
-import type { CachedCategory, CachedProduct } from '@/lib/idb'
 import { useCart } from '@/store/useCart'
 
 import { usePOSCheckout } from './hooks/usePOSCheckout'
 import { usePOSRealtime } from './hooks/usePOSRealtime'
 import { usePOSSyncState } from './hooks/usePOSSyncState'
+import { usePOSShift } from './hooks/usePOSShift'
+import { usePOSBarcodeScanner } from './hooks/usePOSBarcodeScanner'
 import {
   computeEstimatedPrepMinutes,
   createInitialDisplayOrderId,
@@ -28,53 +28,7 @@ import { Sidebar } from './subcomponents/Sidebar'
 import { POSModals } from './subcomponents/POSModals'
 import { BarcodeScannerModal } from './subcomponents/BarcodeScannerModal'
 
-// ── Types Shift ─────────────────────────────────────────────────────────────
-type ActiveShift = {
-  id: string
-  startAmount: number
-  openedByName: string
-  openedAt: Date | string
-}
-
-type LiveOrder = {
-  id: string
-  tableId?: string | null
-  status: string
-  total?: number
-  servedAt?: Date | string | null
-  table?: {
-    number: number
-  } | null
-  items: {
-    id: string
-    quantity: number
-    options?: string | null
-    product: {
-      name: string
-    }
-  }[]
-}
-
-type POSAlertState = {
-  title: string
-  message: string
-  type?: 'error' | 'success' | 'info'
-} | null
-
-interface POSClientProps {
-  categories: CachedCategory[]
-  products: CachedProduct[]
-  tables: Table[]
-  reservations: Reservation[]
-  activeOrders?: LiveOrder[]
-  storeId: string
-  cashierId: string
-  operatorRole?: 'CASHIER' | 'SERVER'
-  flowModeLocked?: boolean
-  initialFlowMode?: OrderFlowMode
-  initialViewMode?: POSViewMode
-  initialActiveShift?: ActiveShift | null
-}
+import type { POSClientProps, POSAlertState } from './types'
 
 export default function POSClient({
   categories: initialCategories,
@@ -93,39 +47,21 @@ export default function POSClient({
   const { data: session } = useSession()
   const isRestaurateur = session?.user?.role === 'RESTAURATEUR'
 
-  // ── Shift (Rotation de caisse) ──────────────────────────────────────────
-  const [activeShift, setActiveShift] = useState<ActiveShift | null>(initialActiveShift)
-  const [shiftStartInput, setShiftStartInput] = useState('')
-  const [shiftLoading, setShiftLoading] = useState(false)
-  const [shiftError, setShiftError] = useState<string | null>(null)
-
-  const handleOpenShift = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const amount = parseFloat(shiftStartInput)
-    if (isNaN(amount) || amount < 0) {
-      setShiftError('Veuillez entrer un montant valide.')
-      return
-    }
-    setShiftLoading(true)
-    setShiftError(null)
-    const res = await openShift(storeId, cashierId, session?.user?.name || 'Caissier', amount)
-    setShiftLoading(false)
-    if (res.success && res.shift) {
-      setActiveShift(res.shift as unknown as ActiveShift)
-      setShiftStartInput('')
-    } else {
-      setShiftError(res.error || "Erreur lors de l'ouverture.")
-    }
-  }
-
-  const handleCloseShift = async (endAmount: number) => {
-    if (!activeShift) return
-    const res = await closeShift(activeShift.id, cashierId, session?.user?.name || 'Caissier', endAmount)
-    if (res.success) {
-      setActiveShift(null)
-    }
-    return res
-  }
+  // ── Shift (Rotation de caisse) ──
+  const {
+    activeShift,
+    shiftStartInput,
+    setShiftStartInput,
+    shiftLoading,
+    shiftError,
+    handleOpenShift,
+    handleCloseShift
+  } = usePOSShift({
+    storeId,
+    cashierId,
+    userName: session?.user?.name || 'Caissier',
+    initialActiveShift
+  })
 
   const [categories, setCategories] = useState(initialCategories)
   const [products, setProducts] = useState(initialProducts)
@@ -145,75 +81,12 @@ export default function POSClient({
   const [showSidebar, setShowSidebar] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [showCameraScanner, setShowCameraScanner] = useState(false)
+  const [isSelectingTableForCheckout, setIsSelectingTableForCheckout] = useState(false)
 
-  const handleBarcodeScanned = (barcode: string) => {
-    const product = products.find(p => p.barcode === barcode)
-    if (product) {
-      addItem({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        options: '',
-        image: product.image,
-      })
-      setAlertState({
-        title: 'Produit Scanné',
-        message: `${product.name} ajouté au panier.`,
-        type: 'success',
-      })
-      setTimeout(() => {
-        setAlertState(current => {
-          if (current?.title === 'Produit Scanné') return null
-          return current
-        })
-      }, 2000)
-    } else {
-      setAlertState({
-        title: 'Code-barres Inconnu',
-        message: `Aucun produit correspondant au code ${barcode}.`,
-        type: 'error',
-      })
-    }
+  const handleTableSelectedForCheckout = (table: Table) => {
+    setIsSelectingTableForCheckout(false)
+    checkout.handleCheckoutClick(table)
   }
-
-  useEffect(() => {
-    let buffer = ''
-    let lastKeyTime = Date.now()
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
-        return
-      }
-
-      const currentTime = Date.now()
-
-      if (currentTime - lastKeyTime > 50) {
-        buffer = ''
-      }
-
-      lastKeyTime = currentTime
-
-      if (e.key === 'Enter') {
-        if (buffer.length >= 3) {
-          handleBarcodeScanned(buffer)
-          buffer = ''
-        }
-      } else if (e.key.length === 1) {
-        buffer += e.key
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [products])
 
   const {
     items,
@@ -226,6 +99,13 @@ export default function POSClient({
     getTotal,
     clearCart,
   } = useCart()
+
+  // ── Barcode Scanner ──
+  const { handleBarcodeScanned } = usePOSBarcodeScanner({
+    products,
+    addItem,
+    setAlertState
+  })
 
   const {
     isOnline,
@@ -282,8 +162,6 @@ export default function POSClient({
     window.localStorage.setItem(`pos_order_flow_${cashierId}`, orderFlowMode)
   }, [cashierId, orderFlowMode, flowModeLocked])
 
-  // Le client principal reste volontairement simple:
-  // il orchestre les etats et delegue le rendu/les effets aux modules dedies.
   const checkout = usePOSCheckout({
     cashierId,
     storeId,
@@ -306,10 +184,11 @@ export default function POSClient({
       setShowCart(false)
     },
     onRequireTable: () => setViewMode('FLOOR_PLAN'),
+    onRequireTableSelection: () => setIsSelectingTableForCheckout(true),
     onAlert: (alert) => setAlertState(alert),
   })
 
-  // ── Écran de blocage si le caissier n'a pas ouvert sa caisse ────────────
+  // ── Écran de blocage si le caissier n'a pas ouvert sa caisse ──
   if (operatorRole === 'CASHIER' && !activeShift) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-[#1a1d24] z-[200]">
@@ -444,6 +323,7 @@ export default function POSClient({
             setViewMode('FLOOR_PLAN')
             setSelectedTable(null)
           }}
+          onViewCatalog={() => setViewMode('POS')}
           onFlowModeChange={(mode) => {
             if (flowModeLocked) return
             setOrderFlowMode(mode)
@@ -594,6 +474,11 @@ export default function POSClient({
           setShowTableStatusModal(null)
           checkout.openSettlementForOrder(order)
         }}
+        showSelectTableModal={isSelectingTableForCheckout}
+        setShowSelectTableModal={setIsSelectingTableForCheckout}
+        tables={tables}
+        onTableSelect={handleTableSelectedForCheckout}
+        activeOrders={activeOrders as any}
       />
 
       {showCameraScanner && (

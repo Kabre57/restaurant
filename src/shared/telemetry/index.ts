@@ -1,32 +1,32 @@
-import { logger } from '@/shared/logger';
-
-export interface AuditLogPayload {
-  storeId: string;
-  userId: string;
-  action: string;
-  details: Record<string, unknown>;
-  ipAddress?: string;
-}
+import { logAudit, AuditLogPayload } from "./audit";
+import { logSecurity, SecurityLogPayload } from "./security";
+import { logPerformance, measureExecution, PerformancePayload } from "./performance";
 
 class TelemetryService {
-  private isTest = process.env.NODE_ENV === 'test';
-
   logAudit(payload: AuditLogPayload): void {
-    if (this.isTest) return;
+    // Fired asynchronously to avoid blocking execution threads
+    void logAudit(payload);
+  }
 
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      type: 'AUDIT_LOG',
-      ...payload
-    };
+  logSecurity(payload: SecurityLogPayload): void {
+    logSecurity(payload);
+  }
 
-    // Outputs structured JSON for easy log aggregation/ingestion
-    console.info(JSON.stringify(logEntry));
+  logPerformance(payload: PerformancePayload): void {
+    logPerformance(payload);
+  }
 
-    // Also notify standard logger at info level for human readability
-    logger.info(`[AUDIT] Action: ${payload.action} by User: ${payload.userId} in Store: ${payload.storeId}`);
+  async measureExecution<T>(
+    metricName: string,
+    context: { storeId?: string; userId?: string; details?: Record<string, any> },
+    fn: () => Promise<T>
+  ): Promise<T> {
+    return measureExecution(metricName, context, fn);
   }
 }
 
 export const telemetry = new TelemetryService();
 export default telemetry;
+
+export { logAudit, logSecurity, logPerformance, measureExecution };
+export type { AuditLogPayload, SecurityLogPayload, PerformancePayload };

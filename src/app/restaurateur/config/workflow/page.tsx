@@ -49,7 +49,7 @@ export default function WorkflowConfigPage() {
     const res = await updateStoreSettings(storeId, { workflowType })
 
     if (res.success) {
-      setMessage('Workflow enregistré avec succès !')
+      setMessage('Organisation du Service enregistrée avec succès !')
       setTimeout(() => setMessage(''), 3000)
     } else {
       alert(res.error || "Une erreur est survenue lors de l'enregistrement.")
@@ -68,7 +68,7 @@ export default function WorkflowConfigPage() {
             <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
             Retour aux Réglages
           </button>
-          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Workflow de Commande</h1>
+          <h1 className="text-2xl font-black tracking-tight text-[#212529] uppercase sm:text-3xl">Organisation du Service</h1>
           <p className="text-[#adb5bd] text-sm font-bold uppercase tracking-widest mt-1">
             Définissez le processus d&apos;encaissement et d&apos;envoi en cuisine de votre restaurant
           </p>

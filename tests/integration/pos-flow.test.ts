@@ -184,6 +184,10 @@ describe("Flux de vente POS - Intégration", () => {
       await prisma.storeSettings.deleteMany({
         where: { storeId: testStoreId }
       });
+      // 10b. Supprimer les rapports consolidés du store
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId }
+      });
       // 11. Supprimer le store lui-même
       await prisma.store.delete({
         where: { id: testStoreId },

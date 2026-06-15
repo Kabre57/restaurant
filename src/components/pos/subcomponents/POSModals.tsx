@@ -14,6 +14,7 @@ import ReservationModal from '../ReservationModal'
 import { OptionsModal } from './OptionsModal'
 import { TableStatusModal } from './TableStatusModal'
 import { AlertModal } from './AlertModal'
+import { SelectTableModal } from './SelectTableModal'
 
 type ActiveShift = {
   id: string
@@ -53,6 +54,11 @@ interface POSModalsProps {
   onSettlePayment: (table: Table, order: RealtimeOrder | null) => void
   activeShift?: ActiveShift | null
   onCloseShift?: (endAmount: number) => Promise<unknown>
+  showSelectTableModal: boolean
+  setShowSelectTableModal: (val: boolean) => void
+  tables: Table[]
+  onTableSelect: (table: Table) => void
+  activeOrders: RealtimeOrder[]
 }
 
 export function POSModals({
@@ -80,6 +86,11 @@ export function POSModals({
   onSettlePayment,
   activeShift,
   onCloseShift,
+  showSelectTableModal,
+  setShowSelectTableModal,
+  tables,
+  onTableSelect,
+  activeOrders,
 }: POSModalsProps) {
   const { data: session } = useSession()
 
@@ -182,6 +193,16 @@ export function POSModals({
           onAddItems={() => onAddItems(showTableStatusModal)}
           onSettlePayment={() => onSettlePayment(showTableStatusModal, activeTableOrder)}
           onMarkServed={handleMarkOrderServed}
+        />
+      )}
+
+      {showSelectTableModal && (
+        <SelectTableModal
+          tables={tables}
+          reservations={reservations}
+          activeOrders={activeOrders}
+          onClose={() => setShowSelectTableModal(false)}
+          onSelect={onTableSelect}
         />
       )}
 

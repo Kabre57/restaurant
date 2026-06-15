@@ -1,46 +1,133 @@
-import { Role } from '@prisma/client';
+import { Permission } from './permissions';
+import { hasPermission, SecurityUser } from './guards';
 
 /**
- * Rôles d'administration globale
+ * Checks if a user has access to a specific store.
+ * Super Admins and Admins can access any store. Others must match their storeId.
  */
-const HIGH_PRIVILEGED_ROLES: Role[] = ['SUPER_ADMIN', 'ADMIN', 'RESTAURATEUR'];
-
-/**
- * Détermine si un rôle peut effectuer des remboursements de commandes
- */
-export function canRefundOrder(role: Role): boolean {
-  return [...HIGH_PRIVILEGED_ROLES, 'MANAGER'].includes(role);
+export function canAccessStore(user: SecurityUser, storeId: string): boolean {
+  if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
+  return user.storeId === storeId;
 }
 
 /**
- * Détermine si un rôle a accès aux rapports analytiques et financiers
+ * Checks if a user can refund a specific order.
  */
-export function canViewAnalytics(role: Role): boolean {
-  return [...HIGH_PRIVILEGED_ROLES, 'MANAGER', 'STORE_MANAGER'].includes(role);
+export async function canRefundOrder(
+  user: SecurityUser,
+  order: { storeId: string; status: string }
+): Promise<boolean> {
+  if (!canAccessStore(user, order.storeId)) return false;
+  
+  // Already cancelled or refunded orders cannot be refunded again
+  if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+    return false;
+  }
+  
+  return hasPermission(user, Permission.REFUND_ORDER);
 }
 
 /**
- * Détermine si un rôle a le droit de modifier la paie ou de gérer les contrats RH
+ * Checks if a user can view payroll details.
  */
-export function canManagePayroll(role: Role): boolean {
-  return HIGH_PRIVILEGED_ROLES.includes(role);
+export async function canViewPayroll(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.VIEW_PAYROLL);
 }
 
 /**
- * Détermine si un rôle peut modifier la configuration globale de l'établissement
+ * Checks if a user can edit/generate payroll.
  */
-export function canManageSettings(role: Role): boolean {
-  return HIGH_PRIVILEGED_ROLES.includes(role);
+export async function canEditPayroll(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.EDIT_PAYROLL);
 }
 
 /**
- * Détermine si un rôle a les droits de mouvementer les stocks (inventaire, commandes)
+ * Checks if a user can view reports/analytics.
  */
-export function canManageInventory(role: Role): boolean {
-  return [
-    ...HIGH_PRIVILEGED_ROLES,
-    'MANAGER',
-    'STORE_MANAGER',
-    'STORE_EMPLOYEE'
-  ].includes(role);
+export async function canViewReports(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.VIEW_REPORTS);
+}
+
+/**
+ * Checks if a user can export reports.
+ */
+export async function canExportReports(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.EXPORT_REPORTS);
+}
+
+/**
+ * Checks if a user can delete a product.
+ */
+export async function canDeleteProduct(
+  user: SecurityUser,
+  product: { storeId: string }
+): Promise<boolean> {
+  if (!canAccessStore(user, product.storeId)) return false;
+  return hasPermission(user, 'admin.store_edit');
+}
+
+/**
+ * Checks if a user can open a cash drawer shift.
+ */
+export async function canOpenShift(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.OPEN_SHIFT);
+}
+
+/**
+ * Checks if a user can close a cash drawer shift.
+ */
+export async function canCloseShift(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.CLOSE_SHIFT);
+}
+
+/**
+ * Checks if a user can access KDS kitchen dashboard.
+ */
+export async function canAccessKitchen(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, 'KDS_ACCESS');
+}
+
+/**
+ * Checks if a user can modify stock/inventory.
+ */
+export async function canModifyInventory(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.EDIT_STOCK);
+}
+
+/**
+ * Checks if a user can view product cost prices.
+ */
+export async function canViewCostPrice(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.VIEW_COST_PRICE);
+}
+
+/**
+ * Checks if a user can view margins.
+ */
+export async function canViewMargin(user: SecurityUser, storeId: string): Promise<boolean> {
+  if (!canAccessStore(user, storeId)) return false;
+  return hasPermission(user, Permission.VIEW_MARGIN);
+}
+
+/**
+ * Checks if a user has permission to create order on a table.
+ */
+export function canCreateTableOrder(user: SecurityUser, storeId: string): boolean {
+  return canAccessStore(user, storeId);
+}
+
+/**
+ * Checks if a user has permission to attach an order to a table.
+ */
+export function canAttachOrderToTable(user: SecurityUser, table: { storeId: string }): boolean {
+  return canAccessStore(user, table.storeId);
 }

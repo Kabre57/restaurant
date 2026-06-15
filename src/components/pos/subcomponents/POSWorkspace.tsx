@@ -66,7 +66,7 @@ export function POSWorkspace({
   }
 
   // En mode serveur, on force d'abord le choix de la table avant d'afficher la carte.
-  if (orderFlowMode === 'TABLE_SERVICE' && !selectedTable) {
+  if (orderFlowMode === 'TABLE_SERVICE' && !selectedTable && viewMode !== 'POS') {
     return (
       <div className="flex-1 p-8 bg-pos-bg">
         <div className="h-full rounded-2xl border-2 border-dashed border-pos-border bg-pos-surface flex flex-col items-center justify-center text-center px-10 shadow-soft">
@@ -88,7 +88,7 @@ export function POSWorkspace({
     )
   }
 
-  if (operatorRole === 'SERVER' && selectedTable) {
+  if (operatorRole === 'SERVER') {
     return (
       <ServerMenuView
         categories={categories}

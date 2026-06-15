@@ -235,7 +235,7 @@ export default function RestaurateurConfig() {
                 className="flex items-center gap-3 rounded-2xl border border-[#dee2e6] bg-[#f8f9fa] p-4 transition-all hover:bg-white hover:shadow-md"
               >
                 <Sliders className="h-5 w-5 text-brand-600" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Workflow de Commande (Standard vs Direct)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#212529]">Organisation du Service (Standard vs Direct)</span>
               </Link>
               <Link
                 href="/restaurateur/config/materiel"

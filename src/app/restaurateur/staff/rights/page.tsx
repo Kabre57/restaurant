@@ -1,73 +1,27 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   Shield,
-  ShieldAlert,
   RefreshCw,
   Loader2,
   Sun,
   Moon,
   Search,
   Plus,
-  Trash2,
-  Edit,
   Users,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Filter,
-  Info,
-  Lock,
-  Settings,
-  Key,
-  Check,
-  X
+  Settings
 } from 'lucide-react'
-import { useSession } from 'next-auth/react'
 import { Role } from '@prisma/client'
-import {
-  getRolePermissions,
-  updateRolePermission,
-  resetRolePermissions,
-  getUserPermissions,
-  updateUserPermission,
-  getCustomPermissions,
-  addCustomPermission,
-  deleteCustomPermission
-} from '@/app/actions/auth/permissions'
-import { getStoreStaff } from '@/app/actions/rh/staff'
-import { PERMISSIONS_LIST, MODULES_LIST, PermissionItem, DEFAULT_PERMISSIONS } from '@/app/utils/permissions-config'
+import { MODULES_LIST, DEFAULT_PERMISSIONS } from '@/app/utils/permissions-config'
 
-type TabType = 'permissions_role' | 'exceptions_user' | 'lecture_metier'
-
-const SYSTEM_ROLES: Role[] = [
-  'RESTAURATEUR',
-  'MANAGER',
-  'CASHIER',
-  'SERVER',
-  'KITCHEN',
-  'DELIVERY',
-  'LIVREUR',
-  'ADMIN',
-  'SUPER_ADMIN',
-  'STORE_MANAGER',
-  'STORE_EMPLOYEE'
-]
-
-const ROLE_LABELS: Record<Role, string> = {
-  RESTAURATEUR: 'Propriétaire',
-  MANAGER: 'Gérant',
-  CASHIER: 'Caissier(ère)',
-  SERVER: 'Serveur(se)',
-  KITCHEN: 'Cuisinier(ère)',
-  DELIVERY: 'Gest. Livraison',
-  LIVREUR: 'Livreur (PWA)',
-  ADMIN: 'Admin Plateforme',
-  SUPER_ADMIN: 'Super Admin',
-  STORE_MANAGER: 'Dir. Établissement',
-  STORE_EMPLOYEE: 'Employé Établissement'
-}
+import { SYSTEM_ROLES, ROLE_LABELS } from './types'
+import { useRightsActions } from './hooks/useRightsActions'
+import { useRightsSearch } from './hooks/useRightsSearch'
+import RolePermissionsTab from './components/RolePermissionsTab'
+import UserExceptionsTab from './components/UserExceptionsTab'
+import MatrixViewTab from './components/MatrixViewTab'
+import CustomPermissionModal from './components/CustomPermissionModal'
 
 const generateSlug = (name: string) => {
   return name
@@ -79,397 +33,65 @@ const generateSlug = (name: string) => {
 }
 
 export default function AccessRightsDashboard() {
-  const { data: session } = useSession()
-  const storeId = session?.user?.storeId
+  const {
+    storeId,
+    activeTab,
+    setActiveTab,
+    isDarkMode,
+    toggleTheme,
+    selectedRole,
+    setSelectedRole,
+    staffList,
+    selectedUser,
+    setSelectedUser,
+    customPermissions,
+    loading,
+    actionLoading,
+    savingKey,
+    rolePermissions,
+    userPermissions,
+    isModalOpen,
+    setIsModalOpen,
+    modalMode,
+    customKey,
+    setCustomKey,
+    customName,
+    setCustomName,
+    customDesc,
+    setCustomDesc,
+    customModule,
+    setCustomModule,
+    errorMessage,
+    loadInitialData,
+    handleToggleRolePermission,
+    handleUpdateUserPermission,
+    handleResetToDefaults,
+    openCreateModal,
+    openEditModal,
+    handleSaveCustomPermission,
+    handleDeleteCustomPermission
+  } = useRightsActions()
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState<TabType>('permissions_role')
+  const {
+    searchQuery,
+    setSearchQuery,
+    activeModule,
+    setActiveModule,
+    filteredPermissions,
+    fullList,
+    getActiveCountForModule
+  } = useRightsSearch(customPermissions, rolePermissions, userPermissions, activeTab)
 
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState(false)
-
-  // Data State
-  const [selectedRole, setSelectedRole] = useState<Role>('CASHIER')
-  const [staffList, setStaffList] = useState<any[]>([])
-  const [selectedUser, setSelectedUser] = useState<string>('')
-  const [customPermissions, setCustomPermissions] = useState<any[]>([])
-
-  // Loading & Action states
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [savingKey, setSavingKey] = useState<string | null>(null)
-
-  // Permissions Cache
-  const [rolePermissions, setRolePermissions] = useState<Record<string, boolean>>({})
-  const [userPermissions, setUserPermissions] = useState<Record<string, { value: boolean; status: 'inherited' | 'authorized' | 'forbidden' }>>({})
-
-  // Sidebar Module filter
-  const [activeModule, setActiveModule] = useState<string>('tableau_de_bord')
-
-  // Global search query
-  const [searchQuery, setSearchQuery] = useState('')
-
-  // Modal custom permission State
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
-  const [customKey, setCustomKey] = useState('')
-  const [customName, setCustomName] = useState('')
-  const [customDesc, setCustomDesc] = useState('')
-  const [customModule, setCustomModule] = useState('tableau_de_bord')
-  const [editingKey, setEditingKey] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState('')
-
-  // Load theme preference from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const updateTheme = () => {
-        const savedTheme = localStorage.getItem('restaurateur_theme')
-        if (savedTheme) {
-          setIsDarkMode(savedTheme === 'dark')
-        } else {
-          setIsDarkMode(false)
-        }
-      }
-      updateTheme()
-      window.addEventListener('storage', updateTheme)
-      return () => window.removeEventListener('storage', updateTheme)
-    }
-  }, [])
-
-  const toggleTheme = () => {
-    const nextVal = !isDarkMode
-    setIsDarkMode(nextVal)
-    localStorage.setItem('restaurateur_theme', nextVal ? 'dark' : 'light')
-    window.dispatchEvent(new Event('storage'))
-  }
-
-  // Load staff list & custom permissions on mount/storeId change
-  useEffect(() => {
-    if (storeId) {
-      void loadInitialData()
-    }
-  }, [storeId])
-
-  // Load specific permissions when dependencies change
-  useEffect(() => {
-    if (storeId) {
-      if (activeTab === 'permissions_role') {
-        void loadRolePermissions()
-      } else if (activeTab === 'exceptions_user' && selectedUser) {
-        void loadUserPermissions()
-      }
-    }
-  }, [storeId, activeTab, selectedRole, selectedUser])
-
-  const loadInitialData = async () => {
-    if (!storeId) return
-    try {
-      setLoading(true)
-      const staff = await getStoreStaff(storeId)
-      setStaffList(staff)
-      if (staff.length > 0) {
-        setSelectedUser(staff[0].id)
-      }
-
-      const customRes = await getCustomPermissions(storeId)
-      if (customRes.success && customRes.data) {
-        setCustomPermissions(customRes.data)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadRolePermissions = async () => {
-    if (!storeId) return
-    try {
-      setLoading(true)
-      const data = await getRolePermissions(storeId, selectedRole)
-      setRolePermissions(data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadUserPermissions = async () => {
-    if (!storeId || !selectedUser) return
-    try {
-      setLoading(true)
-      const res = await getUserPermissions(storeId, selectedUser)
-      if (res.success && res.permissions) {
-        setUserPermissions(res.permissions)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Reload custom permissions only
-  const reloadCustomPermissions = async () => {
-    if (!storeId) return
-    const customRes = await getCustomPermissions(storeId)
-    if (customRes.success && customRes.data) {
-      setCustomPermissions(customRes.data)
-    }
-  }
-
-  // Actions
-  const handleToggleRolePermission = async (key: string, currentValue: boolean) => {
-    if (!storeId) return
-    try {
-      setSavingKey(key)
-      const res = await updateRolePermission(storeId, selectedRole, key, !currentValue)
-      if (res.success) {
-        setRolePermissions((prev) => ({
-          ...prev,
-          [key]: !currentValue
-        }))
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSavingKey(null)
-    }
-  }
-
-  const handleUpdateUserPermission = async (key: string, status: 'inherited' | 'authorized' | 'forbidden') => {
-    if (!storeId || !selectedUser) return
-    try {
-      setSavingKey(key)
-      const res = await updateUserPermission(storeId, selectedUser, key, status)
-      if (res.success) {
-        // Find base role value to calculate new value
-        const userObj = staffList.find(u => u.id === selectedUser)
-        const role = userObj?.role || 'CASHIER'
-        const basePermissions = await getRolePermissions(storeId, role)
-        const baseValue = basePermissions[key] ?? false
-
-        const newValue = status === 'authorized' ? true : status === 'forbidden' ? false : baseValue
-
-        setUserPermissions((prev) => ({
-          ...prev,
-          [key]: {
-            value: newValue,
-            status
-          }
-        }))
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSavingKey(null)
-    }
-  }
-
-  const handleResetToDefaults = async () => {
-    if (!storeId) return
-    try {
-      setActionLoading(true)
-      const res = await resetRolePermissions(storeId, selectedRole)
-      if (res.success) {
-        await loadRolePermissions()
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  // Custom Permissions Modal Handling
-  const openCreateModal = () => {
-    setModalMode('create')
-    setCustomKey('')
-    setCustomName('')
-    setCustomDesc('')
-    setCustomModule(activeModule || 'tableau_de_bord')
-    setEditingKey(null)
-    setErrorMessage('')
-    setIsModalOpen(true)
-  }
-
-  const openEditModal = (item: any) => {
-    setModalMode('edit')
-    setCustomKey(item.permissionKey.replace('custom.', ''))
-    setCustomName(item.name)
-    setCustomDesc(item.desc)
-    setCustomModule(item.module)
-    setEditingKey(item.permissionKey)
-    setErrorMessage('')
-    setIsModalOpen(true)
-  }
-
-  const handleSaveCustomPermission = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!storeId) return
-    setErrorMessage('')
-
-    if (!customKey.trim() || !customName.trim() || !customDesc.trim()) {
-      setErrorMessage("Veuillez remplir tous les champs obligatoires.")
-      return
-    }
-
-    try {
-      setActionLoading(true)
-      if (modalMode === 'create') {
-        const res = await addCustomPermission(storeId, {
-          key: customKey.trim(),
-          name: customName.trim(),
-          desc: customDesc.trim(),
-          module: customModule
-        })
-
-        if (res.success) {
-          setIsModalOpen(false)
-          await reloadCustomPermissions()
-          if (activeTab === 'permissions_role') {
-            await loadRolePermissions()
-          } else if (activeTab === 'exceptions_user') {
-            await loadUserPermissions()
-          }
-        } else {
-          setErrorMessage(res.error || "Une erreur est survenue.")
-        }
-      } else {
-        // Modify operation (Since it's custom, we delete the old one and create the new one to simulate editing in simple DB)
-        // Check if key changed, or just update metadata
-        if (editingKey) {
-          await deleteCustomPermission(storeId, editingKey)
-          const res = await addCustomPermission(storeId, {
-            key: customKey.trim(),
-            name: customName.trim(),
-            desc: customDesc.trim(),
-            module: customModule
-          })
-          if (res.success) {
-            setIsModalOpen(false)
-            await reloadCustomPermissions()
-            if (activeTab === 'permissions_role') {
-              await loadRolePermissions()
-            } else if (activeTab === 'exceptions_user') {
-              await loadUserPermissions()
-            }
-          } else {
-            setErrorMessage(res.error || "Une erreur est survenue.")
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err)
-      setErrorMessage("Une erreur réseau est survenue.")
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleDeleteCustomPermission = async (key: string) => {
-    if (!storeId) return
-    if (!confirm("Voulez-vous vraiment supprimer cette permission personnalisée ?")) return
-
-    try {
-      setActionLoading(true)
-      const res = await deleteCustomPermission(storeId, key)
-      if (res.success) {
-        await reloadCustomPermissions()
-        if (activeTab === 'permissions_role') {
-          await loadRolePermissions()
-        } else if (activeTab === 'exceptions_user') {
-          await loadUserPermissions()
-        }
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  // Aggregate Permissions (System + Custom)
-  const getFullPermissionsList = (): PermissionItem[] => {
-    const list = [...PERMISSIONS_LIST]
-
-    // Merge custom permissions
-    for (const c of customPermissions) {
-      // Avoid duplication
-      if (!list.some(p => p.key === c.permissionKey)) {
-        list.push({
-          key: c.permissionKey,
-          name: c.name,
-          desc: c.desc,
-          module: c.module,
-          category: 'Personnalisé'
-        })
-      }
-    }
-    return list
-  }
-
-  const fullList = getFullPermissionsList()
-
-  // Filter logic
-  const filteredPermissions = fullList.filter(p => {
-    // 1. Search Query
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase())
-
-    if (!matchesSearch) return false
-
-    // 2. Module active selection (only if not searching globally or when tab demands sidebar filtering)
-    if (activeTab !== 'lecture_metier' && !searchQuery) {
-      return p.module === activeModule
-    }
-
-    return true
-  })
-
-  // Count active permissions per module for the badges
-  const getActiveCountForModule = (moduleId: string): number => {
-    const modulePerms = fullList.filter(p => p.module === moduleId)
-    let active = 0
-
-    if (activeTab === 'permissions_role') {
-      for (const p of modulePerms) {
-        if (rolePermissions[p.key]) active++
-      }
-    } else if (activeTab === 'exceptions_user') {
-      for (const p of modulePerms) {
-        if (userPermissions[p.key]?.value) active++
-      }
-    }
-    return active
-  }
-
-  // Statistics calculation
-  const totalCount = fullList.length
   const activeCount = Object.values(rolePermissions).filter(Boolean).length
 
-  // Styles dynamically based on theme
   const bgTheme = isDarkMode ? 'bg-[#0b0c10] text-[#eceff4]' : 'bg-[#f4f6f9] text-[#212529]'
   const cardTheme = isDarkMode ? 'bg-[#151821] border-[#252a37] shadow-xl' : 'bg-white border-[#e3e8f0] shadow-sm'
   const titleTheme = isDarkMode ? 'text-white' : 'text-[#1a202c]'
   const descTheme = isDarkMode ? 'text-[#9faab7]' : 'text-[#64748b]'
-  const borderTheme = isDarkMode ? 'border-[#252a37]' : 'border-[#e2e8f0]'
-  const hoverRowTheme = isDarkMode ? 'hover:bg-[#1a1e2a]' : 'hover:bg-[#f8fafc]'
-  const badgeTheme = (cat: string) => {
-    if (cat === 'Personnalisé') return 'bg-purple-500/10 text-purple-500 border border-purple-500/20'
-    if (cat === 'Lecture') return 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-    if (cat === 'Actions') return 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-    return 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-  }
 
   return (
     <div className={`min-h-screen transition-all duration-300 p-4 sm:p-6 lg:p-8 ${bgTheme}`}>
       <div className="mx-auto max-w-7xl space-y-6">
-
         {/* TOP HEADER */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -481,33 +103,30 @@ export default function AccessRightsDashboard() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className={`p-3 rounded-2xl transition-all border shadow-sm ${isDarkMode
+              className={`p-3 rounded-2xl transition-all border shadow-sm ${
+                isDarkMode
                   ? 'bg-[#1e2230] border-[#2d334a] text-amber-400 hover:bg-[#282e42]'
                   : 'bg-white border-[#cbd5e1] text-slate-700 hover:bg-slate-50'
-                }`}
-              title={isDarkMode ? 'Passer au Mode Clair' : 'Passer au Mode Sombre'}
+              }`}
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
-            {/* Reload button */}
             <button
               onClick={loadInitialData}
-              className={`p-3 rounded-2xl transition-all border shadow-sm ${isDarkMode
+              className={`p-3 rounded-2xl transition-all border shadow-sm ${
+                isDarkMode
                   ? 'bg-[#1e2230] border-[#2d334a] text-slate-200 hover:bg-[#282e42]'
                   : 'bg-white border-[#cbd5e1] text-slate-700 hover:bg-slate-50'
-                }`}
-              title="Rafraîchir les données"
+              }`}
             >
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
-            {/* New Permission button */}
             <button
-              onClick={openCreateModal}
+              onClick={() => openCreateModal(activeModule)}
               className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold uppercase tracking-wider text-xs px-5 py-3.5 rounded-2xl shadow-lg shadow-orange-500/20 hover:from-amber-600 hover:to-orange-700 transition"
             >
               <Plus className="w-4 h-4" />
@@ -518,12 +137,13 @@ export default function AccessRightsDashboard() {
 
         {/* STATISTICS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Permissions Card */}
           <div className={`p-6 rounded-3xl border flex items-center justify-between ${cardTheme}`}>
             <div className="space-y-1">
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>Permissions système</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>
+                Permissions système
+              </span>
               <h3 className={`text-2xl font-black ${titleTheme}`}>
-                {activeTab === 'permissions_role' ? `${activeCount} / ${totalCount}` : `${totalCount} Actives`}
+                {activeTab === 'permissions_role' ? `${activeCount} / ${fullList.length}` : `${fullList.length} Actives`}
               </h3>
             </div>
             <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-500">
@@ -531,10 +151,11 @@ export default function AccessRightsDashboard() {
             </div>
           </div>
 
-          {/* Modules Card */}
           <div className={`p-6 rounded-3xl border flex items-center justify-between ${cardTheme}`}>
             <div className="space-y-1">
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>Modules Opérationnels</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>
+                Modules Opérationnels
+              </span>
               <h3 className={`text-2xl font-black ${titleTheme}`}>{MODULES_LIST.length} Domaines</h3>
             </div>
             <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500">
@@ -542,10 +163,11 @@ export default function AccessRightsDashboard() {
             </div>
           </div>
 
-          {/* System Roles Card */}
           <div className={`p-6 rounded-3xl border flex items-center justify-between ${cardTheme}`}>
             <div className="space-y-1">
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>Rôles Système</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${descTheme}`}>
+                Rôles Système
+              </span>
               <h3 className={`text-2xl font-black ${titleTheme}`}>{SYSTEM_ROLES.length} Rôles</h3>
             </div>
             <div className="p-4 rounded-2xl bg-emerald-500/10 text-emerald-500">
@@ -557,38 +179,39 @@ export default function AccessRightsDashboard() {
         {/* TABS & SEARCH CONTAINER */}
         <div className={`p-4 rounded-3xl border ${cardTheme}`}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            {/* View selectors */}
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit">
               <button
                 onClick={() => setActiveTab('permissions_role')}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${activeTab === 'permissions_role'
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === 'permissions_role'
                     ? 'bg-amber-500 text-white shadow-md'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                }`}
               >
                 Permissions par rôle
               </button>
               <button
                 onClick={() => setActiveTab('exceptions_user')}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${activeTab === 'exceptions_user'
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === 'exceptions_user'
                     ? 'bg-amber-500 text-white shadow-md'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                }`}
               >
                 Exceptions utilisateur
               </button>
               <button
                 onClick={() => setActiveTab('lecture_metier')}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${activeTab === 'lecture_metier'
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                  activeTab === 'lecture_metier'
                     ? 'bg-amber-500 text-white shadow-md'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                }`}
               >
                 Lecture métier
               </button>
             </div>
 
-            {/* Search Input */}
             <div className="relative flex-1 max-w-md">
               <span className="absolute inset-y-0 left-0 flex items-center pl-4">
                 <Search className="w-4 h-4 text-slate-400" />
@@ -598,28 +221,36 @@ export default function AccessRightsDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher une permission, description ou sous-module..."
-                className={`w-full pl-10 pr-4 py-3 text-xs rounded-2xl border outline-none font-medium transition ${isDarkMode
+                className={`w-full pl-10 pr-4 py-3 text-xs rounded-2xl border outline-none font-medium transition ${
+                  isDarkMode
                     ? 'bg-[#0f1115] border-[#252a37] text-white focus:border-amber-500'
                     : 'bg-slate-50 border-[#cbd5e1] text-slate-800 focus:border-amber-500'
-                  }`}
+                }`}
               />
             </div>
           </div>
 
-          {/* DYNAMIC CONTEXTUAL HEADER CARD */}
           {activeTab === 'permissions_role' && (
-            <div className={`mt-4 p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#1c1f2a] border-[#2b3145]' : 'bg-slate-50 border-[#cbd5e1]'
-              }`}>
+            <div
+              className={`mt-4 p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                isDarkMode ? 'bg-[#1c1f2a] border-[#2b3145]' : 'bg-slate-50 border-[#cbd5e1]'
+              }`}
+            >
               <div className="flex flex-col gap-1.5 md:flex-row md:items-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-500">Configurer le rôle :</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-500">
+                  Configurer le rôle :
+                </span>
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value as Role)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase border outline-none cursor-pointer ${isDarkMode ? 'bg-[#151821] border-[#2d334a] text-white' : 'bg-white border-[#cbd5e1] text-slate-800'
-                    }`}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase border outline-none cursor-pointer ${
+                    isDarkMode ? 'bg-[#151821] border-[#2d334a] text-white' : 'bg-white border-[#cbd5e1] text-slate-800'
+                  }`}
                 >
-                  {SYSTEM_ROLES.map(r => (
-                    <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
+                  {SYSTEM_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r] || r}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -635,21 +266,27 @@ export default function AccessRightsDashboard() {
           )}
 
           {activeTab === 'exceptions_user' && (
-            <div className={`mt-4 p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${isDarkMode ? 'bg-[#1c1f2a] border-[#2b3145]' : 'bg-slate-50 border-[#cbd5e1]'
-              }`}>
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-500 shrink-0">Sélectionner un collaborateur :</span>
+            <div
+              className={`mt-4 p-5 rounded-2xl border flex flex-col md:flex-row md:items-center gap-4 ${
+                isDarkMode ? 'bg-[#1c1f2a] border-[#2b3145]' : 'bg-slate-50 border-[#cbd5e1]'
+              }`}
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-500 shrink-0">
+                Sélectionner un collaborateur :
+              </span>
               {staffList.length === 0 ? (
                 <span className="text-xs font-semibold text-slate-500">Aucun employé enregistré</span>
               ) : (
                 <select
                   value={selectedUser}
                   onChange={(e) => setSelectedUser(e.target.value)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase border outline-none cursor-pointer ${isDarkMode ? 'bg-[#151821] border-[#2d334a] text-white' : 'bg-white border-[#cbd5e1] text-slate-800'
-                    }`}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase border outline-none cursor-pointer ${
+                    isDarkMode ? 'bg-[#151821] border-[#2d334a] text-white' : 'bg-white border-[#cbd5e1] text-slate-800'
+                  }`}
                 >
-                  {staffList.map(u => (
+                  {staffList.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.name} ({ROLE_LABELS[u.role as Role] || u.role})
+                      {u.name} ({ROLE_LABELS[u.role] || u.role})
                     </option>
                   ))}
                 </select>
@@ -662,25 +299,51 @@ export default function AccessRightsDashboard() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Chargement des autorisations...</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Chargement des autorisations...
+            </span>
           </div>
         ) : (
           <>
-            {activeTab !== 'lecture_metier' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {activeTab === 'permissions_role' && (
+              <RolePermissionsTab
+                isDarkMode={isDarkMode}
+                rolePermissions={rolePermissions}
+                filteredPermissions={filteredPermissions}
+                fullList={fullList}
+                activeModule={activeModule}
+                searchQuery={searchQuery}
+                savingKey={savingKey}
+                customPermissions={customPermissions}
+                setActiveModule={setActiveModule}
+                setSearchQuery={setSearchQuery}
+                getActiveCountForModule={getActiveCountForModule}
+                handleToggleRolePermission={handleToggleRolePermission}
+                openEditModal={openEditModal}
+                handleDeleteCustomPermission={handleDeleteCustomPermission}
+              />
+            )}
 
-                {/* SIDEBAR: MODULES LIST */}
-                <div className="lg:col-span-3 space-y-3">
-                  <div className={`p-4 rounded-3xl border ${cardTheme}`}>
-                    <h3 className={`text-xs font-black uppercase tracking-widest ${descTheme} mb-3 px-1`}>
-                      Modules & Domaines
-                    </h3>
-                    <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-2 lg:pb-0">
-                      {MODULES_LIST.map((mod) => {
-                        const count = getActiveCountForModule(mod.id)
-                        const total = fullList.filter(p => p.module === mod.id).length
-                        const isSelected = activeModule === mod.id && !searchQuery
+            {activeTab === 'exceptions_user' && (
+              <UserExceptionsTab
+                isDarkMode={isDarkMode}
+                userPermissions={userPermissions}
+                filteredPermissions={filteredPermissions}
+                fullList={fullList}
+                activeModule={activeModule}
+                searchQuery={searchQuery}
+                savingKey={savingKey}
+                customPermissions={customPermissions}
+                setActiveModule={setActiveModule}
+                setSearchQuery={setSearchQuery}
+                getActiveCountForModule={getActiveCountForModule}
+                handleUpdateUserPermission={handleUpdateUserPermission}
+                openEditModal={openEditModal}
+                handleDeleteCustomPermission={handleDeleteCustomPermission}
+              />
+            )}
 
+<<<<<<< HEAD
                         return (
                           <button
                             key={mod.id}
@@ -890,14 +553,24 @@ export default function AccessRightsDashboard() {
                   </table>
                 </div>
               </div>
+=======
+            {activeTab === 'lecture_metier' && (
+              <MatrixViewTab
+                isDarkMode={isDarkMode}
+                filteredPermissions={filteredPermissions}
+                systemRoles={SYSTEM_ROLES}
+                roleLabels={ROLE_LABELS}
+                defaultPermissions={DEFAULT_PERMISSIONS}
+              />
+>>>>>>> bbaf5ff (Refactorisation)
             )}
           </>
         )}
-
       </div>
 
       {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
+<<<<<<< HEAD
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className={`w-full max-w-lg p-6 rounded-3xl border transition-all ${cardTheme} shadow-2xl`}>
             <div className="flex items-center justify-between border-b pb-4 mb-4 dark:border-slate-800">
@@ -995,6 +668,24 @@ export default function AccessRightsDashboard() {
             </form>
           </div>
         </div>
+=======
+        <CustomPermissionModal
+          isDarkMode={isDarkMode}
+          modalMode={modalMode}
+          customKey={customKey}
+          customName={customName}
+          customDesc={customDesc}
+          customModule={customModule}
+          errorMessage={errorMessage}
+          actionLoading={actionLoading}
+          setCustomKey={setCustomKey}
+          setCustomName={setCustomName}
+          setCustomDesc={setCustomDesc}
+          setCustomModule={setCustomModule}
+          setIsModalOpen={setIsModalOpen}
+          handleSaveCustomPermission={handleSaveCustomPermission}
+        />
+>>>>>>> bbaf5ff (Refactorisation)
       )}
     </div>
   )

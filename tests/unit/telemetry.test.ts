@@ -5,16 +5,13 @@ describe('TelemetryService', () => {
   let consoleInfoSpy: any;
 
   beforeEach(() => {
-    // Temporarily mock NODE_ENV or force telemetry behavior by overriding its private properties/methods if needed,
-    // or just spy on console.info.
     consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
-    // Force isTest to false temporarily to execute the logging code
-    (telemetry as any).isTest = false;
+    vi.stubEnv("NODE_ENV", "production");
   });
 
   afterEach(() => {
     consoleInfoSpy.mockRestore();
-    (telemetry as any).isTest = process.env.NODE_ENV === 'test';
+    vi.unstubAllEnvs();
   });
 
   it('should output a structured JSON to console.info', () => {

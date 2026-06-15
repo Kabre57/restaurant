@@ -10,7 +10,7 @@ type ServerMenuViewProps = {
   categories: CachedCategory[]
   filteredProducts: CachedProduct[]
   activeCategory: string | null
-  selectedTable: Table
+  selectedTable: Table | null
   onCategoryChange: (categoryId: string | null) => void
   onProductAdd: (product: CachedProduct) => void
 }
@@ -144,6 +144,7 @@ export function ServerMenuView({
   }, [categories, filteredProducts])
 
   const visibleProductCount = filteredProducts.length
+  const tableNumber = selectedTable ? selectedTable.number : 'Non spécifiée'
 
   return (
     <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#eef1f4_0%,#f8f9fa_26%,#f3f5f7_100%)] p-8 custom-scrollbar">
@@ -158,7 +159,7 @@ export function ServerMenuView({
               Carte Serveur
             </div>
             <h2 className="mt-5 text-3xl font-black uppercase tracking-tight text-[#212529] lg:text-4xl">
-              Service en salle pour la table {selectedTable.number}
+              {selectedTable ? `Service en salle pour la table ${tableNumber}` : 'Prendre Commande (Table non spécifiée)'}
             </h2>
             <p className="mt-3 max-w-xl text-sm font-bold leading-relaxed text-[#6c757d]">
               Le serveur choisit la table, puis parcourt la carte par familles de produits comme sur une fiche de menu.
@@ -171,7 +172,7 @@ export function ServerMenuView({
               <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#adb5bd]">Table active</p>
               <p className="mt-2 flex items-center gap-2 text-lg font-black text-[#212529]">
                 <MapPinned className="h-4 w-4 text-[#f08c00]" />
-                {selectedTable.number}
+                {tableNumber}
               </p>
             </div>
             <div className="rounded-[1.75rem] border border-[#e9ecef] bg-white/85 px-5 py-4 shadow-sm">

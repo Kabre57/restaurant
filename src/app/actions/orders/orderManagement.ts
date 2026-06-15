@@ -5,8 +5,10 @@ import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { publishOrderEvent, publishStockAlert } from './orderNotifications'
 import { decrementIngredientInventory, incrementIngredientInventory } from '../inventory/inventory'
-import { requireAuth, assertSameStore } from '@/lib/auth-guard'
 import { redis, REDIS_KEYS } from '@/lib/redis'
+import { requireAuth, requireStoreAccess, requirePermission } from '@/shared/security'
+import { Permission } from '@/domain/security/permissions'
+import { telemetry } from '@/shared/telemetry'
 
 const CANCEL_ORDER_ROLES = ["ADMIN", "RESTAURATEUR", "MANAGER", "CASHIER", "SERVER"]
 const REFUND_ORDER_ROLES = ["ADMIN", "RESTAURATEUR", "MANAGER", "CASHIER"]
@@ -105,7 +107,6 @@ async function reverseLoyaltyForRefund(tx: Prisma.TransactionClient, order: Canc
  */
 export async function cancelOrder(orderId: string, options: CancelOrderOptions = {}) {
   const shouldRefund = options.refundPaidPayments === true
-  const { storeId: authStoreId, role } = await requireAuth(shouldRefund ? REFUND_ORDER_ROLES : CANCEL_ORDER_ROLES)
 
   try {
     const order = await prisma.order.findUnique({
@@ -117,9 +118,13 @@ export async function cancelOrder(orderId: string, options: CancelOrderOptions =
       return { success: false, error: 'Commande introuvable' }
     }
 
-    if (role !== "ADMIN") {
-      assertSameStore(order.storeId, authStoreId)
-    }
+    const sessionUser = await requireAuth()
+    const securityUser = { id: sessionUser.id, role: sessionUser.role, storeId: sessionUser.storeId }
+
+    // Enforce store boundary and permission check
+    requireStoreAccess(securityUser, order.storeId)
+    const permission = shouldRefund ? Permission.REFUND_ORDER : Permission.CANCEL_ORDER
+    await requirePermission(securityUser, permission)
 
     if (order.status === OrderStatus.CANCELLED && !shouldRefund) {
       return { success: false, error: 'La commande est déjà annulée' }
@@ -166,6 +171,23 @@ export async function cancelOrder(orderId: string, options: CancelOrderOptions =
       return { success: false, error: 'Commande introuvable après annulation' }
     }
 
+    // Log telemetry audit
+    const auditAction = shouldRefund ? 'REFUND_ORDER' : 'CANCEL_ORDER'
+    const auditDesc = shouldRefund
+      ? `Remboursement de la commande #${order.id} d'un montant de ${order.total}`
+      : `Annulation de la commande #${order.id} d'un montant de ${order.total}`
+
+    await telemetry.logAudit({
+      storeId: order.storeId,
+      userId: sessionUser.id,
+      action: auditAction,
+      description: auditDesc,
+      details: {
+        orderId: order.id,
+        total: order.total
+      }
+    })
+
     // Publier l'événement de mise à jour pour le KDS, le serveur et la caisse
     await publishOrderEvent('order-updated', updatedOrder)
     await redis.del(REDIS_KEYS.stats(order.storeId))
@@ -190,8 +212,6 @@ export async function modifyOrder(
   orderId: string,
   updatedItems: { productId: string; quantity: number; options?: string }[]
 ) {
-  const { storeId: authStoreId, role } = await requireAuth(["ADMIN", "RESTAURATEUR", "CASHIER", "SERVER"])
-
   try {
     if (!updatedItems.length) {
       return { success: false, error: 'La commande doit contenir au moins un article' }
@@ -208,9 +228,12 @@ export async function modifyOrder(
       return { success: false, error: 'Commande introuvable' }
     }
 
-    if (role !== "ADMIN") {
-      assertSameStore(order.storeId, authStoreId)
-    }
+    const sessionUser = await requireAuth()
+    const securityUser = { id: sessionUser.id, role: sessionUser.role, storeId: sessionUser.storeId }
+
+    // Enforce store boundary and permission check
+    requireStoreAccess(securityUser, order.storeId)
+    await requirePermission(securityUser, Permission.EDIT_ORDER)
 
     if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.COMPLETED) {
       return { success: false, error: 'Impossible de modifier une commande annulée ou terminée' }
@@ -360,6 +383,21 @@ export async function modifyOrder(
       }
 
       return finalOrder
+    })
+
+    // Log audit trail for modification
+    await telemetry.logAudit({
+      storeId: order.storeId,
+      userId: sessionUser.id,
+      action: 'ORDER_MODIFIED',
+      description: `Modification de la commande #${order.id}. Total mis à jour de ${order.total} à ${updatedOrder.total}.`,
+      oldValue: order.total,
+      newValue: updatedOrder.total,
+      details: {
+        orderId: order.id,
+        itemCountBefore: order.items.length,
+        itemCountAfter: updatedItems.length
+      }
     })
 
     await publishOrderEvent('order-updated', updatedOrder)

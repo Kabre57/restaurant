@@ -137,7 +137,7 @@ const menuItems = [
       { name: 'E-commerce & Web', href: '/restaurateur/config/ecommerce', icon: <Globe2 />, roles: ['RESTAURATEUR'] },
       { name: 'Arrondis', href: '/restaurateur/config/arrondis', icon: <Coins />, roles: ['RESTAURATEUR'] },
       { name: 'Reçus', href: '/restaurateur/config/recus', icon: <FileText />, roles: ['RESTAURATEUR'] },
-      { name: 'Workflow', href: '/restaurateur/config/workflow', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR'] },
+      { name: 'Organisation du Service', href: '/restaurateur/config/workflow', icon: <SlidersHorizontal />, roles: ['RESTAURATEUR'] },
       { name: 'Matériel', href: '/restaurateur/config/materiel', icon: <Printer />, roles: ['RESTAURATEUR'] },
     ],
   },
