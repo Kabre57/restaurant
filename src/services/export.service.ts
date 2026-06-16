@@ -142,7 +142,7 @@ export class ExportService {
     doc.setTextColor(255, 109, 0); // Orange POS
     doc.setFont("helvetica", "bold");
     doc.setFontSize(26);
-    doc.text("PARABELLUM POS", 20, 40);
+    doc.text("PROGI-TECK POS", 20, 40);
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);

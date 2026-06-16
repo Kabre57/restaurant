@@ -8,7 +8,7 @@ const geistMono = { variable: "font-mono" };
 
 export const metadata: Metadata = {
   title: "ParabellumPOS | Système de Caisse",
-  description: "Parabellum POS, caisse et e-commerce pour les restaurants et réseaux multi-sites.",
+  description: "Progi-teck POS, caisse et e-commerce pour les restaurants et réseaux multi-sites.",
   manifest: "/manifest.json",
   icons: {
     icon: [

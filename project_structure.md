@@ -400,7 +400,7 @@ restaurant/
 
 ## Analyse & Cartographie Détaillée du Projet
 
-Cette section détaille les rôles, les responsabilités de chaque dossier clé et répond aux nuances architecturales du projet **Parabellum POS**.
+Cette section détaille les rôles, les responsabilités de chaque dossier clé et répond aux nuances architecturales du projet **Progi-teck POS**.
 
 ---
 

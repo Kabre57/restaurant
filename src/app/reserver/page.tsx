@@ -28,7 +28,7 @@ export default async function ReserverPage() {
       </div>
 
       <footer className="text-center text-slate-600 text-xs mt-8">
-        Parabellum POS — Module Réservations v1.0
+        Progi-teck POS — Module Réservations v1.0
       </footer>
     </div>
   );

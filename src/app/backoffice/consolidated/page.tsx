@@ -162,7 +162,7 @@ export default function ConsolidatedAnalyticsPage() {
 
     // 1. Prepare KPIs sheet
     let csvContent = "data:text/csv;charset=utf-8,"
-    csvContent += "REPORT CONSOLIDE PARABELLUM POS\n"
+    csvContent += "REPORT CONSOLIDE Progi-teck POS\n"
     csvContent += `Periode:;${startDate} au ${endDate}\n\n`
     
     csvContent += "INDICATEURS CONSOLIDES\n"

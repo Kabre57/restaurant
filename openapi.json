@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Parabellum POS API",
+    "title": "Progi-teck POS API",
     "description": "Spécification complète et interactive des API du système de point de vente (POS) et de commande en ligne Gourmet. Supporte l'authentification par session, les webhooks tiers et les protocoles matériels réseau.",
     "version": "1.0.0"
   },

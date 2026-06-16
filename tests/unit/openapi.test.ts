@@ -13,7 +13,7 @@ describe('Validation de la spécification OpenAPI', () => {
     expect(api).toBeDefined()
     expect(api.openapi).toBe('3.0.0')
     expect(api.info).toBeDefined()
-    expect(api.info.title).toBe('Parabellum POS API')
+    expect(api.info.title).toBe('Progi-teck POS API')
     expect(api.paths).toBeDefined()
   })
 })

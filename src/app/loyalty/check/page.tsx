@@ -128,7 +128,7 @@ function LoyaltyCheckContent() {
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6D00]/10 text-[#FF6D00] shadow-md">
             <Gift className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-black uppercase tracking-tight">Parabellum POS</h1>
+          <h1 className="text-xl font-black uppercase tracking-tight">Progi-teck POS</h1>
           <p className="text-xs font-semibold text-[#868e96] dark:text-white/40 uppercase tracking-widest">
             Fidélité & Récompenses
           </p>
@@ -207,7 +207,7 @@ function LoyaltyCheckContent() {
                     Propulsé par
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                    Parabellum POS
+                    Progi-teck POS
                   </span>
                 </div>
                 <div className="text-right">

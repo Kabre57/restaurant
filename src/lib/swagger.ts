@@ -8,7 +8,7 @@ const options: swaggerJsdoc.Options = {
     openapi: '3.0.0', // Standardiser en version 3.0.0 pour une compatibilité maximale
     info: {
       ...baseSpec.info,
-      title: 'Parabellum POS API',
+      title: 'Progi-teck POS API',
     },
   },
   apis: [

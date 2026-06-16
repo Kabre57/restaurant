@@ -1,4 +1,4 @@
-// scripts/reset-db.ts — Script de réinitialisation et de seed propre pour Parabellum POS
+// scripts/reset-db.ts — Script de réinitialisation et de seed propre pour Progi-teck POS
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";

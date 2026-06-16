@@ -103,7 +103,7 @@ function LoginForm() {
             </div>
             <div>
               <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-white/70">
-                Parabellum POS
+                Progi-teck POS
               </p>
               <p className="text-sm text-white/65">Gestion restaurant & commerce</p>
             </div>
