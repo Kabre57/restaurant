@@ -30,7 +30,7 @@ export interface CreateOrderInput {
   items:           OrderItemInput[];
   notes?:          string;
   idempotencyKey?: string;
-  externalPayload?: any;
+  externalPayload?: unknown;
 }
 
 export interface OrderData {
@@ -68,7 +68,7 @@ const createOrderInputSchema = z.object({
   })).min(1, "Au moins un article requis"),
   notes:          z.string().max(1000).optional(),
   idempotencyKey: z.string().uuid().optional(),
-  externalPayload: z.any().optional(),
+  externalPayload: z.unknown().optional(),
 });
 
 // ── In-memory store (fallback si DB indisponible) ─────────
@@ -149,26 +149,30 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderData> {
       });
       
       if (order.type === 'DELIVERY') {
-        const payload = (input.externalPayload as any) || {}
+        const payload = (input.externalPayload as Record<string, unknown> | null) || {}
         try {
           const { DeliveryService } = await import("@/services/delivery.service");
+          const deliveryAddress = typeof payload.deliveryAddress === "string" && payload.deliveryAddress.trim().length > 0
+            ? payload.deliveryAddress
+            : "Abidjan";
           await DeliveryService.createDeliveryOrder({
             orderId: order.id,
-            address: payload.deliveryAddress || 'Abidjan',
-            deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
-            estimatedTimeMinutes: payload.deliveryDurationMins ? Number(payload.deliveryDurationMins) : null,
-            livreurId: payload.deliveryLivreurId || null,
+            address: deliveryAddress,
+            livreurId: typeof payload.deliveryLivreurId === "string" ? payload.deliveryLivreurId : null,
           });
         } catch (err) {
           logger.error("[orderService] Failed to create DeliveryOrder via DeliveryService, falling back:", err);
+          const deliveryAddress = typeof payload.deliveryAddress === "string" && payload.deliveryAddress.trim().length > 0
+            ? payload.deliveryAddress
+            : "Abidjan";
           await prisma.deliveryOrder.create({
             data: {
               orderId: order.id,
-              address: payload.deliveryAddress || 'Abidjan',
+              address: deliveryAddress,
               status: 'PENDING',
-              distanceKm: payload.deliveryDistanceKm ? Number(payload.deliveryDistanceKm) : null,
-              deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
-              livreurId: payload.deliveryLivreurId || null,
+              distanceKm: null,
+              deliveryFee: 0,
+              livreurId: typeof payload.deliveryLivreurId === "string" ? payload.deliveryLivreurId : null,
             }
           });
         }

@@ -1,16 +1,16 @@
 {
-  "name": "POS Restaurant",
-  "short_name": "POS",
-  "description": "Système de Point de Vente pour Restaurant",
+  "name": "Parabellum POS",
+  "short_name": "Parabellum",
+  "description": "Système de point de vente et e-commerce pour restaurant",
   "display": "standalone",
-  "background_color": "#0a0c10",
-  "theme_color": "#10b981",
+  "background_color": "#121212",
+  "theme_color": "#eb1400",
   "orientation": "landscape",
   "start_url": "/",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
+      "src": "/logo.ico",
+      "sizes": "256x256",
       "type": "image/x-icon"
     }
   ]

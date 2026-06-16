@@ -1,19 +1,20 @@
-// src/app/api-docs/page.tsx
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, Loader2, ShieldAlert } from 'lucide-react'
 
-// Import asynchrone pour désactiver le Server-Side Rendering (SSR) 
-// et empêcher les erreurs de build liées aux objets 'window' / 'navigator' absents sur le serveur.
+type OpenApiSpec = Record<string, unknown>
+
 const SwaggerUI = dynamic(() => import('swagger-ui-react'), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 text-slate-800 rounded-3xl">
-      <Loader2 className="w-12 h-12 text-[#FF6D00] animate-spin mb-4" />
-      <p className="text-sm font-bold animate-pulse">Chargement de la console API...</p>
+    <div className="flex flex-col items-center justify-center rounded-[1.25rem] border border-[var(--parabellum-border)] bg-[var(--parabellum-card)] py-20">
+      <Loader2 className="mb-4 h-12 w-12 animate-spin text-[var(--parabellum-primary)]" />
+      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--parabellum-muted)]">
+        Chargement de la console API...
+      </p>
     </div>
   ),
 })
@@ -22,7 +23,7 @@ import 'swagger-ui-react/swagger-ui.css'
 
 export default function ApiDocsPage() {
   const { data: session, status } = useSession()
-  const [spec, setSpec] = useState<any>(null)
+  const [spec, setSpec] = useState<OpenApiSpec | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const userRole = session?.user?.role
@@ -35,41 +36,41 @@ export default function ApiDocsPage() {
           if (!res.ok) {
             throw new Error('Impossible de récupérer la spécification API')
           }
-          return res.json()
+          return res.json() as Promise<OpenApiSpec>
         })
         .then((data) => setSpec(data))
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.error(err)
-          setError(err.message || 'Une erreur est survenue lors du chargement de la spécification.')
+          setError(err instanceof Error ? err.message : 'Une erreur est survenue lors du chargement de la spécification.')
         })
     }
   }, [status, isAuthorized])
 
   if (status === 'loading') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-        <Loader2 className="w-12 h-12 text-[#FF6D00] animate-spin mb-4" />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">
-          Vérification de la session...
-        </p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
+        <Loader2 className="h-12 w-12 animate-spin text-[var(--parabellum-primary)]" />
       </div>
     )
   }
 
   if (status === 'unauthenticated' || !isAuthorized) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 px-4">
-        <div className="max-w-md w-full bg-white border border-rose-500/20 p-8 rounded-3xl shadow-xl text-center space-y-6">
-          <ShieldAlert className="h-16 w-16 text-rose-500 mx-auto animate-bounce" />
-          <h2 className="text-xl font-black uppercase text-[#171717]">Accès Restreint</h2>
-          <p className="text-sm font-medium text-slate-500 leading-relaxed">
-            Vous devez posséder des privilèges d'administrateur ou de super-administrateur pour accéder à la documentation technique des API de Parabellum POS.
+      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="barab-card w-full max-w-md rounded-[1.5rem] p-8 text-center">
+          <ShieldAlert className="mx-auto h-16 w-16 text-[var(--parabellum-danger)]" />
+          <p className="mt-5 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--parabellum-primary)]">
+            Accès restreint
           </p>
-          <div className="pt-4">
-            <a
-              href="/pos"
-              className="inline-block px-6 py-3 bg-[#FF6D00] hover:bg-[#E05300] text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
-            >
+          <h1 className="mt-2 text-3xl font-bold uppercase tracking-tight text-[var(--parabellum-text)]">
+            Documentation API
+          </h1>
+          <p className="mt-4 text-sm leading-7 text-[var(--parabellum-muted)]">
+            Cette section est réservée aux administrateurs et super-administrateurs.
+          </p>
+          <div className="mt-6">
+            <a href="/pos" className="th-btn th-btn--secondary">
+              <ArrowLeft className="h-4 w-4" />
               Retour au POS
             </a>
           </div>
@@ -79,36 +80,33 @@ export default function ApiDocsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* En-tête premium */}
-      <header className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 shadow-lg border-b border-indigo-900/40">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF6D00]">
-              Documentation Technique
-            </span>
-            <h1 className="text-2xl font-black tracking-tight mt-1">Console API Interactive - Parabellum POS</h1>
+    <div className="barab-page min-h-screen pb-10">
+      <header className="breadcumb-wrapper">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between">
+          <div className="title-area max-w-3xl">
+            <span className="sub-title">Documentation technique</span>
+            <h1 className="sec-title text-white">Console API interactive</h1>
+            <p className="desc text-white/78">
+              Le contrat d’API reste lisible et exploitable pour les équipes techniques, directement depuis le back-office.
+            </p>
           </div>
-          <a
-            href="/pos"
-            className="px-5 py-3 bg-slate-800/80 hover:bg-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border border-slate-700/60 shadow-md active:scale-95"
-          >
+          <a href="/pos" className="th-btn th-btn--secondary w-fit">
+            <ArrowLeft className="h-4 w-4" />
             Retour au POS
           </a>
         </div>
       </header>
 
-      {/* Rendu dynamique de Swagger UI */}
-      <main className="max-w-6xl mx-auto py-8 px-6">
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden p-4">
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <div className="barab-card overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
           {error ? (
-            <div className="p-8 text-center text-rose-500 text-sm font-bold uppercase tracking-wider">
+            <div className="rounded-[1rem] border border-[rgba(235,20,0,0.18)] bg-[rgba(235,20,0,0.08)] px-6 py-10 text-center text-sm font-medium text-[var(--parabellum-danger)]">
               {error}
             </div>
           ) : !spec ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-10 h-10 text-[#FF6D00] animate-spin mb-4" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-[var(--parabellum-primary)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--parabellum-muted)]">
                 Génération de la spécification OpenAPI...
               </p>
             </div>

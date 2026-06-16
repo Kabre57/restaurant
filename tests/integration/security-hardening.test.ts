@@ -9,6 +9,9 @@ import { GET as getTables } from "@/app/api/booking/tables/route";
 import { PATCH as patchReservationStatus } from "@/app/api/booking/reservations/[id]/status/route";
 import { GET as getDeliveryOrders, POST as postDeliveryOrders } from "@/app/api/delivery/orders/route";
 import { PATCH as patchDeliveryOrderStatus } from "@/app/api/delivery/orders/[id]/status/route";
+import { GET as getDeliveryTrackingHistory } from "@/app/api/delivery/tracking/[deliveryOrderId]/route";
+import { GET as getDeliveryTrackingStream } from "@/app/api/delivery/tracking/stream/route";
+import { POST as postDeliveryTracking } from "@/app/api/delivery/tracking/route";
 import { GET as getAnalyticsDashboard } from "@/app/api/analytics/dashboard/route";
 import { GET as getAnalyticsExport } from "@/app/api/analytics/export/route";
 import { GET as getPosAlerts } from "@/app/api/pos/alerts/route";
@@ -29,6 +32,12 @@ vi.mock("@/lib/auth", async (importOriginal) => {
 
 vi.mock("@/lib/redis", () => ({
   redis: {
+    incr: vi.fn().mockResolvedValue(1),
+    ttl: vi.fn().mockResolvedValue(300),
+    expire: vi.fn().mockResolvedValue(1),
+    publish: vi.fn().mockResolvedValue(1),
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue("OK"),
     duplicate: () => ({
       subscribe: vi.fn().mockResolvedValue(null),
       on: vi.fn(),
@@ -124,6 +133,41 @@ describe("Security Hardening & Multi-Tenant Isolation Tests", () => {
       const req = new NextRequest("http://localhost/api/delivery/orders?storeId=store-2");
       const res = await getDeliveryOrders(req);
       expect(res.status).toBe(403);
+    });
+
+    it("should deny access to delivery routes when permissions are missing", async () => {
+      vi.mocked(getServerSession).mockResolvedValue({
+        user: { id: "u-1", role: "SERVER", storeId: "store-1" },
+      } as any);
+
+      const patchReq = new NextRequest("http://localhost/api/delivery/orders/delivery-1/status", {
+        method: "PATCH",
+        body: JSON.stringify({ status: "DELIVERED" }),
+      });
+      const postReq = new NextRequest("http://localhost/api/delivery/orders", {
+        method: "POST",
+        body: JSON.stringify({ orderId: "order-1", address: "Cocody, Abidjan" }),
+      });
+      const trackingReq = new NextRequest("http://localhost/api/delivery/tracking", {
+        method: "POST",
+        body: JSON.stringify({
+          deliveryOrderId: "delivery-1",
+          latitude: 5.31,
+          longitude: -4.01,
+        }),
+      });
+      const historyReq = new NextRequest("http://localhost/api/delivery/tracking/delivery-1");
+      const streamReq = new NextRequest(
+        "http://localhost/api/delivery/tracking/stream?deliveryOrderId=delivery-1"
+      );
+
+      await expect(patchDeliveryOrderStatus(patchReq, { params: Promise.resolve({ id: "delivery-1" }) }))
+        .resolves.toHaveProperty("status", 403);
+      await expect(postDeliveryOrders(postReq)).resolves.toHaveProperty("status", 403);
+      await expect(postDeliveryTracking(trackingReq)).resolves.toHaveProperty("status", 403);
+      await expect(getDeliveryTrackingHistory(historyReq, { params: Promise.resolve({ deliveryOrderId: "delivery-1" }) }))
+        .resolves.toHaveProperty("status", 403);
+      await expect(getDeliveryTrackingStream(streamReq)).resolves.toHaveProperty("status", 403);
     });
 
     it("should deny access to GET /api/pos/alerts SSE if tenant check fails", async () => {

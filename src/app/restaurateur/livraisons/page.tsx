@@ -47,6 +47,10 @@ export default function DeliveryManagementPage() {
     vehicleType: 'MOTO'
   })
 
+  function describeError(error: unknown) {
+    return error instanceof Error ? error.message : "Accès refusé"
+  }
+
   function playNotificationSound() {
     // ✅ Son bundlé localement — fonctionne offline, sans risque CORS
     const audio = new Audio('/sounds/notification.mp3')
@@ -68,40 +72,73 @@ export default function DeliveryManagementPage() {
     }
   }, [orders])
 
-  async function loadData() {
+  async function loadData(showSpinner = true, showIssues = true) {
     const storeId = session?.user?.storeId
-    if (!storeId) return
-    const [oData, pData] = await Promise.all([
+    if (!storeId) {
+      if (showSpinner) {
+        setLoading(false)
+      }
+      return
+    }
+
+    if (showSpinner) {
+      setLoading(true)
+    }
+
+    const [ordersResult, peopleResult] = await Promise.allSettled([
       getOrdersForDelivery(storeId),
-      getDeliveryPeople()
+      getDeliveryPeople(storeId),
     ])
-    setOrders(oData as DeliveryOrder[])
-    setDeliveryPeople(pData as DeliveryPerson[])
-    setLoading(false)
+
+    const issues: string[] = []
+
+    if (ordersResult.status === 'fulfilled') {
+      setOrders(ordersResult.value as DeliveryOrder[])
+    } else {
+      issues.push(describeError(ordersResult.reason))
+      setOrders([])
+    }
+
+    if (peopleResult.status === 'fulfilled') {
+      setDeliveryPeople(peopleResult.value as DeliveryPerson[])
+    } else {
+      issues.push(describeError(peopleResult.reason))
+      setDeliveryPeople([])
+    }
+
+    if (showIssues && issues.length > 0) {
+      setAlert({
+        title: "Accès restreint",
+        message: issues.join(' '),
+        type: 'error',
+      })
+    }
+
+    if (showSpinner) {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    const storeId = session?.user?.storeId
-    if (!storeId) return
-    const activeStoreId = storeId
-
     let isCancelled = false
 
     async function fetchData() {
-      const [oData, pData] = await Promise.all([
-        getOrdersForDelivery(activeStoreId),
-        getDeliveryPeople()
-      ])
-
-      if (isCancelled) return
-      setOrders(oData as DeliveryOrder[])
-      setDeliveryPeople(pData as DeliveryPerson[])
-      setLoading(false)
+      try {
+        await loadData(true, true)
+      } catch (error) {
+        if (isCancelled) return
+        setAlert({
+          title: "Erreur",
+          message: describeError(error),
+          type: 'error',
+        })
+        setLoading(false)
+      }
     }
 
     void fetchData()
     const interval = setInterval(() => {
-      void fetchData()
+      void loadData(false, false)
     }, 30000)
 
     return () => {
@@ -115,7 +152,7 @@ export default function DeliveryManagementPage() {
     const res = await assignDelivery(orderId, personId)
     if (res.success) {
       setAlert({ title: "Assigné", message: "Livreur assigné avec succès", type: 'success' })
-      loadData()
+      void loadData(false, true)
     } else {
       setAlert({ title: "Erreur", message: res.error || "Échec de l'assignation" })
     }
@@ -129,7 +166,7 @@ export default function DeliveryManagementPage() {
     if (res.success) {
       setShowAddPersonModal(false)
       setNewPerson({ name: '', phone: '', vehicleType: 'MOTO' })
-      loadData()
+      void loadData(false, true)
     }
     setIsSubmitting(false)
   }

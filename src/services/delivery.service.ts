@@ -4,12 +4,37 @@ import { GeocodingService } from "./geocoding.service";
 import { NotificationService } from "./notification.service";
 import { redisPub } from "@/lib/redis"; // Standard redis publisher in the app
 import { TrackingService } from "./tracking.service";
+import {
+  assertEcommerceOrderAllowed,
+  ecommerceSettingsSelect,
+  normalizeEcommerceSettings,
+  type EcommerceDeliveryType,
+} from "@/domain/orders/ecommerce-settings";
+
+type DeliveryLocationEstimate = {
+  address: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+  estimatedTimeMinutes: number;
+  deliveryFee: number;
+};
+
+type DeliveryQuote = DeliveryLocationEstimate & {
+  configuredDeliveryFee: number;
+  calculatedDeliveryFee: number;
+  preparationDelayMinutes: number;
+  ecommerceEnabled: boolean;
+  deliveryEnabled: boolean;
+  clickAndCollectEnabled: boolean;
+};
 
 export class DeliveryService {
   /**
-   * Estimates distance, duration, and delivery fee for a given address and store
+   * Estime la distance et le temps de trajet à partir de l'adresse,
+   * puis calcule un tarif indicatif localement.
    */
-  static async estimateDelivery(address: string, storeId: string) {
+  private static async buildLocationEstimate(address: string, storeId: string): Promise<DeliveryLocationEstimate> {
     const store = await prisma.store.findUnique({
       where: { id: storeId },
     });
@@ -57,12 +82,58 @@ export class DeliveryService {
   }
 
   /**
+   * Retourne le devis serveur complet pour une livraison.
+   * Le fee final provient de la configuration du store; le calcul local
+   * sert uniquement d'indication de distance et de temps.
+   */
+  static async getDeliveryQuote(
+    address: string,
+    storeId: string,
+    options?: { requireEnabled?: boolean }
+  ): Promise<DeliveryQuote> {
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: ecommerceSettingsSelect,
+    });
+
+    if (!store) {
+      throw new Error("Restaurant non trouvé");
+    }
+
+    const settings = normalizeEcommerceSettings(store);
+    if (options?.requireEnabled) {
+      assertEcommerceOrderAllowed(settings, "DELIVERY" as EcommerceDeliveryType);
+    }
+
+    const estimate = await this.buildLocationEstimate(address, storeId);
+    const configuredDeliveryFee = settings.deliveryFee;
+
+    return {
+      ...estimate,
+      deliveryFee: configuredDeliveryFee,
+      configuredDeliveryFee,
+      calculatedDeliveryFee: estimate.deliveryFee,
+      preparationDelayMinutes: settings.preparationDelayMinutes,
+      ecommerceEnabled: settings.ecommerceEnabled,
+      deliveryEnabled: settings.deliveryEnabled,
+      clickAndCollectEnabled: settings.clickAndCollectEnabled,
+    };
+  }
+
+  /**
+   * Compatibilité ascendante: conserve l'estimation géographique brute.
+   * Le prix retourné ici reste indicatif et ne doit pas être facturé tel quel.
+   */
+  static async estimateDelivery(address: string, storeId: string) {
+    return this.buildLocationEstimate(address, storeId);
+  }
+
+  /**
    * Creates a new DeliveryOrder associated with an existing Order
    */
   static async createDeliveryOrder(data: {
     orderId: string;
     address: string;
-    deliveryFee: number;
     estimatedTimeMinutes?: number | null;
     livreurId?: string | null;
   }) {
@@ -75,16 +146,20 @@ export class DeliveryService {
       throw new Error("Commande non trouvée");
     }
 
-    // Geocode address to save exact lat/lng and calculate distance
+    // Le fee final vient de la configuration du store; aucune valeur client ne doit survivre ici.
     let lat = 5.3096;
     let lng = -4.0127;
     let distanceKm = 1.0;
+    let deliveryFee = 0;
+    let estimatedTimeMinutes = data.estimatedTimeMinutes ?? 30;
 
     try {
-      const estimation = await this.estimateDelivery(data.address, order.storeId);
-      lat = estimation.latitude;
-      lng = estimation.longitude;
-      distanceKm = estimation.distanceKm;
+      const quote = await this.getDeliveryQuote(data.address, order.storeId);
+      lat = quote.latitude;
+      lng = quote.longitude;
+      distanceKm = quote.distanceKm;
+      deliveryFee = quote.deliveryFee;
+      estimatedTimeMinutes = data.estimatedTimeMinutes ?? quote.estimatedTimeMinutes;
     } catch (err) {
       console.warn("Estimation failed on creation, using defaults:", err);
     }
@@ -97,9 +172,9 @@ export class DeliveryService {
         latitude: lat,
         longitude: lng,
         distanceKm,
-        deliveryFee: data.deliveryFee,
+        deliveryFee,
         status: data.livreurId ? "ASSIGNED" : "PENDING",
-        estimatedTimeMinutes: data.estimatedTimeMinutes || 30,
+        estimatedTimeMinutes,
         livreurId: data.livreurId || null,
         startedAt: data.livreurId ? new Date() : null,
       },
@@ -186,6 +261,21 @@ export class DeliveryService {
 
     if (!deliveryOrder) {
       throw new Error("Commande de livraison non trouvée");
+    }
+
+    const allowedTransitions: Record<DeliveryOrderStatus, DeliveryOrderStatus[]> = {
+      PENDING: ["ASSIGNED", "CANCELLED"],
+      ASSIGNED: ["PICKED_UP", "IN_PROGRESS", "DELIVERED", "CANCELLED"],
+      PICKED_UP: ["IN_PROGRESS", "DELIVERED", "CANCELLED"],
+      IN_PROGRESS: ["DELIVERED", "CANCELLED"],
+      DELIVERED: [],
+      CANCELLED: [],
+    };
+
+    if (!allowedTransitions[deliveryOrder.status].includes(status)) {
+      throw new Error(
+        `Transition de livraison invalide: ${deliveryOrder.status} -> ${status}`
+      );
     }
 
     const updateData: Prisma.DeliveryOrderUpdateInput = { status };

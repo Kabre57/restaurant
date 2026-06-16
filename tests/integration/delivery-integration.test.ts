@@ -61,6 +61,11 @@ describe("Delivery Module Integration with POS Flow", () => {
       data: {
         name: `Resto Delivery Integration ${Date.now()}`,
         commission: 15.0,
+        ecommerceEnabled: true,
+        deliveryEnabled: true,
+        clickAndCollectEnabled: true,
+        deliveryFee: 1800,
+        preparationDelayMinutes: 30,
       },
     });
     testStoreId = store.id;
@@ -160,13 +165,14 @@ describe("Delivery Module Integration with POS Flow", () => {
 
   it("should calculate delivery cost, create the order, create delivery order, and track status & GPS changes", async () => {
     // 1. Test estimation
-    const estimation = await DeliveryService.estimateDelivery(
+    const estimation = await DeliveryService.getDeliveryQuote(
       "Cocody, Boulevard Latrille, Abidjan",
       testStoreId
     );
     expect(estimation.address).toBe("Cocody, Boulevard Latrille, Abidjan");
     expect(estimation.distanceKm).toBeGreaterThan(0);
-    expect(estimation.deliveryFee).toBeGreaterThan(0);
+    expect(estimation.calculatedDeliveryFee).toBeGreaterThan(0);
+    expect(estimation.deliveryFee).toBe(1800);
 
     // 2. Checkout via POS using createOrder action
     const orderPayload = {
@@ -179,14 +185,11 @@ describe("Delivery Module Integration with POS Flow", () => {
           price: 5000,
         },
       ],
-      amountPaid: 10000 + estimation.deliveryFee, // Total food + delivery fee
       paymentMethod: "CASH",
       externalPayload: {
         deliveryAddress: estimation.address,
         deliveryClientName: "Jean Kouassi",
         deliveryClientPhone: "+2250707070707",
-        deliveryDistanceKm: estimation.distanceKm,
-        deliveryFee: estimation.deliveryFee,
       },
     };
 

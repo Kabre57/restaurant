@@ -16,31 +16,25 @@ export function PaymentMethodSelector({ selected, onChange }: PaymentMethodSelec
       id: "CARD" as const,
       name: "Carte Bancaire",
       description: "Visa, Mastercard via Stripe",
-      icon: <CreditCard className="h-5 w-5 text-indigo-500" />,
-      colorClass: "border-indigo-200 bg-indigo-50/20 text-indigo-700",
-      activeColorClass: "ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50/50",
+      icon: <CreditCard className="h-5 w-5 text-[var(--parabellum-primary)]" />,
     },
     {
       id: "ORANGE_MONEY" as const,
       name: "Orange Money",
       description: "Paiement Mobile via Orange Money",
-      icon: <Smartphone className="h-5 w-5 text-orange-500" />,
-      colorClass: "border-orange-200 bg-orange-50/20 text-orange-700",
-      activeColorClass: "ring-2 ring-orange-500 border-orange-500 bg-orange-50/50",
+      icon: <Smartphone className="h-5 w-5 text-[var(--parabellum-warning)]" />,
     },
     {
       id: "MTN_MONEY" as const,
       name: "MTN MoMo",
       description: "Paiement Mobile via MTN Mobile Money",
-      icon: <Smartphone className="h-5 w-5 text-yellow-600" />,
-      colorClass: "border-yellow-200 bg-yellow-50/20 text-yellow-800",
-      activeColorClass: "ring-2 ring-yellow-500 border-yellow-500 bg-yellow-50/50",
+      icon: <Smartphone className="h-5 w-5 text-[var(--parabellum-success)]" />,
     },
   ];
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-bold text-gray-700 block mb-1">
+      <label className="mb-1 block text-sm font-semibold text-[var(--parabellum-text)]">
         Moyen de paiement
       </label>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -51,23 +45,25 @@ export function PaymentMethodSelector({ selected, onChange }: PaymentMethodSelec
               key={method.id}
               type="button"
               onClick={() => onChange(method.id)}
-              className={`relative flex flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition-all cursor-pointer hover:border-gray-300 focus:outline-none ${
-                isSelected ? method.activeColorClass : "border-gray-200 bg-white"
+              className={`relative flex flex-col justify-between rounded-[1rem] border p-4 text-left transition-all focus:outline-none ${
+                isSelected
+                  ? 'border-[rgba(235,20,0,0.28)] bg-[rgba(235,20,0,0.06)] shadow-[0_14px_28px_rgba(18,18,18,0.08)]'
+                  : 'border-[var(--parabellum-border)] bg-[var(--parabellum-card)] hover:-translate-y-0.5 hover:bg-[#fffaf5]'
               }`}
             >
               <div className="flex items-center justify-between w-full">
-                <div className="rounded-lg p-2 bg-gray-50 border border-gray-100">
+                <div className="rounded-full border border-[var(--parabellum-border)] bg-[#fffaf5] p-2">
                   {method.icon}
                 </div>
                 {isSelected && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--parabellum-primary)] text-white">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
                 )}
               </div>
               <div className="mt-4">
-                <h4 className="text-sm font-bold text-gray-800">{method.name}</h4>
-                <p className="mt-1 text-xs text-gray-500 line-clamp-1">{method.description}</p>
+                <h4 className="text-sm font-bold uppercase tracking-wide text-[var(--parabellum-text)]" style={{ fontFamily: 'var(--title-font)' }}>{method.name}</h4>
+                <p className="mt-1 line-clamp-1 text-xs text-[var(--parabellum-muted)]">{method.description}</p>
               </div>
             </button>
           );

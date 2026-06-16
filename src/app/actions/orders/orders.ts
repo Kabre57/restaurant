@@ -254,22 +254,26 @@ export async function createOrder(data: OrderInput) {
       const payload = (data.externalPayload as Record<string, unknown> | null) || {}
       try {
         const { DeliveryService } = await import("@/services/delivery.service");
+        const deliveryAddress = typeof payload.deliveryAddress === "string" && payload.deliveryAddress.trim().length > 0
+          ? payload.deliveryAddress
+          : "Abidjan";
         await DeliveryService.createDeliveryOrder({
           orderId: order.id,
-          address: (payload.deliveryAddress as string) || 'Abidjan',
-          deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
-          estimatedTimeMinutes: payload.deliveryDurationMins ? Number(payload.deliveryDurationMins) : null,
+          address: deliveryAddress,
           livreurId: (payload.deliveryLivreurId as string) || null,
         });
       } catch (err) {
         console.error("Failed to create DeliveryOrder via DeliveryService, falling back:", err);
+        const deliveryAddress = typeof payload.deliveryAddress === "string" && payload.deliveryAddress.trim().length > 0
+          ? payload.deliveryAddress
+          : "Abidjan";
         await prisma.deliveryOrder.create({
           data: {
             orderId: order.id,
-            address: (payload.deliveryAddress as string) || 'Abidjan',
+            address: deliveryAddress,
             status: 'PENDING',
-            distanceKm: payload.deliveryDistanceKm ? Number(payload.deliveryDistanceKm) : null,
-            deliveryFee: payload.deliveryFee ? Number(payload.deliveryFee) : 0,
+            distanceKm: null,
+            deliveryFee: 0,
             livreurId: (payload.deliveryLivreurId as string) || null,
           }
         });

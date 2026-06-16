@@ -24,29 +24,24 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = "ma
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
       />
       
-      {/* Modal Content */}
-      <div className={`relative w-full ${maxWidth} bg-[var(--ui-surface)] rounded-[24px] shadow-2xl flex flex-col m-4 max-h-[90vh]`}>
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--ui-border)]">
-          <h2 className="text-xl font-extrabold text-[var(--ui-text)]">{title}</h2>
+      <div className={`barab-card relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[1.5rem] ${maxWidth}`}>
+        <div className="flex items-center justify-between border-b border-[var(--parabellum-border)] px-5 py-4">
+          <h2 className="text-lg font-bold uppercase tracking-tight text-[var(--parabellum-text)]" style={{ fontFamily: 'var(--title-font)' }}>{title}</h2>
           <button 
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-[var(--ui-bg)] flex items-center justify-center text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-border)] transition-colors"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--parabellum-border)] bg-[var(--parabellum-card)] text-[var(--parabellum-muted)] transition-colors hover:bg-[#fff6ef] hover:text-[var(--parabellum-text)]"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto p-6">
+        <div className="overflow-y-auto p-5">
           {children}
         </div>
       </div>

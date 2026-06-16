@@ -3,53 +3,45 @@
 @import "../components/ui/tokens.css";
 
 @theme {
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-500: #ff6d00;
-  --color-brand-600: #e66200;
-  --color-parabellum-primary: #ff6d00;
-  --color-parabellum-primary-2: #ff9100;
-  --color-parabellum-sidebar: #0f172a;
-  --color-parabellum-sidebar-soft: #1e293b;
-  
-  /* Mode Clair Premium par défaut (Loyverse POS Style) */
-  --color-parabellum-body: #f8fafc;
+  --color-brand-50: #fff5ec;
+  --color-brand-100: #ffe3cc;
+  --color-brand-500: #eb1400;
+  --color-brand-600: #c51000;
+  --color-parabellum-primary: #eb1400;
+  --color-parabellum-primary-2: #ff9924;
+  --color-parabellum-sidebar: #121212;
+  --color-parabellum-sidebar-soft: #1b1b1b;
+  --color-parabellum-body: #fbf7f1;
   --color-parabellum-card: #ffffff;
-  --color-parabellum-border: #e2e8f0;
-  --color-parabellum-text: #0f172a;
-  --color-parabellum-muted: #64748b;
-  
-  --color-pos-bg: #f8fafc;
-  --color-pos-surface: #ffffff;
-  --color-pos-border: #e2e8f0;
-  --color-pos-text: #0f172a;
-  --color-pos-text-muted: #64748b;
-  
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  
-  --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-  --shadow-parabellum: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --color-parabellum-border: #e8dccf;
+  --color-parabellum-text: #121212;
+  --color-parabellum-muted: #6c6c6c;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --shadow-soft: 0 12px 28px rgba(18, 18, 18, 0.08);
+  --shadow-parabellum: 0 20px 45px rgba(18, 18, 18, 0.08);
 }
 
 :root {
-  --font-geist-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-geist-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --parabellum-primary: #ff6d00;
-  --parabellum-primary-2: #ff9100;
-  --parabellum-sidebar: #0f172a;
-  --parabellum-sidebar-soft: #1e293b;
-  --parabellum-body: #f8fafc;
+  --font-geist-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-geist-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --body-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --title-font: "Barlow Condensed", "Arial Narrow", "Helvetica Neue Condensed", sans-serif;
+  --background: #fbf7f1;
+  --foreground: #121212;
+  --parabellum-primary: #eb1400;
+  --parabellum-primary-2: #ff9924;
+  --parabellum-sidebar: #121212;
+  --parabellum-sidebar-soft: #1b1b1b;
+  --parabellum-body: #fbf7f1;
   --parabellum-card: #ffffff;
-  --parabellum-border: #e2e8f0;
-  --parabellum-text: #0f172a;
-  --parabellum-muted: #64748b;
-  --parabellum-success: #10b981;
-  --parabellum-warning: #f59e0b;
-  --parabellum-danger: #ef4444;
-  --parabellum-info: #06b6d4;
+  --parabellum-border: #e8dccf;
+  --parabellum-text: #121212;
+  --parabellum-muted: #6c6c6c;
+  --parabellum-success: #3f9065;
+  --parabellum-warning: #ff9924;
+  --parabellum-danger: #eb1400;
+  --parabellum-info: #2563eb;
 }
 
 @theme inline {
@@ -59,51 +51,361 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), "Poppins", "Open Sans", Arial, sans-serif;
+html {
+  scroll-behavior: smooth;
 }
 
-.parabellum-shell {
+body {
+  min-height: 100%;
   background:
-    radial-gradient(circle at top right, rgba(255, 109, 0, 0.05), transparent 34rem),
-    var(--parabellum-body);
+    radial-gradient(circle at top right, rgba(255, 153, 36, 0.14), transparent 32rem),
+    radial-gradient(circle at left top, rgba(235, 20, 0, 0.08), transparent 26rem),
+    linear-gradient(180deg, #fffefb 0%, var(--background) 58%, #f5efe6 100%);
+  color: var(--foreground);
+  font-family: var(--body-font);
+}
+
+body.barab-theme {
+  position: relative;
+  background:
+    radial-gradient(circle at top right, rgba(255, 153, 36, 0.16), transparent 26rem),
+    radial-gradient(circle at bottom left, rgba(235, 20, 0, 0.08), transparent 22rem),
+    linear-gradient(180deg, #fffdf9 0%, var(--background) 50%, #f7f0e7 100%);
+}
+
+body.barab-theme::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(18, 18, 18, 0.02), transparent 22%),
+    radial-gradient(circle at 80% 12%, rgba(255, 153, 36, 0.1), transparent 18%),
+    radial-gradient(circle at 12% 78%, rgba(235, 20, 0, 0.08), transparent 18%);
+  z-index: -1;
+}
+
+.parabellum-shell,
+.barab-shell {
+  position: relative;
   color: var(--parabellum-text);
 }
 
-.parabellum-sidebar {
-  background: linear-gradient(180deg, var(--parabellum-sidebar) 0%, #171b29 100%);
-  color: #ffffff;
+.parabellum-sidebar,
+.barab-sidebar {
+  background:
+    linear-gradient(180deg, rgba(18, 18, 18, 0.98) 0%, rgba(24, 24, 24, 0.98) 100%);
+  color: #fff8ef;
 }
 
-.parabellum-card {
+.parabellum-topbar,
+.barab-topbar {
+  border-bottom: 1px solid var(--parabellum-border);
+  background: rgba(255, 253, 249, 0.86);
+  backdrop-filter: blur(18px);
+}
+
+.parabellum-card,
+.barab-card,
+.barab-panel,
+.barab-surface {
   border: 1px solid var(--parabellum-border);
   background: var(--parabellum-card);
   box-shadow: var(--shadow-parabellum);
 }
 
-.parabellum-card-muted {
-  border: 1px solid var(--parabellum-border);
-  background: #1e293b;
+.parabellum-card-muted,
+.barab-card-soft {
+  border: 1px solid rgba(232, 220, 207, 0.88);
+  background: linear-gradient(180deg, #fffaf5 0%, #fff 100%);
+  box-shadow: var(--shadow-soft);
 }
 
-.parabellum-gradient {
+.parabellum-gradient,
+.barab-gradient {
   background: linear-gradient(135deg, var(--parabellum-primary) 0%, var(--parabellum-primary-2) 100%);
 }
 
-.parabellum-topbar {
-  border-bottom: 1px solid var(--parabellum-border);
-  background: rgba(21, 27, 44, 0.94);
-  backdrop-filter: blur(16px);
+.parabellum-kicker,
+.barab-kicker {
+  color: var(--parabellum-primary);
+  font-family: var(--title-font);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.parabellum-kicker {
-  color: var(--parabellum-muted);
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+.title-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.title-area .sub-title,
+.title-area .subtitle,
+.title-area .kicker,
+.title-area .eyebrow {
+  color: var(--parabellum-primary);
+  font-family: var(--title-font);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.title-area .sec-title,
+.title-area h1,
+.title-area h2 {
+  color: var(--parabellum-text);
+  font-family: var(--title-font);
+  font-size: clamp(2rem, 3.6vw, 4rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.title-area .desc,
+.title-area p {
+  max-width: 64ch;
+  color: var(--parabellum-muted);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.breadcumb-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(232, 220, 207, 0.88);
+  background:
+    linear-gradient(110deg, rgba(18, 18, 18, 0.98) 0%, rgba(18, 18, 18, 0.84) 42%, rgba(18, 18, 18, 0.62) 100%),
+    url("/brand/barab-hero-bg.png") center right/cover no-repeat;
+  color: #fff8ef;
+}
+
+.breadcumb-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -55% auto;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 153, 36, 0.65) 0%, rgba(255, 153, 36, 0.18) 48%, transparent 72%);
+  pointer-events: none;
+}
+
+.breadcumb-title {
+  font-family: var(--title-font);
+  font-size: clamp(2.4rem, 5vw, 5rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.th-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 0;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: var(--parabellum-primary);
+  color: #fff8ef;
+  font-family: var(--title-font);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 0.95rem 1.5rem;
+  text-transform: uppercase;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+  box-shadow: var(--shadow-soft);
+}
+
+.th-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 52%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.th-btn:hover {
+  background: var(--parabellum-text);
+  transform: translateY(-1px);
+}
+
+.th-btn:hover::before {
+  opacity: 1;
+}
+
+.th-btn:focus-visible {
+  outline: 2px solid rgba(255, 153, 36, 0.45);
+  outline-offset: 2px;
+}
+
+.th-btn--secondary {
+  background: #fff;
+  color: var(--parabellum-text);
+  border-color: var(--parabellum-border);
+}
+
+.th-btn--secondary:hover {
+  background: #fff6ef;
+  color: var(--parabellum-text);
+}
+
+.th-btn--ghost {
+  background: transparent;
+  color: var(--parabellum-text);
+  border-color: var(--parabellum-border);
+  box-shadow: none;
+}
+
+.th-btn--ghost:hover {
+  background: rgba(255, 153, 36, 0.08);
+}
+
+.th-btn--danger {
+  background: var(--parabellum-danger);
+}
+
+.th-btn--danger:hover {
+  background: #a30d00;
+}
+
+.th-input,
+.th-select,
+.th-textarea {
+  width: 100%;
+  border: 1px solid var(--parabellum-border);
+  border-radius: 0.875rem;
+  background: #fffdf9;
+  color: var(--parabellum-text);
+  font-size: 0.95rem;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.th-input:focus,
+.th-select:focus,
+.th-textarea:focus {
+  border-color: rgba(235, 20, 0, 0.36);
+  box-shadow: 0 0 0 4px rgba(255, 153, 36, 0.18);
+}
+
+.th-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(232, 220, 207, 0.95);
+  background: #fffaf4;
+  color: var(--parabellum-text);
+  font-family: var(--title-font);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 0.48rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.th-badge--primary {
+  background: rgba(235, 20, 0, 0.1);
+  border-color: rgba(235, 20, 0, 0.2);
+  color: var(--parabellum-primary);
+}
+
+.th-badge--warning {
+  background: rgba(255, 153, 36, 0.13);
+  border-color: rgba(255, 153, 36, 0.22);
+  color: #b35e00;
+}
+
+.th-badge--success {
+  background: rgba(63, 144, 101, 0.12);
+  border-color: rgba(63, 144, 101, 0.2);
+  color: #2f6f50;
+}
+
+.th-badge--muted {
+  background: #f5efe6;
+  color: var(--parabellum-muted);
+}
+
+.barab-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(232, 220, 207, 0.88);
+  background:
+    linear-gradient(130deg, rgba(18, 18, 18, 0.92) 0%, rgba(18, 18, 18, 0.78) 50%, rgba(18, 18, 18, 0.54) 100%),
+    url("/brand/barab-hero-bg.png") center right/cover no-repeat;
+  color: #fff8ef;
+  box-shadow: var(--shadow-parabellum);
+}
+
+.barab-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(18, 18, 18, 0.12), transparent 60%);
+}
+
+.barab-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.barab-page {
+  position: relative;
+}
+
+.barab-page-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.barab-empty {
+  border: 1px solid var(--parabellum-border);
+  background: #fffaf5;
+  box-shadow: var(--shadow-soft);
+}
+
+.barab-sidebar .text-\[\#171717\],
+.barab-sidebar .text-\[\#212529\],
+.barab-sidebar .text-\[\#495057\] {
+  color: #fff8ef !important;
+}
+
+.barab-sidebar .text-\[\#868e96\],
+.barab-sidebar .text-\[\#adb5bd\],
+.barab-sidebar .text-white\/55,
+.barab-sidebar .text-white\/60,
+.barab-sidebar .text-white\/70 {
+  color: rgba(255, 248, 239, 0.68) !important;
+}
+
+.barab-sidebar .border-\[\#E5E7EB\],
+.barab-sidebar .border-\[\#F0F1F6\],
+.barab-sidebar .border-\[\#dee2e6\],
+.barab-sidebar .border-\[\#2e3440\] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 @page receipt {
@@ -128,7 +430,7 @@ body {
   body:not(.printing-payslip) * {
     visibility: hidden;
   }
-  
+
   body.printing-payslip * {
     visibility: hidden;
   }
@@ -167,107 +469,85 @@ body {
     display: block !important;
   }
 
-  .receipt-actions, .payslip-actions {
+  .receipt-actions,
+  .payslip-actions {
     display: none !important;
   }
 }
 
-/* --- Global Dark Mode Overrides for Restaurateur --- */
 .dark {
-  --background: #0f1115;
-  --foreground: #eceff4;
-  --parabellum-body: #0f1115;
-  --parabellum-card: #181a20;
-  --parabellum-border: #2e3440;
-  --parabellum-text: #eceff4;
-  --parabellum-muted: #8c96a5;
+  --background: #121212;
+  --foreground: #f6f0e7;
+  --parabellum-body: #121212;
+  --parabellum-card: #1b1b1b;
+  --parabellum-border: #34302d;
+  --parabellum-text: #f6f0e7;
+  --parabellum-muted: #b4ab9f;
   color-scheme: dark;
 }
 
-.dark .parabellum-shell {
-  background: var(--parabellum-body);
+.dark body.barab-theme {
+  background:
+    radial-gradient(circle at top right, rgba(255, 153, 36, 0.1), transparent 24rem),
+    radial-gradient(circle at bottom left, rgba(235, 20, 0, 0.08), transparent 20rem),
+    linear-gradient(180deg, #121212 0%, #161412 48%, #1a1715 100%);
+}
+
+.dark body.barab-theme::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent 24%),
+    radial-gradient(circle at 80% 12%, rgba(255, 153, 36, 0.12), transparent 18%),
+    radial-gradient(circle at 12% 78%, rgba(235, 20, 0, 0.1), transparent 18%);
+}
+
+.dark .parabellum-shell,
+.dark .barab-shell {
   color: var(--parabellum-text);
 }
 
-.dark .bg-white,
-.dark .bg-\[white\],
-.dark .bg-\[\#ffffff\],
-.dark .bg-\[\#fff\] {
-  background-color: var(--parabellum-card) !important;
+.dark .parabellum-card,
+.dark .barab-card,
+.dark .barab-panel,
+.dark .barab-surface {
+  background: var(--parabellum-card);
+  border-color: var(--parabellum-border);
 }
 
-.dark .bg-\[\#f8f9fa\],
-.dark .bg-gray-50,
-.dark .bg-gray-50\/50,
-.dark .bg-gray-100,
-.dark .bg-\[\#fafbfc\],
-.dark .bg-\[\#f1f3f5\] {
-  background-color: var(--parabellum-body) !important;
+.dark .parabellum-card-muted,
+.dark .barab-card-soft {
+  background: linear-gradient(180deg, rgba(27, 27, 27, 0.96) 0%, rgba(20, 20, 20, 0.98) 100%);
+  border-color: var(--parabellum-border);
 }
 
-.dark .text-\[\#212529\],
-.dark .text-gray-900,
-.dark .text-gray-800,
-.dark .text-gray-700,
-.dark .text-\[\#495057\] {
-  color: var(--parabellum-text) !important;
+.dark .barab-topbar {
+  background: rgba(22, 22, 22, 0.88);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
-.dark .text-\[\#72788f\],
-.dark .text-gray-500,
-.dark .text-gray-600,
-.dark .text-\[\#adb5bd\],
-.dark .text-slate-500 {
-  color: var(--parabellum-muted) !important;
+.dark .th-btn--secondary {
+  background: var(--parabellum-card);
+  color: var(--parabellum-text);
 }
 
-.dark .border-\[\#dee2e6\],
-.dark .border-\[\#e5e7ef\],
-.dark .border-gray-100,
-.dark .border-gray-200 {
-  border-color: var(--parabellum-border) !important;
+.dark .th-btn--ghost {
+  color: var(--parabellum-text);
 }
 
-/* Topbar background in dark mode */
-.dark header.parabellum-topbar {
-  background: var(--parabellum-card) !important;
-  border-bottom-color: var(--parabellum-border) !important;
+.dark .th-input,
+.dark .th-select,
+.dark .th-textarea {
+  background: #171412;
+  border-color: var(--parabellum-border);
+  color: var(--parabellum-text);
 }
 
-/* Layout content panel custom background */
-.dark main {
-  background-color: var(--parabellum-body) !important;
+.dark .th-badge {
+  background: #1a1715;
+  border-color: var(--parabellum-border);
+  color: var(--parabellum-text);
 }
 
-/* Modals and panels dark background */
-.dark div[class*="shadow-2xl"].bg-white,
-.dark div[class*="shadow-xl"].bg-white {
-  background-color: var(--parabellum-card) !important;
-  border-color: var(--parabellum-border) !important;
-}
-
-/* Tables, headers, inputs dark theme overrides */
-.dark table thead tr {
-  border-bottom-color: var(--parabellum-border) !important;
-}
-
-.dark input, 
-.dark select, 
-.dark textarea {
-  background-color: var(--parabellum-body) !important;
-  border-color: var(--parabellum-border) !important;
-  color: var(--parabellum-text) !important;
-}
-
-/* Force buttons background overrides in dark mode */
-.dark button.bg-white,
-.dark a.bg-white {
-  background-color: var(--parabellum-card) !important;
-  border-color: var(--parabellum-border) !important;
-  color: var(--parabellum-text) !important;
-}
-
-.dark button.bg-white:hover,
-.dark a.bg-white:hover {
-  background-color: var(--parabellum-body) !important;
+.dark .barab-hero,
+.dark .breadcumb-wrapper {
+  border-color: rgba(232, 220, 207, 0.16);
 }

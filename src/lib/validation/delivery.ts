@@ -9,7 +9,7 @@ export const estimateDeliverySchema = z.object({
 export const createDeliveryOrderSchema = z.object({
   orderId: z.string().min(1, "L'orderId est requis"),
   address: z.string().min(5, "L'adresse doit comporter au moins 5 caractères"),
-  deliveryFee: z.number().nonnegative("Les frais de livraison ne peuvent pas être négatifs"),
+  deliveryFee: z.number().nonnegative("Les frais de livraison ne peuvent pas être négatifs").optional(),
   estimatedTimeMinutes: z.number().int().positive().optional().nullable(),
   livreurId: z.string().optional().nullable(),
 });

@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-md w-full px-4 sm:px-0 pointer-events-none">
+      <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex w-full max-w-md flex-col gap-3 px-4 sm:px-0">
         {toasts.map((t) => (
           <ToastCard key={t.id} toast={t} onClose={removeToast} />
         ))}
@@ -59,32 +59,32 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: (id: string)
   }, [toast.id, onClose])
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-[var(--ui-success)]" />,
-    error: <AlertOctagon className="w-5 h-5 text-[var(--ui-danger)]" />,
-    warning: <AlertTriangle className="w-5 h-5 text-[var(--ui-warning)]" />,
-    info: <Info className="w-5 h-5 text-[var(--ui-info)]" />,
+    success: <CheckCircle className="h-5 w-5 text-[var(--parabellum-success)]" />,
+    error: <AlertOctagon className="h-5 w-5 text-[var(--parabellum-danger)]" />,
+    warning: <AlertTriangle className="h-5 w-5 text-[var(--parabellum-warning)]" />,
+    info: <Info className="h-5 w-5 text-[var(--parabellum-info)]" />,
   }
 
   const borderStyles = {
-    success: 'border-l-4 border-l-[var(--ui-success)]',
-    error: 'border-l-4 border-l-[var(--ui-danger)]',
-    warning: 'border-l-4 border-l-[var(--ui-warning)]',
-    info: 'border-l-4 border-l-[var(--ui-info)]',
+    success: 'border-l-4 border-l-[var(--parabellum-success)]',
+    error: 'border-l-4 border-l-[var(--parabellum-danger)]',
+    warning: 'border-l-4 border-l-[var(--parabellum-warning)]',
+    info: 'border-l-4 border-l-[var(--parabellum-info)]',
   }
 
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-2xl bg-[var(--ui-surface)] border border-[var(--ui-border)] shadow-xl ${borderStyles[toast.type]} pointer-events-auto animate-in slide-in-from-bottom duration-300`}
+      className={`pointer-events-auto flex items-start gap-3 rounded-[1rem] border border-[var(--parabellum-border)] bg-[var(--parabellum-card)] p-4 shadow-[0_18px_36px_rgba(18,18,18,0.12)] ${borderStyles[toast.type]} animate-in slide-in-from-bottom duration-200`}
       role="alert"
     >
-      <div className="shrink-0">{icons[toast.type]}</div>
-      <div className="flex-1 text-sm font-bold text-[var(--ui-text)]">{toast.message}</div>
+      <div className="shrink-0 pt-0.5">{icons[toast.type]}</div>
+      <div className="flex-1 text-sm font-medium text-[var(--parabellum-text)]">{toast.message}</div>
       <button
         onClick={() => onClose(toast.id)}
-        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-[var(--ui-secondary-light)] text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors active:scale-90"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--parabellum-border)] bg-[var(--parabellum-card)] text-[var(--parabellum-muted)] transition-colors hover:bg-[#fff6ef] hover:text-[var(--parabellum-text)]"
         aria-label="Fermer la notification"
       >
-        <X className="w-4 h-4" />
+        <X className="h-4 w-4" />
       </button>
     </div>
   )

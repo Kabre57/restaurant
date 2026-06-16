@@ -165,13 +165,10 @@ export default function DriverDashboardPage() {
     if (!selectedDelivery) return;
     setActionLoading(true);
     try {
-      const res = await fetch("/api/delivery/orders", {
-        method: "PUT",
+      const res = await fetch(`/api/delivery/orders/${selectedDelivery.id}/status`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deliveryOrderId: selectedDelivery.id,
-          status: nextStatus,
-        }),
+        body: JSON.stringify({ status: nextStatus }),
       });
       if (res.ok) {
         await fetchDeliveries();

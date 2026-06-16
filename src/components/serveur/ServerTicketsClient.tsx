@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Utensils, Navigation, Clock, CheckCircle2, LayoutList, ChefHat, BellRing, LogOut, RefreshCw, AlertTriangle, ShoppingCart } from 'lucide-react'
+import Image from 'next/image'
+import { Navigation, Clock, CheckCircle2, LayoutList, ChefHat, BellRing, LogOut, RefreshCw, AlertTriangle, ShoppingCart } from 'lucide-react'
 import { ServerColumn } from './ServerColumn'
 import { markOrderServed } from '@/app/actions/orders/orderLifecycle'
 import { signOut } from 'next-auth/react'
@@ -112,8 +113,14 @@ export default function ServerTicketsClient({
     <div className="flex h-screen bg-[#F8F9FA] text-[#171717] font-sans">
       {/* Sidebar */}
       <aside className="flex w-24 flex-col items-center border-r border-[#E5E7EB] bg-white py-6 shadow-sm">
-        <div className="mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FF6D00] shadow-lg shadow-orange-500/30 text-white">
-          <Utensils className="h-7 w-7" />
+        <div className="mb-8 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-sm">
+          <Image
+            src="/logo.svg"
+            alt="Progiteck"
+            width={56}
+            height={56}
+            className="h-full w-full object-contain"
+          />
         </div>
 
         <nav className="flex w-full flex-col gap-2 px-3">

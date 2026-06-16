@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { getStores } from '@/app/actions/store/stores'
@@ -154,7 +155,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className={`flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden ${isDarkMode ? 'dark bg-[#0f1115] text-[#eceff4]' : ''}`}>
+    <div className={`barab-shell flex h-screen overflow-hidden bg-[var(--parabellum-body)] font-sans text-[var(--parabellum-text)] ${isDarkMode ? 'dark' : ''}`}>
       {/* Mobile Sidebar overlay */}
       {isSidebarOpen && (
         <button
@@ -167,16 +168,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[#E5E7EB] bg-white text-[#495057] shadow-lg transition-transform duration-300 dark:border-[#2e3440] dark:bg-[#181a20] dark:text-white/60 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`barab-sidebar fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[rgba(255,255,255,0.08)] text-white/75 shadow-[0_24px_48px_rgba(18,18,18,0.22)] transition-transform duration-300 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         {/* Brand */}
-        <div className="flex h-20 items-center justify-between px-6 border-b border-[#F0F1F6] dark:border-[#2e3440]">
+        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6D00] text-white">
-              <Package className="h-5.5 w-5.5" />
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-[1rem] border border-white/10 bg-black/90 p-1 shadow-[0_14px_28px_rgba(0,0,0,0.22)]">
+              <Image
+                src="/logo.jpg"
+                alt="Progiteck"
+                width={128}
+                height={128}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
-            <span className="text-xl font-black tracking-tight text-[#171717] dark:text-white">Administrateur</span>
+            <div>
+              <span className="block text-lg font-bold uppercase tracking-[0.08em] text-white">Administrateur</span>
+              <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/55">
+                Console de pilotage
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -222,8 +235,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
-                      ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
-                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                      ? 'bg-white/10 text-white shadow-sm'
+                      : 'text-white/55 hover:bg-white/5 hover:text-white'
                       }`}
                   >
                     {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
@@ -246,8 +259,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center gap-3.5 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${active
-                      ? 'bg-[#FF6D00]/10 text-[#FF6D00]'
-                      : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                      ? 'bg-white/10 text-white shadow-sm'
+                      : 'text-white/55 hover:bg-white/5 hover:text-white'
                       }`}
                   >
                     {React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: 'h-5 w-5 shrink-0' })}
@@ -287,7 +300,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-4 border-t border-[#F0F1F6] dark:border-[#2e3440]">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#e03131] transition-all hover:bg-[#fff5f5] dark:hover:bg-white/5"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#ff8b8b] transition-all hover:bg-white/5 hover:text-[#ffd2d2]"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             Déconnexion
@@ -298,7 +311,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Panel */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex h-20 items-center justify-between gap-4 bg-white dark:bg-[#181a20] px-8 shadow-sm border-b border-[#E5E7EB] dark:border-[#2e3440] shrink-0">
+        <header className="barab-topbar flex h-20 shrink-0 items-center justify-between gap-4 px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -343,15 +356,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="text-xs font-black text-[#171717] dark:text-white">Utilisateur administrateur</span>
                 <span className="text-[9px] font-bold uppercase tracking-widest text-[#868e96] dark:text-[#8c96a5]">Superadministrateur</span>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FF6D00] text-xs font-black text-white shadow-md shadow-orange-500/10">
-                AU
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-sm dark:border-[#2e3440] dark:bg-[#181a20]">
+                <Image
+                  src="/logo.svg"
+                  alt="Progiteck"
+                  width={28}
+                  height={28}
+                  className="h-full w-full object-contain"
+                />
               </div>
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto bg-[#F5F6F8] dark:bg-[#0f1115] p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-[var(--parabellum-body)] p-8 custom-scrollbar">
           {children}
         </main>
       </div>

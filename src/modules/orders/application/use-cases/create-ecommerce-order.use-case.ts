@@ -104,15 +104,15 @@ export class CreateEcommerceOrderUseCase {
 
       if (input.deliveryType === "DELIVERY" && input.deliveryAddress) {
         try {
-          // L'estimation ne sert qu'aux coordonnées et au temps, jamais au prix facturé.
-          const estimation = await DeliveryService.estimateDelivery(
+          // Le devis serveur reste la seule référence pour le prix facturé.
+          const quote = await DeliveryService.getDeliveryQuote(
             input.deliveryAddress,
             input.storeId
           );
-          estLatitude = estimation.latitude;
-          estLongitude = estimation.longitude;
-          estDistanceKm = estimation.distanceKm;
-          estTimeMinutes = Math.max(settings.preparationDelayMinutes, estimation.estimatedTimeMinutes);
+          estLatitude = quote.latitude;
+          estLongitude = quote.longitude;
+          estDistanceKm = quote.distanceKm;
+          estTimeMinutes = Math.max(settings.preparationDelayMinutes, quote.estimatedTimeMinutes);
         } catch (err) {
           console.warn("Échec de l'estimation de livraison, conservation du forfait configuré:", err);
         }

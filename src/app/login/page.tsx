@@ -1,31 +1,46 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, Loader2, Utensils } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 
 const ROLE_CONFIG = {
-  ADMIN:        { redirect: "/admin/dashboard" },
+  ADMIN: { redirect: "/admin/dashboard" },
   RESTAURATEUR: { redirect: "/restaurateur/stats" },
-  CASHIER:      { redirect: "/cashier" },
-  KITCHEN:      { redirect: "/kds" },
-  SERVER:       { redirect: "/serveur" },
+  CASHIER: { redirect: "/cashier" },
+  KITCHEN: { redirect: "/kds" },
+  SERVER: { redirect: "/serveur" },
 } as const;
 
+type SessionResponse = {
+  user?: {
+    role?: keyof typeof ROLE_CONFIG;
+  };
+};
+
 function LoginForm() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl  = searchParams.get("callbackUrl") ?? "";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "";
 
-  const [email,    setEmail]    = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPwd,  setShowPwd]  = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -43,179 +58,218 @@ function LoginForm() {
       return;
     }
 
-    // Redirection
     if (callbackUrl) {
       router.push(callbackUrl);
     } else {
       const res = await fetch("/api/auth/session");
-      const data = await res.json();
-      const role = data?.user?.role as keyof typeof ROLE_CONFIG;
-      const target = ROLE_CONFIG[role]?.redirect ?? "/restaurateur/stats";
+      const data: SessionResponse = await res.json();
+      const role = data.user?.role;
+      const target = role ? ROLE_CONFIG[role]?.redirect ?? "/restaurateur/stats" : "/restaurateur/stats";
       router.push(target);
     }
+
+    if (rememberMe) {
+      localStorage.setItem("parabellum_login_email", email);
+    } else {
+      localStorage.removeItem("parabellum_login_email");
+    }
+
     router.refresh();
   }
 
   return (
-    <div className="min-h-screen flex bg-white font-sans">
-      
-      {/* Colonne de Gauche : Grande image d'ambiance (uniquement sur md+) */}
-      <div className="hidden md:flex md:w-1/2 lg:w-[50%] xl:w-[40%] relative">
-        <img
+    <div className="grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
+      <section className="relative hidden overflow-hidden lg:flex">
+        <Image
           src="/restaurant-interior.jpg"
-          alt="Restaurant Interior"
-          className="absolute inset-0 w-full h-full object-cover"
+          alt="Intérieur du restaurant"
+          fill
+          priority
+          className="object-cover object-center"
         />
-        {/* Overlay sombre élégant pour la lisibilité */}
-        <div className="absolute inset-0 bg-black/40" />
-        
-        {/* Texte en bas à gauche */}
-        <div className="absolute bottom-16 left-12 pr-12 text-white z-10">
-          <h2 className="text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight">
-            Gérez votre restaurant<br />en toute simplicité.
-          </h2>
-        </div>
-      </div>
+        <div className="absolute inset-0 bg-[linear-gradient(130deg,rgba(18,18,18,0.86),rgba(18,18,18,0.58),rgba(18,18,18,0.28))]" />
 
-      {/* Colonne de Droite : Formulaire de connexion sur fond blanc */}
-      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white">
-        <div className="w-full max-w-[420px] flex flex-col justify-center">
-          
-          {/* Logo orange couverts croisés */}
-          <div className="w-12 h-12 bg-[#FF6D00] rounded-[16px] flex items-center justify-center mb-6 shadow-md shadow-[#FF6D00]/10">
-            <Utensils className="text-white" size={24} />
+        <div className="relative z-10 flex min-h-screen flex-col justify-between p-10 xl:p-14">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[1rem] border border-white/10 bg-black/90 p-1 shadow-[0_14px_28px_rgba(0,0,0,0.22)]">
+              <Image
+                src="/logo.jpg"
+                alt="Progiteck"
+                width={128}
+                height={128}
+                className="h-full w-full object-contain"
+                priority
+              />
+            </div>
+            <div>
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-white/70">
+                Parabellum POS
+              </p>
+              <p className="text-sm text-white/65">Gestion restaurant & commerce</p>
+            </div>
           </div>
 
-          {/* Titre & Sous-titre */}
-          <h1 className="text-3xl font-extrabold text-[#171717] tracking-tight mb-2">
-            Bienvenue
-          </h1>
-          <p className="text-[#6B7280] font-medium text-sm mb-8">
-            Connectez-vous à votre espace.
-          </p>
+          <div className="max-w-xl space-y-6 text-white">
+            <span className="th-badge w-fit border-white/15 bg-white/10 text-white">
+              <ShieldCheck className="h-4 w-4" />
+              Espace sécurisé
+            </span>
+            <h1 className="max-w-lg text-5xl font-extrabold uppercase leading-[0.88] tracking-tight xl:text-6xl" style={{ fontFamily: 'var(--title-font)' }}>
+              Pilotez votre restaurant avec une interface claire.
+            </h1>
+            <p className="max-w-xl text-base leading-7 text-white/80">
+              Commandes, caisse, cuisine et e-commerce s’alignent dans une expérience unique,
+              pensée pour les équipes qui travaillent vite et sans friction.
+            </p>
+          </div>
 
-          {/* Alert Erreur */}
-          {error && (
-            <div className="bg-red-50 border border-red-100 text-red-700 text-xs font-semibold px-4 py-3.5 rounded-[12px] mb-6 text-center">
-              {error}
-            </div>
-          )}
-
-          {/* Formulaire de Connexion */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            {/* Adresse Email */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#171717] ml-1 block">
-                Adresse Email
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
-                  <Mail size={18} />
-                </span>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="resto@gourmet.ci"
-                  required
-                  className="w-full pl-11 pr-4 py-3.5 bg-[#EFF3F8] rounded-[14px] outline-none text-sm font-medium text-[#171717] border border-[#EFF3F8] focus:border-[#FF6D00] focus:ring-2 focus:ring-[#FF6D00]/10 focus:bg-white transition-all"
-                />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { label: "Commandes", value: "Temps réel" },
+              { label: "Caisse", value: "Flux unifié" },
+              { label: "E-commerce", value: "Source serveur" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[1rem] border border-white/10 bg-white/10 p-4 text-white backdrop-blur">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/65">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-base font-semibold uppercase tracking-wide">{item.value}</p>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            {/* Mot de passe */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-[#171717] ml-1 block">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
-                  <Lock size={18} />
-                </span>
-                <input
-                  id="password"
-                  type={showPwd ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full pl-11 pr-12 py-3.5 bg-[#EFF3F8] rounded-[14px] outline-none text-sm font-medium text-[#171717] border border-[#EFF3F8] focus:border-[#FF6D00] focus:ring-2 focus:ring-[#FF6D00]/10 focus:bg-white transition-all"
-                />
+      <section className="flex items-center justify-center px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex items-center gap-4">
+            <Image
+              src="/logo.jpg"
+              alt="Progiteck"
+              width={56}
+              height={56}
+              priority
+              className="h-14 w-14 rounded-[1rem] border border-[var(--parabellum-border)] bg-black/90 p-1 object-contain"
+            />
+            <div>
+              <p className="barab-kicker">Connexion</p>
+              <h2 className="mt-1 text-3xl font-bold uppercase leading-none tracking-tight text-[var(--parabellum-text)]">
+                Bienvenue
+              </h2>
+            </div>
+          </div>
+
+          <div className="barab-card rounded-[1.5rem] p-6 sm:p-7">
+            {error && (
+              <div className="mb-5 rounded-[1rem] border border-[rgba(235,20,0,0.2)] bg-[rgba(235,20,0,0.08)] px-4 py-3 text-sm text-[var(--parabellum-danger)]">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-[var(--parabellum-text)]">
+                  Adresse e-mail
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--parabellum-muted)]" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="resto@gourmet.ci"
+                    required
+                    className="th-input h-12 pl-10 pr-4"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-[var(--parabellum-text)]">
+                  Mot de passe
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--parabellum-muted)]" />
+                  <input
+                    id="password"
+                    type={showPwd ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="th-input h-12 pl-10 pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--parabellum-muted)] transition-colors hover:text-[var(--parabellum-text)]"
+                    aria-label={showPwd ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <label className="flex items-center gap-2 font-medium text-[var(--parabellum-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border-[var(--parabellum-border)] text-[var(--parabellum-primary)] focus:ring-[var(--parabellum-primary)]"
+                  />
+                  Se souvenir de moi
+                </label>
                 <button
                   type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#171717] transition-colors"
+                  className="text-sm font-semibold text-[var(--parabellum-primary)] transition-colors hover:text-[var(--parabellum-text)]"
+                  onClick={() => alert("Veuillez contacter votre administrateur pour réinitialiser votre mot de passe.")}
                 >
-                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Mot de passe oublié ?
                 </button>
               </div>
-            </div>
 
-            {/* Se souvenir de moi & Mot de passe oublié */}
-            <div className="flex items-center justify-between text-xs pt-1">
-              <label className="flex items-center gap-2 font-bold text-[#6B7280] cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-[#EFF3F8] text-[#FF6D00] focus:ring-[#FF6D00]/20 w-4 h-4 cursor-pointer"
-                />
-                Se souvenir de moi
-              </label>
-              <button
-                type="button"
-                className="font-bold text-[#FF6D00] hover:text-[#E66200] transition-colors"
-                onClick={() => alert("Veuillez contacter votre administrateur pour réinitialiser votre mot de passe.")}
-              >
-                Mot de passe oublié ?
+              <button type="submit" disabled={loading} className="th-btn w-full justify-center">
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Connexion...
+                  </>
+                ) : (
+                  <>
+                    Se connecter
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
-            </div>
+            </form>
+          </div>
 
-            {/* Bouton de Soumission Orange */}
-            <button
-              id="login-submit"
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 bg-[#FF6D00] hover:bg-[#E66200] disabled:opacity-60 text-white font-extrabold rounded-[18px] shadow-lg shadow-[#FF6D00]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-6 text-sm"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Connexion...
-                </>
-              ) : (
-                "Se connecter"
-              )}
-            </button>
-          </form>
-
-          {/* Lien d'inscription */}
-          <p className="text-center text-xs font-bold text-[#6B7280] pt-6">
+          <p className="text-center text-sm text-[var(--parabellum-muted)]">
             Vous n'avez pas de compte ?{" "}
             <a
               href="/register"
-              className="text-[#FF6D00] hover:text-[#E66200] hover:underline transition-colors"
+              className="font-semibold text-[var(--parabellum-primary)] transition-colors hover:text-[var(--parabellum-text)]"
             >
               Créez gratuitement votre compte
             </a>
           </p>
-
         </div>
-      </div>
-      
+      </section>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7]">
-        <Loader2 className="animate-spin text-[#FF6D00]" size={36} />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
+          <Loader2 className="h-10 w-10 animate-spin text-[var(--parabellum-primary)]" />
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

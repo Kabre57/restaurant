@@ -30,6 +30,11 @@ describe("DeliveryService Unit Tests", () => {
       data: {
         name: `Resto Unit Test ${Date.now()}`,
         commission: 12.0,
+        ecommerceEnabled: true,
+        deliveryEnabled: true,
+        clickAndCollectEnabled: true,
+        deliveryFee: 1200,
+        preparationDelayMinutes: 30,
       },
     })
     storeId = store.id
@@ -113,11 +118,19 @@ describe("DeliveryService Unit Tests", () => {
     expect(est.estimatedTimeMinutes).toBeGreaterThan(0)
   })
 
+  it("should build a server quote using the store delivery fee", async () => {
+    const quote = await DeliveryService.getDeliveryQuote("Marcory, Abidjan", storeId)
+    expect(quote.address).toBe("Marcory, Abidjan")
+    expect(quote.distanceKm).toBeGreaterThan(0)
+    expect(quote.calculatedDeliveryFee).toBeGreaterThan(500)
+    expect(quote.deliveryFee).toBe(1200)
+    expect(quote.configuredDeliveryFee).toBe(1200)
+  })
+
   it("should create delivery order correctly", async () => {
     const delivery = await DeliveryService.createDeliveryOrder({
       orderId,
       address: "Zone 4, Abidjan",
-      deliveryFee: 1200,
       estimatedTimeMinutes: 25,
     })
 
@@ -131,7 +144,6 @@ describe("DeliveryService Unit Tests", () => {
     const delivery = await DeliveryService.createDeliveryOrder({
       orderId,
       address: "Plateau, Abidjan",
-      deliveryFee: 1000,
     })
 
     const updated = await DeliveryService.updateDeliveryStatus(
@@ -150,5 +162,16 @@ describe("DeliveryService Unit Tests", () => {
     )
     expect(completed.status).toBe("DELIVERED")
     expect(completed.deliveredAt).toBeDefined()
+  })
+
+  it("should reject an invalid delivery status transition", async () => {
+    const delivery = await DeliveryService.createDeliveryOrder({
+      orderId,
+      address: "Koumassi, Abidjan",
+    })
+
+    await expect(
+      DeliveryService.updateDeliveryStatus(delivery.id, "PICKED_UP" as DeliveryOrderStatus)
+    ).rejects.toThrow("Transition de livraison invalide")
   })
 })

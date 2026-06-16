@@ -1,4 +1,5 @@
 import React from 'react'
+import Image from 'next/image'
 import { User, Shield, Key, Mail, Lock, Sparkles } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -20,8 +21,14 @@ export default async function AdminProfilePage() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         {/* Left Side: Avatar Card */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-7 shadow-sm text-center flex flex-col items-center justify-center">
-          <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-[#FF6D00] text-3xl font-black text-white shadow-lg shadow-orange-500/20">
-            AU
+          <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-[#E5E7EB] bg-white p-3 shadow-lg shadow-black/5">
+            <Image
+              src="/logo.svg"
+              alt="Progiteck"
+              width={96}
+              height={96}
+              className="h-full w-full object-contain"
+            />
             <div className="absolute bottom-0 right-0 rounded-full border-4 border-white bg-green-500 p-2" />
           </div>
           <h2 className="mt-5 text-base font-black text-black">Utilisateur administrateur</h2>

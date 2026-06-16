@@ -171,7 +171,7 @@ export function PaymentModal({
                   value={deliveryAddress || ''}
                   onChange={(val) => {
                     onDeliveryAddressChange?.(val);
-                    handleAddressSelect?.(val);
+                    void handleAddressSelect?.(val);
                   }}
                   lightTheme={true}
                 />

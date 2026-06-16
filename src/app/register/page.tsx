@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Loader2, Utensils, Building, Globe, Check, AlertCircle, ToggleLeft, ToggleRight, Tag, ShoppingBag, RotateCcw, Wallet, WifiOff } from "lucide-react";
@@ -132,8 +133,8 @@ export default function RegisterPage() {
 
         {/* Logo & Header */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#FF6D00] rounded-[12px] flex items-center justify-center shadow-lg shadow-[#FF6D00]/25">
-            <Utensils className="text-white" size={20} />
+          <div className="w-10 h-10 overflow-hidden rounded-[12px] border border-white/10 bg-black/90 p-1 flex items-center justify-center shadow-lg shadow-black/20">
+            <Image src="/logo.jpg" alt="Progiteck" width={40} height={40} className="h-full w-full object-contain" />
           </div>
           <span className="text-xl font-black text-white tracking-wider">Gourmet POS</span>
         </div>

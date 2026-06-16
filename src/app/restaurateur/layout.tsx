@@ -259,8 +259,13 @@ export default function RestaurateurLayout({ children }: { children: React.React
     router.refresh()
   }
 
+  const sidebarItemInactive = 'text-white/55 hover:bg-white/5 hover:text-white'
+  const sidebarItemActive = 'bg-white/10 text-white shadow-sm'
+  const sidebarSubItemInactive = 'text-white/50 hover:bg-white/5 hover:text-white'
+  const sidebarSubItemActive = 'bg-white/10 text-white font-bold'
+
   return (
-    <div className={`flex h-screen bg-[#F5F6F8] font-sans text-[#171717] overflow-hidden ${isDarkMode ? 'dark bg-[#0f1115] text-[#eceff4]' : ''}`}>
+    <div className={`barab-shell flex h-screen overflow-hidden bg-[var(--parabellum-body)] font-sans text-[var(--parabellum-text)] ${isDarkMode ? 'dark' : ''}`}>
       {isSidebarOpen && (
         <button
           type="button"
@@ -272,16 +277,28 @@ export default function RestaurateurLayout({ children }: { children: React.React
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[#E5E7EB] bg-white text-[#495057] shadow-xl transition-transform duration-300 dark:border-[#2e3440] dark:bg-[#181a20] dark:text-white/60 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${
+        className={`barab-sidebar fixed inset-y-0 left-0 z-40 flex w-[18.5rem] flex-col border-r border-[rgba(255,255,255,0.08)] text-white/75 shadow-[0_24px_48px_rgba(18,18,18,0.22)] transition-transform duration-300 lg:static lg:w-[18.5rem] lg:translate-x-0 lg:shadow-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-20 items-center justify-between px-6 border-b border-[#F0F1F6] dark:border-[#2e3440]">
+        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div className="flex items-center gap-3">
-            <div className="parabellum-gradient flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg text-white">
-              <Store className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-[1rem] border border-white/10 bg-black/90 p-1 shadow-[0_14px_28px_rgba(0,0,0,0.22)]">
+              <Image
+                src="/logo.jpg"
+                alt="Progiteck"
+                width={128}
+                height={128}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
-            <span className="text-lg font-black uppercase tracking-tighter text-[#171717] dark:text-white">Restaurateur</span>
+            <div>
+              <span className="block text-lg font-bold uppercase tracking-[0.08em] text-white">Restaurateur</span>
+              <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/55">
+                Gestion restaurant
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -390,10 +407,10 @@ export default function RestaurateurLayout({ children }: { children: React.React
                   <div
                     className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer ${
                       isDirectActive
-                        ? 'bg-[#FF6D00]/10 text-[#FF6D00] dark:bg-white/10 dark:text-[#FF6D00] shadow-md dark:shadow-black/10 font-bold'
+                        ? sidebarItemActive
                         : isSubActive
-                        ? 'text-[#FF6D00]/80 dark:text-[#FF6D00]/95 font-bold bg-[#FF6D00]/5 dark:bg-white/5'
-                        : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white'
+                        ? 'bg-white/5 text-white font-bold'
+                        : sidebarItemInactive
                     }`}
                     onClick={() => {
                       if (filteredSubItems) {
@@ -426,8 +443,8 @@ export default function RestaurateurLayout({ children }: { children: React.React
                             onClick={() => setIsSidebarOpen(false)}
                             className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
                               isSubItemActive
-                                ? 'bg-[#FF6D00]/10 text-[#FF6D00] dark:bg-white/15 dark:text-white font-bold'
-                                : 'text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/90'
+                                ? sidebarSubItemActive
+                                : sidebarSubItemInactive
                             }`}
                           >
                             {React.cloneElement(subItem.icon as React.ReactElement<{ className?: string }>, { className: 'h-3.5 w-3.5 shrink-0 opacity-70' })}
@@ -447,14 +464,14 @@ export default function RestaurateurLayout({ children }: { children: React.React
           <Link
             href="/"
             onClick={() => setIsSidebarOpen(false)}
-            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-[#868e96] hover:bg-[#F8F9FA] hover:text-[#171717] dark:text-white/55 dark:hover:bg-white/10 dark:hover:text-white transition-all"
+            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-white/55 hover:bg-white/5 hover:text-white transition-all"
           >
             <ChevronLeft className="h-5 w-5 shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-widest">Retour POS</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-[#e03131] hover:bg-[#fff5f5] dark:text-white/55 dark:hover:bg-white/10 dark:hover:text-[var(--parabellum-danger)] transition-all"
+            className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-[#ff8b8b] hover:bg-white/5 hover:text-[#ffd2d2] transition-all"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className="text-[10px] font-black uppercase tracking-widest">Déconnexion</span>
@@ -463,7 +480,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-20 items-center justify-between gap-4 border-b border-[#E5E7EB] bg-white px-4 py-3 dark:border-[#2e3440] dark:bg-[#181a20] md:px-6 lg:px-10 shadow-sm shrink-0">
+        <header className="barab-topbar flex h-20 shrink-0 items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-3 md:gap-4">
             <button
               type="button"
@@ -511,7 +528,7 @@ export default function RestaurateurLayout({ children }: { children: React.React
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#F5F6F8] dark:bg-[#0f1115] p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-[var(--parabellum-body)] p-8 custom-scrollbar">
           {children}
         </main>
       </div>

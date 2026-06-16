@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ProductCard } from "@/components/ecommerce/ProductCard";
 import { CartDrawer } from "@/components/ecommerce/CartDrawer";
 import { useEcommerceCart } from "@/store/useEcommerceCart";
-import { Search, ShoppingCart, Utensils, Store, Loader2, Sparkles, MapPin } from "lucide-react";
+import { Search, ShoppingCart, Utensils, Store, Loader2, MapPin } from "lucide-react";
 import type { EcommerceSettings } from "@/lib/ecommerce-settings";
 
 type StoreData = {
@@ -113,36 +113,26 @@ export function MenuClient({ initialStores, initialCategories }: MenuClientProps
   const totalItemsCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="relative min-h-screen pb-20">
-      {/* Banner de bienvenue stylisé */}
-      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 text-white py-12 px-4 shadow-md relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl translate-x-20 -translate-y-20 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-black/5 rounded-full blur-3xl -translate-x-40 translate-y-40 pointer-events-none" />
-        
-        <div className="mx-auto max-w-7xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-3">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-              Commande en ligne
-            </span>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight">
-              Parabellum Gourmet POS
-            </h1>
-            <p className="mt-2 text-orange-50/90 text-sm md:text-base max-w-xl">
-              Commandez de succulents plats fraîchement préparés selon les modes proposés par le restaurant.
+    <div className="barab-page min-h-screen pb-20">
+      <header className="breadcumb-wrapper">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="title-area max-w-3xl">
+            <span className="sub-title">Commande en ligne</span>
+            <h1 className="sec-title text-white">Menu public</h1>
+            <p className="desc text-white/78">
+              Les disponibilités, les modes de commande et les frais sont pilotés par la configuration du restaurant.
             </p>
           </div>
 
-          {/* Sélecteur d'établissement */}
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex flex-col gap-2 min-w-[280px]">
-            <label className="text-xs font-bold uppercase tracking-wider text-orange-100 flex items-center gap-1.5">
+          <div className="barab-card w-full max-w-md rounded-[1.25rem] p-4">
+            <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--parabellum-muted)]">
               <Store className="h-3.5 w-3.5" />
               Choisissez votre restaurant
             </label>
             <select
               value={selectedStoreId}
               onChange={(e) => handleStoreChange(e.target.value)}
-              className="bg-white text-gray-800 rounded-xl px-3 py-2.5 text-sm font-semibold border-none focus:ring-2 focus:ring-orange-500 outline-none w-full"
+              className="th-select h-11 px-3 text-sm"
             >
               {initialStores.map((store) => (
                 <option key={store.id} value={store.id}>
@@ -151,54 +141,50 @@ export function MenuClient({ initialStores, initialCategories }: MenuClientProps
               ))}
             </select>
             {selectedStoreId && (
-              <span className="text-xs text-orange-100/80 flex items-center gap-1 mt-1">
+              <span className="mt-3 flex items-center gap-1 text-xs text-[var(--parabellum-muted)]">
                 <MapPin className="h-3.5 w-3.5" />
                 {selectedStore?.address || "Adresse non disponible"}
               </span>
             )}
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        {/* Barre de recherche et Catégories */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-8">
-          {/* Recherche */}
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-[var(--parabellum-muted)]" />
             <input
               type="text"
               placeholder="Rechercher un plat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-orange-500 focus:outline-none shadow-sm transition-colors"
+              className="th-input h-11 w-full pl-10 pr-4"
             />
           </div>
 
-          {/* Bouton de panier flottant / barre supérieure */}
           <button
             onClick={() => setIsCartOpen(true)}
             disabled={!canOrderOnline}
-            className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-orange-200 rounded-xl px-5 py-3 text-sm font-bold text-gray-800 shadow-sm transition-all hover:bg-orange-50/30 group active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="th-btn th-btn--secondary inline-flex h-11 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <ShoppingCart className="h-4.5 w-4.5 text-orange-500 group-hover:scale-110 transition-transform" />
+            <ShoppingCart className="h-4.5 w-4.5 text-[var(--parabellum-primary)]" />
             Panier
             {totalItemsCount > 0 && (
-              <span className="bg-orange-500 text-white rounded-full text-xs px-2 py-0.5 animate-bounce">
+              <span className="rounded-full bg-[var(--parabellum-primary)] px-2 py-0.5 text-xs text-white">
                 {totalItemsCount}
               </span>
             )}
           </button>
         </div>
 
-        {/* Catégories Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none mb-8">
+        <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
           <button
             onClick={() => setSelectedCategoryId("")}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+            className={`th-badge whitespace-nowrap transition-all ${
               selectedCategoryId === ""
-                ? "bg-gray-800 text-white shadow-md"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                ? "th-badge--primary"
+                : "th-badge--muted hover:bg-[#fffaf5]"
             }`}
           >
             Tout le Menu
@@ -207,10 +193,10 @@ export function MenuClient({ initialStores, initialCategories }: MenuClientProps
             <button
               key={category.id}
               onClick={() => setSelectedCategoryId(category.id)}
-              className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+              className={`th-badge whitespace-nowrap transition-all ${
                 selectedCategoryId === category.id
-                  ? "bg-gray-800 text-white shadow-md"
-                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                  ? "th-badge--primary"
+                  : "th-badge--muted hover:bg-[#fffaf5]"
               }`}
             >
               {category.name}
@@ -218,43 +204,41 @@ export function MenuClient({ initialStores, initialCategories }: MenuClientProps
           ))}
         </div>
 
-        {/* Produits Grid */}
         {!selectedStore ? (
-          <div className="text-center py-20 bg-white border border-gray-100 rounded-2xl p-8 shadow-sm max-w-md mx-auto">
-            <Store className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-base font-bold text-gray-800">Aucun restaurant disponible</h3>
+          <div className="barab-empty mx-auto max-w-md rounded-[1.25rem] p-8 text-center">
+            <Store className="mx-auto mb-4 h-12 w-12 text-[var(--parabellum-primary)]" />
+            <h3 className="text-lg font-bold uppercase tracking-tight text-[var(--parabellum-text)]">Aucun restaurant disponible</h3>
           </div>
         ) : !canOrderOnline ? (
-          <div className="text-center py-20 bg-white border border-gray-100 rounded-2xl p-8 shadow-sm max-w-md mx-auto">
-            <Store className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-base font-bold text-gray-800">Boutique fermée temporairement</h3>
-            <p className="text-sm text-gray-500 mt-1">
+          <div className="barab-empty mx-auto max-w-md rounded-[1.25rem] p-8 text-center">
+            <Store className="mx-auto mb-4 h-12 w-12 text-[var(--parabellum-primary)]" />
+            <h3 className="text-lg font-bold uppercase tracking-tight text-[var(--parabellum-text)]">Boutique fermée temporairement</h3>
+            <p className="mt-1 text-sm text-[var(--parabellum-muted)]">
               Les commandes en ligne ne sont pas disponibles pour cet établissement.
             </p>
           </div>
         ) : loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-            <Loader2 className="h-10 w-10 animate-spin text-orange-500 mb-2" />
-            <span className="text-sm font-semibold">Chargement des plats...</span>
+          <div className="flex flex-col items-center justify-center py-20 text-[var(--parabellum-muted)]">
+            <Loader2 className="mb-2 h-10 w-10 animate-spin text-[var(--parabellum-primary)]" />
+            <span className="text-sm font-semibold uppercase tracking-wide">Chargement des plats...</span>
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-20 bg-white border border-gray-100 rounded-2xl p-8 shadow-sm max-w-md mx-auto">
-            <Utensils className="h-12 w-12 text-gray-300 mx-auto mb-4 animate-pulse" />
-            <h3 className="text-base font-bold text-gray-800">Aucun produit disponible</h3>
-            <p className="text-sm text-gray-500 mt-1">
+          <div className="barab-empty mx-auto max-w-md rounded-[1.25rem] p-8 text-center">
+            <Utensils className="mx-auto mb-4 h-12 w-12 text-[var(--parabellum-primary)]" />
+            <h3 className="text-lg font-bold uppercase tracking-tight text-[var(--parabellum-text)]">Aucun produit disponible</h3>
+            <p className="mt-1 text-sm text-[var(--parabellum-muted)]">
               Nous n'avons pas trouvé de plats correspondants à vos filtres pour cet établissement.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Cart Drawer */}
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );

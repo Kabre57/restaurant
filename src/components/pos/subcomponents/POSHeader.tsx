@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import type { Table } from '@prisma/client'
 import { Search, Map as MapIcon, Menu, ShoppingBag, Camera } from 'lucide-react'
@@ -72,6 +73,16 @@ export function POSHeader({
             >
               <Menu className="h-5 w-5" />
             </button>
+
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-[#e9ecef] bg-white p-1 shadow-sm">
+              <Image
+                src="/logo.svg"
+                alt="Progiteck"
+                width={44}
+                height={44}
+                className="h-full w-full object-contain"
+              />
+            </div>
 
             <div>
               <h1 className="text-lg font-black uppercase tracking-tighter text-[#212529] md:text-xl">{title}</h1>

@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import {
-  Utensils, X, ArrowLeft, LayoutGrid, History, Settings, Sun, Moon, LogOut
+  X, ArrowLeft, LayoutGrid, History, Settings, Sun, Moon, LogOut
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -31,8 +32,14 @@ export function KDSSidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-40 flex w-[16rem] max-w-[84vw] flex-col gap-8 border-r px-4 py-6 shadow-sm transition-transform duration-300 lg:static lg:w-20 lg:max-w-none lg:translate-x-0 lg:items-center lg:px-0 lg:py-8 transition-colors ${asideThemeClass} ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between lg:flex-col lg:gap-10">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${isDarkMode ? 'bg-amber-400 text-[#12141c]' : 'bg-[#212529] text-white'}`}>
-          <Utensils className="h-6 w-6" />
+        <div className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border p-1 shadow-lg ${isDarkMode ? 'border-white/10 bg-black/90' : 'border-[#dee2e6] bg-white'}`}>
+          <Image
+            src={isDarkMode ? '/logo.jpg' : '/logo.svg'}
+            alt="Progiteck"
+            width={48}
+            height={48}
+            className="h-full w-full object-contain"
+          />
         </div>
         <button
           type="button"

@@ -60,6 +60,11 @@ describe("Delivery Flow Integration Tests", () => {
       data: {
         name: `Resto Delivery Flow ${Date.now()}`,
         commission: 15.0,
+        ecommerceEnabled: true,
+        deliveryEnabled: true,
+        clickAndCollectEnabled: true,
+        deliveryFee: 1400,
+        preparationDelayMinutes: 30,
       },
     })
     testStoreId = store.id
@@ -154,9 +159,10 @@ describe("Delivery Flow Integration Tests", () => {
 
   it("should process delivery order creation, driver assignment, GPS tracking, and delivery completion", async () => {
     // 1. Estimate delivery parameters
-    const estimation = await DeliveryService.estimateDelivery("Riviera 3, Abidjan", testStoreId)
+    const estimation = await DeliveryService.getDeliveryQuote("Riviera 3, Abidjan", testStoreId)
     expect(estimation.address).toBe("Riviera 3, Abidjan")
     expect(estimation.distanceKm).toBeGreaterThan(0)
+    expect(estimation.deliveryFee).toBe(1400)
 
     // 2. Submit order through POS Server Action
     const orderPayload = {
@@ -169,14 +175,11 @@ describe("Delivery Flow Integration Tests", () => {
           price: 4500,
         },
       ],
-      amountPaid: 4500 + estimation.deliveryFee,
       paymentMethod: "CASH",
       externalPayload: {
         deliveryAddress: estimation.address,
         deliveryClientName: "Koffi Yao",
         deliveryClientPhone: "+2250505050505",
-        deliveryDistanceKm: estimation.distanceKm,
-        deliveryFee: estimation.deliveryFee,
       },
     }
 

@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DeliveryService } from "@/services/delivery.service";
 import { estimateDeliverySchema } from "@/lib/validation/delivery";
-import { prisma } from "@/lib/db";
-import {
-  assertEcommerceOrderAllowed,
-  ecommerceSettingsSelect,
-  normalizeEcommerceSettings,
-} from "@/lib/ecommerce-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -21,30 +15,23 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const store = await prisma.store.findUnique({
-      where: { id: result.data.storeId },
-      select: ecommerceSettingsSelect,
+    const quote = await DeliveryService.getDeliveryQuote(result.data.address, result.data.storeId, {
+      requireEnabled: true,
     });
 
-    if (!store) {
-      return NextResponse.json({ error: "Restaurant introuvable" }, { status: 404 });
-    }
-
-    const settings = normalizeEcommerceSettings(store);
-    try {
-      assertEcommerceOrderAllowed(settings, "DELIVERY");
-    } catch {
-      return NextResponse.json({ error: "Livraison indisponible pour ce restaurant" }, { status: 403 });
-    }
-
-    const estimation = await DeliveryService.estimateDelivery(result.data.address, result.data.storeId);
-    return NextResponse.json({
-      ...estimation,
-      deliveryFee: settings.deliveryFee,
-      preparationDelayMinutes: settings.preparationDelayMinutes,
-    });
+    return NextResponse.json(quote);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Erreur d'estimation de la livraison";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: msg,
+      },
+      {
+        status:
+          msg.includes("disponible") || msg.includes("Boutique fermée temporairement")
+            ? 403
+            : 400,
+      }
+    );
   }
 }

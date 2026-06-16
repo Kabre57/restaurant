@@ -1,5 +1,6 @@
 import React from 'react'
-import { Utensils, X, ArrowLeft, LayoutGrid, History, Settings, Sun, Moon, LogOut } from 'lucide-react'
+import Image from 'next/image'
+import { X, ArrowLeft, LayoutGrid, History, Settings, Sun, Moon, LogOut } from 'lucide-react'
 import Link from 'next/link'
 
 interface KDSSidebarProps {
@@ -34,8 +35,14 @@ export default function KDSSidebar({
       isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
     }`}>
       <div className="flex items-center justify-between lg:flex-col lg:gap-10">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${isDarkMode ? 'bg-amber-400 text-[#12141c]' : 'bg-[#212529] text-white'}`}>
-          <Utensils className="h-6 w-6" />
+        <div className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border p-1 shadow-lg ${isDarkMode ? 'border-white/10 bg-black/90' : 'border-[#dee2e6] bg-white'}`}>
+          <Image
+            src={isDarkMode ? '/logo.jpg' : '/logo.svg'}
+            alt="Progiteck"
+            width={48}
+            height={48}
+            className="h-full w-full object-contain"
+          />
         </div>
         <button
           type="button"

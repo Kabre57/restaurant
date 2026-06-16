@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useEcommerceCart } from "@/store/useEcommerceCart";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
-import { MapPin, ShoppingBag, Phone, User, Mail, CreditCard, Sparkles, Loader } from "lucide-react";
+import { MapPin, ShoppingBag, Phone, User, Mail, CreditCard, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   assertEcommerceOrderAllowed,
@@ -105,8 +105,8 @@ export function CheckoutForm() {
   const deliveryFee = deliveryType === "DELIVERY" && canDeliver ? settings?.deliveryFee ?? 0 : 0;
   const grandTotal = itemsTotal + deliveryFee;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitCheckout = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!storeId) {
       setError("Sélectionnez un restaurant depuis le menu avant de payer");
       return;
@@ -194,172 +194,185 @@ export function CheckoutForm() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        {/* Formulaire de gauche */}
-        <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-7">
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-orange-500" />
-              Informations de Livraison
-            </h2>
+    <div className="barab-page mx-auto max-w-7xl px-4 py-8 lg:py-10">
+      <div className="title-area mb-8">
+        <span className="sub-title">Commande en ligne</span>
+        <h1 className="sec-title">Checkout sécurisé</h1>
+        <p className="desc">
+          Le panier, les modes de retrait et les frais sont affichés à partir de la configuration serveur du restaurant.
+        </p>
+      </div>
 
-            {/* Mode de retrait */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="barab-page-grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+        <form onSubmit={submitCheckout} className="space-y-6">
+          <section className="barab-card rounded-[1.25rem] p-5">
+            <div className="mb-5 flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-[var(--parabellum-primary)]" />
+              <h2 className="text-base font-bold uppercase tracking-wide text-[var(--parabellum-text)]">
+                Informations de commande
+              </h2>
+            </div>
+
+            <div className="mb-5 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setDeliveryType("CLICK_AND_COLLECT")}
                 disabled={!canClickAndCollect}
-                className={`flex flex-col items-center justify-center rounded-xl border p-4 text-center transition-all ${
+                className={`flex flex-col items-center justify-center rounded-[1rem] border p-4 text-center transition-all ${
                   deliveryType === "CLICK_AND_COLLECT"
-                    ? "border-orange-500 bg-orange-50/35 text-orange-700 font-bold"
-                    : "border-gray-200 bg-white text-gray-500"
+                    ? "border-[rgba(235,20,0,0.28)] bg-[rgba(235,20,0,0.06)] text-[var(--parabellum-primary)] shadow-[0_14px_28px_rgba(18,18,18,0.08)]"
+                    : "border-[var(--parabellum-border)] bg-[var(--parabellum-card)] text-[var(--parabellum-text)] hover:-translate-y-0.5 hover:bg-[#fffaf5]"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                <ShoppingBag className="h-5 w-5 mb-1.5" />
-                <span className="text-sm">Retrait sur place</span>
+                <ShoppingBag className="mb-2 h-5 w-5" />
+                <span className="text-sm font-semibold uppercase tracking-wide">Click & collect</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setDeliveryType("DELIVERY")}
                 disabled={!canDeliver}
-                className={`flex flex-col items-center justify-center rounded-xl border p-4 text-center transition-all ${
+                className={`flex flex-col items-center justify-center rounded-[1rem] border p-4 text-center transition-all ${
                   deliveryType === "DELIVERY"
-                    ? "border-orange-500 bg-orange-50/35 text-orange-700 font-bold"
-                    : "border-gray-200 bg-white text-gray-500"
+                    ? "border-[rgba(235,20,0,0.28)] bg-[rgba(235,20,0,0.06)] text-[var(--parabellum-primary)] shadow-[0_14px_28px_rgba(18,18,18,0.08)]"
+                    : "border-[var(--parabellum-border)] bg-[var(--parabellum-card)] text-[var(--parabellum-text)] hover:-translate-y-0.5 hover:bg-[#fffaf5]"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                <MapPin className="h-5 w-5 mb-1.5" />
-                <span className="text-sm">Livraison à domicile</span>
+                <MapPin className="mb-2 h-5 w-5" />
+                <span className="text-sm font-semibold uppercase tracking-wide">Livraison à domicile</span>
               </button>
             </div>
 
             {settings && !settingsLoading && isStoreClosed && (
-              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+              <div className="mb-5 rounded-[1rem] border border-[rgba(235,20,0,0.18)] bg-[rgba(235,20,0,0.08)] p-4 text-sm text-[var(--parabellum-danger)]">
                 Boutique fermée temporairement
               </div>
             )}
 
-            {/* Champs client */}
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-bold text-gray-700 block mb-1">Nom complet</label>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-[var(--parabellum-text)]">Nom complet</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                  <User className="absolute left-3 top-3.5 h-4 w-4 text-[var(--parabellum-muted)]" />
                   <input
                     type="text"
                     required
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Jean Dupont"
-                    className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm focus:border-orange-500 focus:outline-none"
+                    className="th-input h-11 pl-10 pr-4"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-1">Téléphone</label>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-[var(--parabellum-text)]">Téléphone</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                    <Phone className="absolute left-3 top-3.5 h-4 w-4 text-[var(--parabellum-muted)]" />
                     <input
                       type="tel"
                       required
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="+225 0700000000"
-                      className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm focus:border-orange-500 focus:outline-none"
+                      className="th-input h-11 pl-10 pr-4"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-1">Adresse E-mail</label>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-[var(--parabellum-text)]">Adresse e-mail</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-[var(--parabellum-muted)]" />
                     <input
                       type="email"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder="jean.dupont@gmail.com"
-                      className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm focus:border-orange-500 focus:outline-none"
+                      className="th-input h-11 pl-10 pr-4"
                     />
                   </div>
                 </div>
               </div>
 
               {deliveryType === "DELIVERY" && (
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-1">Adresse de livraison</label>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-[var(--parabellum-text)]">Adresse de livraison</label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                    <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-[var(--parabellum-muted)]" />
                     <input
                       type="text"
                       required
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       placeholder="Rue des Jardins, Abidjan Cocody"
-                      className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-3 text-sm focus:border-orange-500 focus:outline-none"
+                      className="th-input h-11 pl-10 pr-4"
                     />
                   </div>
                 </div>
               )}
 
               {settings && !isStoreClosed && (
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
-                  Délai minimal de préparation : {settings.preparationDelayMinutes} min
-                </p>
+                <div className="th-badge th-badge--muted">
+                  Délai minimal de préparation: {settings.preparationDelayMinutes} min
+                </div>
               )}
 
-              <div>
-                <label className="text-sm font-bold text-gray-700 block mb-1">Notes complémentaires (facultatif)</label>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-[var(--parabellum-text)]">
+                  Notes complémentaires (facultatif)
+                </label>
                 <textarea
                   value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)}
                   placeholder="Code de portail, indications particulières..."
                   rows={3}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-orange-500 focus:outline-none"
+                  className="th-textarea px-4 py-3 text-sm"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-orange-500" />
-              Paiement Sécurisé
-            </h2>
+          <section className="barab-card rounded-[1.25rem] p-5">
+            <div className="mb-5 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[var(--parabellum-primary)]" />
+              <h2 className="text-base font-bold uppercase tracking-wide text-[var(--parabellum-text)]">
+                Paiement sécurisé
+              </h2>
+            </div>
 
             <PaymentMethodSelector selected={paymentMethod} onChange={setPaymentMethod} />
-          </div>
+          </section>
 
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600 font-medium">
+            <div className="rounded-[1rem] border border-[rgba(235,20,0,0.2)] bg-[rgba(235,20,0,0.08)] p-4 text-sm text-[var(--parabellum-danger)]">
               {error}
             </div>
           )}
         </form>
 
-        {/* Panier / Résumé de commande de droite */}
-        <div className="lg:col-span-5">
-          <div className="sticky top-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-md space-y-6">
-            <h3 className="text-lg font-bold text-gray-800 pb-3 border-b border-gray-100">
-              Résumé de la commande
-            </h3>
+        <aside className="lg:sticky lg:top-6">
+          <div className="barab-card space-y-6 rounded-[1.25rem] p-5">
+            <div className="border-b border-[var(--parabellum-border)] pb-3">
+              <h3 className="text-base font-bold uppercase tracking-wide text-[var(--parabellum-text)]">
+                Résumé de la commande
+              </h3>
+            </div>
 
-            {/* Articles */}
-            <div className="max-h-[240px] overflow-y-auto space-y-4">
+            <div className="max-h-[240px] space-y-4 overflow-y-auto pr-1">
               {items.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-6">Votre panier est vide</p>
+                <p className="py-6 text-center text-sm text-[var(--parabellum-muted)]">Votre panier est vide</p>
               ) : (
                 items.map((item) => (
-                  <div key={item.productId} className="flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-orange-600">x{item.quantity}</span>
-                      <span className="text-gray-700 font-medium">{item.name}</span>
+                  <div key={item.productId} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-[var(--parabellum-text)]">
+                        <span className="mr-2 text-[var(--parabellum-primary)]">x{item.quantity}</span>
+                        {item.name}
+                      </div>
                     </div>
-                    <span className="text-gray-800 font-bold">
+                    <span className="whitespace-nowrap font-semibold text-[var(--parabellum-text)]">
                       {(item.price * item.quantity).toLocaleString("fr-FR")} FCFA
                     </span>
                   </div>
@@ -367,28 +380,30 @@ export function CheckoutForm() {
               )}
             </div>
 
-            {/* Totaux */}
-            <div className="border-t border-gray-100 pt-4 space-y-2">
-              <div className="flex justify-between text-sm text-gray-500">
+            <div className="space-y-2 border-t border-[var(--parabellum-border)] pt-4">
+              <div className="flex justify-between text-sm text-[var(--parabellum-muted)]">
                 <span>Sous-total</span>
                 <span>{itemsTotal.toLocaleString("fr-FR")} FCFA</span>
               </div>
               {deliveryType === "DELIVERY" && (
-                <div className="flex justify-between text-sm text-gray-500">
+                <div className="flex justify-between text-sm text-[var(--parabellum-muted)]">
                   <span>Frais de livraison</span>
                   <span>{deliveryFee.toLocaleString("fr-FR")} FCFA</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-bold text-gray-800 border-t border-gray-100 pt-3">
+              <div className="flex justify-between border-t border-[var(--parabellum-border)] pt-3 text-base font-semibold text-[var(--parabellum-text)]">
                 <span>Total</span>
-                <span className="text-orange-600">{grandTotal.toLocaleString("fr-FR")} FCFA</span>
+                <span className="text-[var(--parabellum-primary)]">{grandTotal.toLocaleString("fr-FR")} FCFA</span>
               </div>
             </div>
 
             <button
-              onClick={handleSubmit}
+              type="button"
+              onClick={() => {
+                void submitCheckout();
+              }}
               disabled={loading || settingsLoading || items.length === 0 || isStoreClosed}
-              className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-4 font-bold text-white shadow-md shadow-orange-500/10 transition-all duration-300 hover:from-orange-600 hover:to-amber-600 hover:shadow-lg hover:shadow-orange-600/20 disabled:from-gray-300 disabled:to-gray-400 disabled:shadow-none"
+              className="th-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading || settingsLoading ? (
                 <>
@@ -396,13 +411,11 @@ export function CheckoutForm() {
                   {settingsLoading ? "Vérification..." : "Traitement en cours..."}
                 </>
               ) : (
-                <>
-                  Confirmer et payer {grandTotal.toLocaleString("fr-FR")} FCFA
-                </>
+                <>Confirmer et payer {grandTotal.toLocaleString("fr-FR")} FCFA</>
               )}
             </button>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

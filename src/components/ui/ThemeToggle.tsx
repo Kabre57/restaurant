@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { MoonStar, SunMedium } from 'lucide-react';
 import { Button } from './Button';
 
 export function ThemeToggle() {
@@ -27,8 +28,8 @@ export function ThemeToggle() {
   };
 
   return (
-    <Button variant="ghost" size="sm" onClick={toggleTheme}>
-      {isDark ? '☀️' : '🌙'}
+    <Button variant="secondary" size="sm" onClick={toggleTheme} aria-label="Basculer le theme">
+      {isDark ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
     </Button>
   );
 }

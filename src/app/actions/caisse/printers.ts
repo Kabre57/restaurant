@@ -173,9 +173,9 @@ export async function testPrinterConnection(id: string) {
         message: `Autotest SIMULÉ avec succès ! (L'agent matériel local n'est pas actif, mais le ticket de test ESC/POS de ${printer.paperWidth}mm a été généré correctement).`,
         simulated: true,
         receiptPreview: `
-================================
+--------------------------------
         AUTOTEST GOURMET        
-================================
+--------------------------------
 Imprimante : ${printer.name}
 Connectique: ${printer.type}
 ${printer.type === 'ETHERNET' ? `Adresse IP : ${printer.ipAddress}\nPort IP    : ${printer.port}` : ''}
@@ -184,9 +184,9 @@ Reçus      : ${printer.printReceipts ? 'OUI' : 'NON'}
 Cuisine    : ${printer.printOrders ? 'OUI' : 'NON'}
 ${printer.categories ? `Catégories : ${printer.categories}` : ''}
 Date test  : ${new Date().toLocaleString('fr-FR')}
-================================
+--------------------------------
  TEST DE COMMUNICATION REUSSI ! 
-================================
+--------------------------------
         [DECOUPE PAPIER]        
         `.trim(),
       }

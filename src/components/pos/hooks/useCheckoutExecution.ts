@@ -269,9 +269,6 @@ export function useCheckoutExecution(
           deliveryAddress: state.deliveryAddress,
           deliveryClientName: state.deliveryClientName,
           deliveryClientPhone: state.deliveryClientPhone,
-          deliveryDistanceKm: state.deliveryDistanceKm,
-          deliveryDurationMins: state.deliveryDurationMins,
-          deliveryFee: state.deliveryFee
         }
       }
 
@@ -344,9 +341,6 @@ export function useCheckoutExecution(
           deliveryAddress: state.deliveryAddress,
           deliveryClientName: state.deliveryClientName,
           deliveryClientPhone: state.deliveryClientPhone,
-          deliveryDistanceKm: state.deliveryDistanceKm,
-          deliveryDurationMins: state.deliveryDurationMins,
-          deliveryFee: state.deliveryFee
         }
       }
 

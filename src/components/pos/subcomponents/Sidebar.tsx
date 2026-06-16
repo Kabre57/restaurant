@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Utensils, LayoutGrid, Bell, Settings, User, LogOut, Calendar, Map as MapIcon, X, ArrowLeft } from 'lucide-react'
+import Image from 'next/image'
+import { LayoutGrid, Bell, Settings, User, LogOut, Calendar, Map as MapIcon, X, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -56,8 +57,14 @@ export function Sidebar({
       >
         <div className="flex w-full flex-col gap-6 lg:items-center">
           <div className="flex items-center justify-between lg:flex-col lg:gap-2">
-            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ${isRestaurateur ? 'bg-white/10' : 'bg-[#FF6D00] shadow-orange-500/20'}`}>
-              <Utensils className="h-6 w-6 text-white" />
+            <div className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border p-1 shadow-lg ${isRestaurateur ? 'border-white/10 bg-black/90' : 'border-[#e9ecef] bg-white'}`}>
+              <Image
+                src={isRestaurateur ? '/logo.jpg' : '/logo.svg'}
+                alt="Progiteck"
+                width={48}
+                height={48}
+                className="h-full w-full object-contain"
+              />
             </div>
             <button
               type="button"
@@ -123,7 +130,7 @@ function SidebarLink({
           active
             ? dark
               ? 'bg-white text-[#1a1d24] shadow-[0_8px_20px_rgba(255,255,255,0.2)]'
-              : 'bg-[#FF6D00] text-white shadow-[0_8px_20px_rgba(255,109,0,0.2)] scale-105'
+              : 'bg-[#1a1d24] text-white shadow-[0_8px_20px_rgba(18,18,18,0.16)] scale-105'
             : dark
               ? 'text-white/40 group-hover:bg-white/5 group-hover:text-white'
               : 'text-[#adb5bd] hover:bg-[#f8f9fa] hover:text-[#212529]'
@@ -133,8 +140,8 @@ function SidebarLink({
       </div>
       <span
         className={`text-[10px] font-black uppercase tracking-[0.14em] transition-colors lg:text-[8px] ${
-          active ? (dark ? 'text-white' : 'text-[#FF6D00]') : dark ? 'text-white/50' : 'text-[#adb5bd]'
-        }`}
+        active ? (dark ? 'text-white' : 'text-[#1a1d24]') : dark ? 'text-white/50' : 'text-[#adb5bd]'
+      }`}
       >
         {label}
       </span>

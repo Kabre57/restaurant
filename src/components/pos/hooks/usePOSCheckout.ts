@@ -108,9 +108,11 @@ export function usePOSCheckout({
     deliveryDistanceKm,
     deliveryDurationMins,
     deliveryFee,
+    isFetchingQuote,
+    deliveryQuoteError,
     handleAddressSelect,
     resetDeliveryDetails
-  } = useDeliveryDetails()
+  } = useDeliveryDetails(storeId)
 
   // Delegated Discount Override Hook
   const {
@@ -297,6 +299,26 @@ export function usePOSCheckout({
     const activeMethod = paymentMethods.find(m => m.name === mode)
     const activeMethodType = activeMethod?.type || 'OTHER'
     const effectiveTotal = roundedTotal ?? paymentTotal
+
+    if (orderType === 'DELIVERY') {
+      if (isFetchingQuote) {
+        onAlert({
+          title: 'Devis de livraison en cours',
+          message: 'Veuillez attendre le calcul du devis avant de finaliser la commande.',
+          type: 'info',
+        })
+        return
+      }
+
+      if (deliveryQuoteError) {
+        onAlert({
+          title: 'Devis de livraison indisponible',
+          message: deliveryQuoteError,
+          type: 'error',
+        })
+        return
+      }
+    }
 
     const isValid = validateCheckout(
       effectiveTotal,
