@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { X, RotateCcw, CreditCard } from 'lucide-react'
+import { X } from 'lucide-react'
 
 type PaymentCardPanelProps = {
   amountReceived: string
@@ -44,9 +44,6 @@ export function PaymentCardPanel({
         // Mode TPE par défaut
         <div className="flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center gap-3.5 py-6 bg-white dark:bg-[#151b2c] rounded-2xl border border-[#e9ecef] dark:border-[#242f4c] shadow-sm">
-            <div className="w-14 h-14 bg-[#e8f4fd] dark:bg-[#1e293b] rounded-full flex items-center justify-center animate-pulse">
-              <CreditCard className="w-7 h-7 text-[#339af0]" />
-            </div>
             <div className="text-center space-y-1">
               <p className="text-xs font-black text-[#212529] dark:text-white uppercase tracking-tight">Terminal de paiement connecté</p>
               <p className="text-[9.5px] font-bold text-[#868e96] uppercase tracking-wider">Veuillez insérer ou présenter la carte</p>
@@ -88,9 +85,8 @@ export function PaymentCardPanel({
                     onClear()
                     onResetBills?.()
                   }}
-                  className="text-[#ff6b6b] hover:text-[#fa5252] transition-colors p-1.5 rounded-lg hover:bg-white/5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider"
+                  className="text-[#ff6b6b] hover:text-[#fa5252] transition-colors p-1.5 rounded-lg hover:bg-white/5 text-[9px] font-bold uppercase tracking-wider"
                 >
-                  <RotateCcw className="w-3 h-3 stroke-[2.5px]" />
                   Réinitialiser
                 </button>
               )}

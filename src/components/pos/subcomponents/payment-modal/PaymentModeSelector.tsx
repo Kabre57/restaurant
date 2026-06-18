@@ -1,22 +1,11 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { Banknote as CashIcon, CreditCard as CardIcon, Smartphone as MobileIcon, DollarSign as OtherIcon } from 'lucide-react'
 import type { PaymentMode } from '../../lib/pos-helpers'
 
 type PaymentModeSelectorProps = {
   mode: PaymentMode
   onChange: (mode: PaymentMode) => void
-  paymentMethods: { id: string; name: string; type: string; icon: string | null }[]
-}
-
-function getIconForType(type: string): ReactNode {
-  switch (type) {
-    case 'CASH': return <CashIcon className="w-4 h-4 stroke-[2.5px]" />
-    case 'CARD': return <CardIcon className="w-4 h-4 stroke-[2.5px]" />
-    case 'MOBILE_MONEY': return <MobileIcon className="w-4 h-4 stroke-[2.5px]" />
-    default: return <OtherIcon className="w-4 h-4 stroke-[2.5px]" />
-  }
+  paymentMethods: { id: string; name: string; type: string; icon?: string | null }[]
 }
 
 function getActiveClassNameForType(type: string): string {
@@ -35,17 +24,15 @@ export function PaymentModeSelector({ mode, onChange, paymentMethods }: PaymentM
         <button
           key={item.id}
           onClick={() => onChange(item.name)}
-          className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${
+          className={`flex min-h-12 items-center justify-center rounded-xl border px-2 py-2.5 text-center transition-all ${
             mode === item.name
               ? getActiveClassNameForType(item.type)
               : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
           }`}
         >
-          {item.icon ? <span className="text-sm leading-none">{item.icon}</span> : getIconForType(item.type)}
           <span className="text-[8.5px] font-black tracking-widest uppercase">{item.name}</span>
         </button>
       ))}
     </div>
   )
 }
-

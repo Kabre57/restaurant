@@ -275,20 +275,39 @@ export default function RestaurateurProducts() {
               const isDrink = isDrinkCategory(product.category?.name)
               return (
             <div key={product.id} className={`bg-white rounded-[2rem] border border-[#dee2e6] overflow-hidden group hover:shadow-2xl transition-all ${!product.isAvailable ? 'opacity-60' : ''}`}>
-              <div className="h-40 bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-4">
+              <div className="h-44 bg-gradient-to-b from-[#f8f9fa] to-[#eef1f4] relative overflow-hidden p-3">
                 {product.image ? (
-                  <div className="w-full h-full rounded-[1.5rem] bg-white/85 shadow-[0_18px_40px_rgba(33,37,41,0.08)] border border-white/70 flex items-center justify-center overflow-hidden backdrop-blur-sm">
-                    <Image src={product.image} alt={product.name} width={360} height={220} unoptimized className={`h-full w-full object-contain transition-transform duration-700 ${isDrink ? 'scale-[1.08] p-1 group-hover:scale-[1.12]' : 'p-3 group-hover:scale-105'}`} />
+                  <div className="relative w-full h-full rounded-[1.5rem] bg-white/85 shadow-[0_18px_40px_rgba(33,37,41,0.08)] border border-white/70 overflow-hidden backdrop-blur-sm">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      unoptimized
+                      className={`object-cover object-center transition-transform duration-700 ${isDrink ? 'group-hover:scale-[1.03]' : 'group-hover:scale-105'}`}
+                    />
                   </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>
+                  <div className="w-full h-full flex items-center justify-center rounded-[1.5rem] bg-white/70 text-4xl">🍽️</div>
                 )}
-                <div className="absolute top-4 right-4 flex gap-2 transition-all sm:opacity-0 sm:group-hover:opacity-100">
-                  <button onClick={() => handleEdit(product)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#212529] transition-all">
+                <div className="absolute top-3 right-3 flex gap-2 transition-all sm:opacity-0 sm:translate-y-1 sm:group-hover:opacity-100 sm:group-hover:translate-y-0">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(product)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#212529] shadow-lg ring-1 ring-black/5 backdrop-blur-md transition-all hover:bg-[#212529] hover:text-white"
+                    title="Modifier"
+                  >
                     <Edit3 className="w-4 h-4" />
+                    Modifier
                   </button>
-                  <button onClick={() => handleDeleteClick(product.id)} className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl hover:bg-[#e03131] transition-all">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteClick(product.id)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#e03131] shadow-lg ring-1 ring-black/5 backdrop-blur-md transition-all hover:bg-[#e03131] hover:text-white"
+                    title="Supprimer"
+                  >
                     <Trash2 className="w-4 h-4" />
+                    Supprimer
                   </button>
                 </div>
                 {!product.isAvailable && (

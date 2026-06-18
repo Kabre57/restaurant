@@ -8,7 +8,7 @@ type PaymentSummaryPanelProps = {
   discount: number
   changeAmount: number | null
   mode: PaymentMode
-  paymentMethods: { id: string; name: string; type: string; icon: string | null }[]
+  paymentMethods: { id: string; name: string; type: string; icon?: string | null }[]
   isProcessing: boolean
   onModeChange: (mode: PaymentMode) => void
   onFinalize: () => void
@@ -34,6 +34,12 @@ export function PaymentSummaryPanel({
   const activeMethod = paymentMethods.find(m => m.name === mode)
   const activeMethodType = activeMethod?.type || 'OTHER'
   const netTotal = Math.max(0, total - discount)
+  const hasCashAmount = activeMethodType === 'CASH' && changeAmount !== null
+  const isUnderpaid = changeAmount !== null && changeAmount < 0
+  const paymentDeltaLabel = isUnderpaid ? 'Reste à payer' : 'À rendre au client'
+  const paymentDeltaAmount = Math.abs(changeAmount ?? 0)
+  const paymentDeltaLabelClassName = isUnderpaid ? 'text-[#ff8787]' : 'text-[#2f9e44]'
+  const paymentDeltaValueClassName = isUnderpaid ? 'text-[#ff6b6b]' : 'text-[#2f9e44]'
   
   // Le bouton de validation est désactivé si :
   // - En cours de traitement (isProcessing)
@@ -47,7 +53,7 @@ export function PaymentSummaryPanel({
     (activeMethodType === 'CASH' && changeAmount === null)
 
   return (
-    <div className="bg-[#1a1d24] text-white p-8 md:p-9 flex flex-col justify-between md:w-1/2 overflow-y-auto custom-scrollbar max-h-[90vh]">
+    <div className="bg-[#1a1d24] text-white p-5 sm:p-7 md:p-8 flex min-w-0 flex-col justify-between md:w-1/2 overflow-y-auto custom-scrollbar max-h-[92vh]">
       <div>
         <div className="flex items-center gap-3 mb-6">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Mode de Paiement</span>
@@ -78,11 +84,13 @@ export function PaymentSummaryPanel({
       </div>
 
       <div className="space-y-4 pt-8 border-t border-white/10">
-        {activeMethodType === 'CASH' && changeAmount !== null && (
+        {hasCashAmount && (
           <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#2f9e44]">À Rendre au Client</span>
-            <div className={`text-4xl font-black tracking-tighter ${changeAmount >= 0 ? 'text-[#2f9e44]' : 'text-[#e03131]'}`}>
-              {Math.abs(changeAmount).toLocaleString()} <span className="text-lg opacity-50">FCFA</span>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${paymentDeltaLabelClassName}`}>
+              {paymentDeltaLabel}
+            </span>
+            <div className={`text-4xl font-black tracking-tighter ${paymentDeltaValueClassName}`}>
+              {paymentDeltaAmount.toLocaleString()} <span className="text-lg opacity-50">FCFA</span>
             </div>
           </div>
         )}
@@ -98,4 +106,3 @@ export function PaymentSummaryPanel({
     </div>
   )
 }
-

@@ -4,16 +4,20 @@ type PaymentPromoSectionProps = {
   promoCode: string
   onPromoChange: (value: string) => void
   onApplyPromo: () => void
+  showHeader?: boolean
 }
 
 export function PaymentPromoSection({
   promoCode,
   onPromoChange,
   onApplyPromo,
+  showHeader = true,
 }: PaymentPromoSectionProps) {
   return (
     <div className="space-y-4">
-      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adb5bd]">Promotion</h4>
+      {showHeader && (
+        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adb5bd]">Promotion</h4>
+      )}
       <div className="flex gap-2">
         <input
           type="text"

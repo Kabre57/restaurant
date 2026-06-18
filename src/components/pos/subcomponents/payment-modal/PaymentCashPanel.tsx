@@ -2,7 +2,6 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { RotateCcw, Check, Landmark } from 'lucide-react'
 
 type PaymentCashPanelProps = {
   amountReceived: string
@@ -67,6 +66,9 @@ export function PaymentCashPanel({
   }
 
   const isPaymentValid = selectedBills.length > 0 && changeAmount !== null && changeAmount >= 0 && (roundedTotal ?? total) > 0
+  const isUnderpaid = changeAmount !== null && changeAmount < 0
+  const paymentDeltaLabel = isUnderpaid ? 'Reste à payer' : 'À rendre au client'
+  const paymentDeltaAmount = changeAmount === null ? 0 : Math.abs(changeAmount)
 
   return (
     <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e9ecef] shadow-md space-y-3.5 animate-in fade-in duration-300">
@@ -96,14 +98,13 @@ export function PaymentCashPanel({
       </div>
 
       {/* SECTION 2: MONTANT REÇU */}
-      <div className="bg-[#f8f9fa] rounded-2xl p-3 border border-[#e9ecef] flex justify-between items-center">
+      <div className="bg-[#f8f9fa] rounded-2xl p-3 border border-[#e9ecef]">
         <div className="flex flex-col">
           <span className="text-[9px] font-black uppercase tracking-widest text-[#868e96]">Montant Reçu</span>
           <span className="text-xl font-black text-[#212529] tracking-tight mt-0.5">
             {numericAmount.toLocaleString()} <span className="text-[10px] text-[#adb5bd] font-extrabold">FCFA</span>
           </span>
         </div>
-        <Landmark className="w-6 h-6 text-[#adb5bd] stroke-[1.5]" />
       </div>
 
       {/* SECTION 3: SÉLECTIONNER LES BILLETS */}
@@ -159,19 +160,18 @@ export function PaymentCashPanel({
           <button
             type="button"
             onClick={() => onResetBills?.()}
-            className="text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest flex items-center gap-1 transition-colors"
+            className="text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest transition-colors"
           >
-            <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
             Vider la liasse
           </button>
         </div>
       )}
 
-      {/* SECTION 6: À RENDRE AU CLIENT */}
+      {/* SECTION 6: SOLDE DU PAIEMENT */}
       <div className="border-t border-[#f1f3f5] pt-3 flex justify-between items-center">
-        <span className="text-[9px] font-black uppercase tracking-widest text-[#868e96]">À rendre au client</span>
-        <span className={`text-xl font-black tracking-tight ${isPaymentValid ? 'text-[#2f9e44]' : 'text-[#e03131]'}`}>
-          {changeAmount !== null && changeAmount >= 0 ? changeAmount.toLocaleString() : '0'} <span className="text-[10px] font-bold text-[#adb5bd]">FCFA</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-[#868e96]">{paymentDeltaLabel}</span>
+        <span className={`text-xl font-black tracking-tight ${isUnderpaid ? 'text-[#e03131]' : 'text-[#2f9e44]'}`}>
+          {paymentDeltaAmount.toLocaleString()} <span className="text-[10px] font-bold text-[#adb5bd]">FCFA</span>
         </span>
       </div>
 
@@ -181,9 +181,8 @@ export function PaymentCashPanel({
           type="button"
           onClick={onFinalize}
           disabled={!isPaymentValid}
-          className="w-full bg-[#2f9e44] hover:bg-[#2b8a3e] disabled:bg-[#e9ecef] disabled:text-[#adb5bd] disabled:cursor-not-allowed text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow active:scale-[0.98] text-center flex items-center justify-center gap-1.5"
+          className="w-full bg-[#2f9e44] hover:bg-[#2b8a3e] disabled:bg-[#e9ecef] disabled:text-[#adb5bd] disabled:cursor-not-allowed text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow active:scale-[0.98] text-center"
         >
-          <Check className="w-3.5 h-3.5 stroke-[3]" />
           Confirmer le Paiement
         </button>
       </div>

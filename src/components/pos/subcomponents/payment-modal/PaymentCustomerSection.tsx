@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import type { PaymentCustomer } from '../../lib/payment-types'
-import { UserPlus, X } from 'lucide-react'
 
 type PaymentCustomerSectionProps = {
   selectedCustomer: PaymentCustomer | null
@@ -12,6 +11,7 @@ type PaymentCustomerSectionProps = {
   loyaltyPointsRedeemed?: number
   onLoyaltyPointsRedeemedChange?: (points: number) => void
   loyaltyDiscount?: number
+  showHeader?: boolean
 }
 
 export function PaymentCustomerSection({
@@ -22,6 +22,7 @@ export function PaymentCustomerSection({
   loyaltyPointsRedeemed = 0,
   onLoyaltyPointsRedeemedChange,
   loyaltyDiscount = 0,
+  showHeader = true,
 }: PaymentCustomerSectionProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newNom, setNewNom] = useState('')
@@ -76,14 +77,15 @@ export function PaymentCustomerSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adb5bd]">Client & Fidélité</h4>
+      <div className={`flex items-center ${showHeader ? 'justify-between' : 'justify-end'}`}>
+        {showHeader && (
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#adb5bd]">Client & Fidélité</h4>
+        )}
         {!selectedCustomer && !isCreating && (
           <button
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-1 text-[9px] font-black text-[#2f9e44] uppercase hover:underline"
+            className="text-[9px] font-black text-[#2f9e44] uppercase hover:underline"
           >
-            <UserPlus className="w-3 h-3" />
             Nouveau Client
           </button>
         )}
@@ -156,9 +158,9 @@ export function PaymentCustomerSection({
                 setIsCreating(false)
                 setError('')
               }}
-              className="text-[#adb5bd] hover:text-[#212529]"
+              className="text-[9px] font-black uppercase tracking-widest text-[#adb5bd] hover:text-[#212529]"
             >
-              <X className="w-4 h-4" />
+              Fermer
             </button>
           </div>
 

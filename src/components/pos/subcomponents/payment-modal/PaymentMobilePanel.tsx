@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { X, RotateCcw, Smartphone } from 'lucide-react'
+import { X } from 'lucide-react'
 
 type PaymentMobilePanelProps = {
   amountReceived: string
@@ -44,9 +44,6 @@ export function PaymentMobilePanel({
         // Mode Mobile Money par défaut
         <div className="flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center gap-3.5 py-6 bg-white dark:bg-[#151b2c] rounded-2xl border border-[#e9ecef] dark:border-[#242f4c] shadow-sm">
-            <div className="w-14 h-14 bg-[#fff9db] dark:bg-[#2c2415] rounded-full flex items-center justify-center animate-pulse">
-              <Smartphone className="w-7 h-7 text-[#f59f00]" />
-            </div>
             <div className="text-center space-y-1">
               <p className="text-xs font-black text-[#212529] dark:text-white uppercase tracking-tight">Paiement Mobile QR / Push</p>
               <p className="text-[9.5px] font-bold text-[#868e96] uppercase tracking-wider">Demander au client de scanner le QR code</p>
@@ -88,9 +85,8 @@ export function PaymentMobilePanel({
                     onClear()
                     onResetBills?.()
                   }}
-                  className="text-[#ff6b6b] hover:text-[#fa5252] transition-colors p-1.5 rounded-lg hover:bg-white/5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider"
+                  className="text-[#ff6b6b] hover:text-[#fa5252] transition-colors p-1.5 rounded-lg hover:bg-white/5 text-[9px] font-bold uppercase tracking-wider"
                 >
-                  <RotateCcw className="w-3 h-3 stroke-[2.5px]" />
                   Réinitialiser
                 </button>
               )}

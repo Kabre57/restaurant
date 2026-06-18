@@ -201,23 +201,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Restaurant selector dropdown */}
-        <div className="px-5 py-4 border-b border-[#F0F1F6] dark:border-[#2e3440] bg-[#F8F9FA]/50 dark:bg-[#181a20]/50">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#868e96] dark:text-[#8c96a5] mb-2">RESTAURANT ACTIF</p>
+        <div className="px-5 py-4 border-b border-white/10 bg-white/10">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/65 mb-2">RESTAURANT ACTIF</p>
           <div className="relative">
             <select
               value={selectedStore}
               onChange={(e) => handleStoreChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-[#E5E7EB] bg-white py-3 pl-4 pr-10 text-xs font-bold text-[#171717] dark:border-[#2e3440] dark:bg-[#181a20] dark:text-white outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
+              className="restaurant-name w-full appearance-none rounded-xl border border-white/15 bg-black/45 py-3 pl-4 pr-10 text-xs font-bold text-amber-200 outline-none cursor-pointer focus:border-[#FF6D00] transition-colors"
             >
               {stores.length === 0 ? (
-                <option>Le Burger Doré - Paris 1er</option>
+                <option className="bg-white text-[#171717]">Le Burger Doré - Paris 1er</option>
               ) : (
                 stores.map(store => (
-                  <option key={store.id} value={store.id}>{store.name}</option>
+                  <option className="bg-white text-[#171717]" key={store.id} value={store.id}>{store.name}</option>
                 ))
               )}
             </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-[#868e96] dark:text-[#8c96a5]" />
+            <ChevronDown className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-amber-200/80" />
           </div>
         </div>
 

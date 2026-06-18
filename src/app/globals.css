@@ -401,6 +401,11 @@ body.barab-theme::before {
   color: rgba(255, 248, 239, 0.68) !important;
 }
 
+.barab-sidebar .restaurant-name {
+  background: rgba(0, 0, 0, 0.45) !important;
+  color: #fde68a !important;
+}
+
 .barab-sidebar .border-\[\#E5E7EB\],
 .barab-sidebar .border-\[\#F0F1F6\],
 .barab-sidebar .border-\[\#dee2e6\],
