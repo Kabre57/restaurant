@@ -5,7 +5,7 @@ import { Filter, Loader2, Search } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 import { cancelOrder, modifyOrder, refundOrder } from '@/app/actions/orders/orderManagement'
-import { getStoreOrders } from '@/app/actions/orders/orders'
+import { getStoreOrders } from '@/app/actions/orders/orderQueries'
 import { getProductsByStore } from '@/app/actions/catalog/products'
 
 import { OrdersList } from './components/OrdersList'

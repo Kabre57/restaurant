@@ -10,6 +10,7 @@ import {
   getProductsFromIDB,
   getSyncQueue,
   clearSyncQueueItem,
+  markSyncQueueItemFailed,
   purgeStaleSyncQueue,
 } from '@/lib/idb'
 
@@ -18,8 +19,9 @@ vi.mock('@/app/actions/orders/orders', () => ({
   syncOrdersBatch: vi.fn(),
 }))
 
-vi.mock('@/lib/idb', () => ({
-  clearSyncQueueItem: vi.fn(),
+  vi.mock('@/lib/idb', () => ({
+    clearSyncQueueItem: vi.fn(),
+    markSyncQueueItemFailed: vi.fn(),
   getCategoriesFromIDB: vi.fn(),
   getProductsFromIDB: vi.fn(),
   getSyncQueue: vi.fn(),
@@ -146,7 +148,12 @@ describe('usePOSSyncState Hook', () => {
     ]
 
     vi.mocked(getSyncQueue).mockResolvedValue(queuedOrders)
-    vi.mocked(syncOrdersBatch).mockResolvedValue([{ success: true } as any])
+    vi.mocked(syncOrdersBatch).mockResolvedValue([{
+      id: 'req-1',
+      clientRequestId: 'req-1',
+      orderId: 'order-1',
+      status: 'SYNCED',
+    }])
 
     const { result } = renderHook(() =>
       usePOSSyncState({
@@ -164,6 +171,7 @@ describe('usePOSSyncState Hook', () => {
 
     expect(syncOrdersBatch).toHaveBeenCalled()
     expect(clearSyncQueueItem).toHaveBeenCalledWith(1)
+    expect(markSyncQueueItemFailed).not.toHaveBeenCalled()
   })
 
   it('ne doit pas synchroniser si offline', async () => {

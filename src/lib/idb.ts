@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { SYNC_ORDER_SCHEMA_VERSION, type SyncLocalStatus, type SyncOrderInput } from '@/lib/offline-sync';
 
 export type CachedCategory = { id: string; name: string; imageUrl: string | null };
 export type CachedProduct = {
@@ -13,16 +14,11 @@ export type CachedProduct = {
   trackStock?: boolean | null;
   barcode?: string | null;
 };
-export type QueuedOrder = {
+export type QueuedOrder = SyncOrderInput & {
   id?: number;
-  clientRequestId: string;
-  storeId: string;
-  cashierId: string;
-  total: number;
-  type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
-  paymentMode: string;
-  items: { productId: string; quantity: number; price: number; name?: string; options?: string }[];
-  createdAt: number;
+  createdAt?: number;
+  queuedAt?: string;
+  localStatus?: SyncLocalStatus;
 };
 
 const DEFAULT_SYNC_QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -46,7 +42,7 @@ interface POSDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<POSDB>> | null = null;
 
 if (typeof window !== 'undefined') {
-  dbPromise = openDB<POSDB>('pos-db', 1, {
+  dbPromise = openDB<POSDB>('pos-db', 2, {
     upgrade(db) {
       if (!db.objectStoreNames.contains('categories')) {
         db.createObjectStore('categories', { keyPath: 'id' });
@@ -89,10 +85,19 @@ export async function getProductsFromIDB() {
   return db.getAll('products');
 }
 
-export async function addOrderToSyncQueue(order: Omit<QueuedOrder, 'id' | 'createdAt'>) {
+type QueueableOrder = Omit<SyncOrderInput, 'schemaVersion' | 'queuedAt' | 'localStatus'> &
+  Partial<Pick<SyncOrderInput, 'schemaVersion' | 'queuedAt' | 'localStatus'>>
+
+export async function addOrderToSyncQueue(order: QueueableOrder) {
   if (!dbPromise) return;
   const db = await dbPromise;
-  await db.add('sync_orders', { ...order, createdAt: Date.now() });
+  await db.add('sync_orders', {
+    ...order,
+    schemaVersion: order.schemaVersion ?? SYNC_ORDER_SCHEMA_VERSION,
+    queuedAt: order.queuedAt ?? new Date().toISOString(),
+    localStatus: order.localStatus ?? 'PENDING_SYNC',
+    createdAt: Date.now(),
+  });
 }
 
 export async function getSyncQueue(): Promise<QueuedOrder[]> {
@@ -105,14 +110,34 @@ export async function purgeStaleSyncQueue(maxAgeMs = DEFAULT_SYNC_QUEUE_TTL_MS) 
   if (!dbPromise) return 0;
   const db = await dbPromise;
   const cutoff = Date.now() - maxAgeMs;
-  const tx = db.transaction('sync_orders', 'readwrite');
-  const orders = await tx.store.getAll();
-  const staleOrders = orders.filter(order => typeof order.id === 'number' && order.createdAt < cutoff);
+  const orders = await db.getAll('sync_orders');
+  const staleOrders = orders.filter((order) => {
+    const queuedAtMs = order.queuedAt ? Date.parse(order.queuedAt) : order.createdAt ?? 0;
+    return queuedAtMs > 0 && queuedAtMs < cutoff && order.localStatus !== 'SYNCED';
+  });
 
-  await Promise.all(staleOrders.map(order => tx.store.delete(order.id as number)));
-  await tx.done;
+  if (staleOrders.length > 0) {
+    console.warn(
+      `[OfflineSync] ${staleOrders.length} commande(s) hors-ligne dépassent 24h sans synchronisation. Aucune suppression automatique n'a été effectuée.`
+    );
+  }
 
   return staleOrders.length;
+}
+
+export async function updateSyncQueueItem(id: number, patch: Partial<QueuedOrder>) {
+  if (!dbPromise) return;
+  const db = await dbPromise;
+  const current = await db.get('sync_orders', id);
+  if (!current) return;
+  await db.put('sync_orders', { ...current, ...patch, id });
+}
+
+export async function markSyncQueueItemFailed(id: number, error: string) {
+  await updateSyncQueueItem(id, {
+    localStatus: 'FAILED',
+    lastError: error,
+  });
 }
 
 export async function clearSyncQueueItem(id: number) {

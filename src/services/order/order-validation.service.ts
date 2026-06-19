@@ -1,4 +1,26 @@
 import { prisma } from '@/lib/db'
+import type { StockConflictDetail } from '@/lib/offline-sync'
+
+export type AvailableOrderProduct = {
+  id: string
+  name: string
+  price: number
+  averagePrepTimeMins: number
+  trackStock: boolean
+  stockQuantity: number
+  minStockLevel: number
+}
+
+export class StockConflictError extends Error {
+  readonly reason = 'STOCK_INSUFFICIENT'
+  readonly details: StockConflictDetail[]
+
+  constructor(details: StockConflictDetail[]) {
+    super('Stock insuffisant pour synchroniser la commande')
+    this.name = 'StockConflictError'
+    this.details = details
+  }
+}
 
 /**
  * Valide la disponibilité des produits pour un magasin donné et retourne leurs caractéristiques.
@@ -30,5 +52,31 @@ export async function validateProductsAvailability(
     throw new Error("Un ou plusieurs produits ne sont plus disponibles")
   }
 
+  assertSufficientStock(items, availableProducts)
+
   return availableProducts
+}
+
+/**
+ * Refuse une commande hors-ligne si le stock serveur courant ne peut plus la couvrir.
+ */
+export function assertSufficientStock(
+  items: { productId: string; quantity: number }[],
+  products: Pick<AvailableOrderProduct, 'id' | 'name' | 'trackStock' | 'stockQuantity'>[]
+) {
+  const productMap = new Map(products.map(product => [product.id, product]))
+  const details = items.flatMap((item) => {
+    const product = productMap.get(item.productId)
+    if (!product?.trackStock || product.stockQuantity >= item.quantity) return []
+    return [{
+      productId: item.productId,
+      name: product.name,
+      requested: item.quantity,
+      available: product.stockQuantity,
+    }]
+  })
+
+  if (details.length > 0) {
+    throw new StockConflictError(details)
+  }
 }

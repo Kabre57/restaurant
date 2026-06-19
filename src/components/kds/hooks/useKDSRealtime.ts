@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { updateOrderStatus } from '@/app/actions/orders/orders'
+import { updateOrderStatus } from '@/app/actions/orders/orderQueries'
 import { playNotificationSound } from '@/lib/sound'
 import type {
   OrderStatus,
@@ -9,6 +9,55 @@ import type {
   KitchenAlert,
   StreamStatus
 } from '../types'
+import {
+  buildStatusConflictAudit,
+  createPendingKDSAction,
+  shouldApplyServerOrder,
+  type PendingKDSAction,
+} from '../lib/lww'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseCachedOrders(raw: string, fallback: Order[] = []) {
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return fallback
+    return parsed
+      .filter(isRecord)
+      .map((order) => normalizeOrder(order as KDSOrder))
+  } catch (error) {
+    console.error('KDS cache parse error:', error)
+    return fallback
+  }
+}
+
+function parsePendingActions(raw: string): PendingKDSAction[] {
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((action) => {
+      if (!isRecord(action)) return []
+      const { orderId, status, updatedAt } = action
+      if (typeof orderId !== 'string' || typeof status !== 'string') return []
+      return [createPendingKDSAction(
+        orderId,
+        normalizeStatus(status),
+        typeof updatedAt === 'string' ? updatedAt : new Date().toISOString()
+      )]
+    })
+  } catch (error) {
+    console.error('KDS Offline Sync Error:', error)
+    return []
+  }
+}
+
+function parseStreamOrder(data: string) {
+  const parsed: unknown = JSON.parse(data)
+  if (!isRecord(parsed)) return null
+  return normalizeOrder(parsed as KDSOrder)
+}
 
 function normalizeStatus(status: string): OrderStatus {
   if (status === 'PRÉPARATION' || status === 'PREPARATION') return 'PREPARATION'
@@ -42,11 +91,7 @@ export function useKDSRealtime({
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('kds_active_orders')
       if (saved) {
-        try {
-          return JSON.parse(saved).map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) }))
-        } catch (e) {
-          console.error("Failed to parse cached active orders:", e)
-        }
+        return parseCachedOrders(saved)
       }
     }
     return initialOrders.map(normalizeOrder)
@@ -62,22 +107,18 @@ export function useKDSRealtime({
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('kds_completed_history')
       if (saved) {
-        try {
-          return JSON.parse(saved).map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) }))
-        } catch (e) {
-          console.error(e)
-        }
+        return parseCachedOrders(saved)
       }
     }
     return []
   })
 
   // File d'attente des changements de statut en local (Offline queue)
-  const [pendingActions, setPendingActions] = useState<{ orderId: string; status: OrderStatus }[]>(() => {
+  const [pendingActions, setPendingActions] = useState<PendingKDSAction[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('kds_pending_actions')
       if (saved) {
-        try { return JSON.parse(saved) } catch (e) { console.error("KDS Offline Sync Error:", e) }
+        return parsePendingActions(saved)
       }
     }
     return []
@@ -85,6 +126,11 @@ export function useKDSRealtime({
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingActionsRef = useRef<PendingKDSAction[]>([])
+
+  useEffect(() => {
+    pendingActionsRef.current = pendingActions
+  }, [pendingActions])
 
   // Sauvegarder les commandes actives à chaque changement (LocalStorage Sync)
   useEffect(() => {
@@ -111,11 +157,11 @@ export function useKDSRealtime({
         const remaining = []
         for (const action of toSync) {
           try {
-            const res = await updateOrderStatus(action.orderId, action.status, storeId)
+            const res = await updateOrderStatus(action.orderId, action.status, storeId, action.updatedAt)
             if (!res.success) {
               remaining.push(action)
             }
-          } catch (e) {
+          } catch {
             remaining.push(action)
           }
         }
@@ -191,7 +237,8 @@ export function useKDSRealtime({
 
       eventSource.addEventListener('new-order', (event) => {
         if (!active) return
-        const newOrder = normalizeOrder(JSON.parse(event.data))
+        const newOrder = parseStreamOrder(event.data)
+        if (!newOrder) return
         if (newOrder.storeId !== storeId) return
         pushKitchenAlert({
           id: `new-${newOrder.id}`,
@@ -213,8 +260,20 @@ export function useKDSRealtime({
 
       eventSource.addEventListener('order-updated', (event) => {
         if (!active) return
-        const updatedOrder = normalizeOrder(JSON.parse(event.data))
+        const updatedOrder = parseStreamOrder(event.data)
+        if (!updatedOrder) return
         if (updatedOrder.storeId !== storeId) return
+
+        const conflictAudit = buildStatusConflictAudit(updatedOrder, pendingActionsRef.current)
+        if (conflictAudit) {
+          console.info('[STATUS_CONFLICT]', conflictAudit)
+        }
+
+        if (!shouldApplyServerOrder(updatedOrder, pendingActionsRef.current)) {
+          return
+        }
+
+        setPendingActions(prev => prev.filter(action => action.orderId !== updatedOrder.id))
         
         if (updatedOrder.servedAt) {
           setOrders(prev => {
@@ -303,6 +362,7 @@ export function useKDSRealtime({
       const orderToArchive = orders.find(o => o.id === orderId)
       if (orderToArchive) addToHistory({ ...orderToArchive, status: 'PRET' })
     }
+    const action = createPendingKDSAction(orderId, nextStatus)
 
     // Mise à jour optimiste
     setOrders(prev => {
@@ -312,12 +372,12 @@ export function useKDSRealtime({
     })
 
     try {
-      const res = await updateOrderStatus(orderId, nextStatus, storeId)
+      const res = await updateOrderStatus(orderId, nextStatus, storeId, action.updatedAt)
       if (!res.success) {
-        setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), { orderId, status: nextStatus }])
+        setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), action])
       }
-    } catch (error) {
-      setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), { orderId, status: nextStatus }])
+    } catch {
+      setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), action])
     }
   }
 
@@ -326,6 +386,7 @@ export function useKDSRealtime({
     if (currentStatus === 'PRET') {
       nextStatus = 'PREPARATION'
     }
+    const action = createPendingKDSAction(orderId, nextStatus)
 
     setOrders(prev => {
       const next = prev.map(o => o.id === orderId ? { ...o, status: nextStatus } : o)
@@ -334,17 +395,18 @@ export function useKDSRealtime({
     })
 
     try {
-      const res = await updateOrderStatus(orderId, nextStatus, storeId)
+      const res = await updateOrderStatus(orderId, nextStatus, storeId, action.updatedAt)
       if (!res.success) {
-        setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), { orderId, status: nextStatus }])
+        setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), action])
       }
-    } catch (error) {
-      setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), { orderId, status: nextStatus }])
+    } catch {
+      setPendingActions(prev => [...prev.filter(a => a.orderId !== orderId), action])
     }
   }
 
   const handleRecallOrder = async (order: Order) => {
     const nextStatus: OrderStatus = 'PRET'
+    const action = createPendingKDSAction(order.id, nextStatus)
     
     // Retirer de l'historique
     setCompletedHistory(prev => {
@@ -362,12 +424,12 @@ export function useKDSRealtime({
     })
 
     try {
-      const res = await updateOrderStatus(order.id, nextStatus, storeId)
+      const res = await updateOrderStatus(order.id, nextStatus, storeId, action.updatedAt)
       if (!res.success) {
-        setPendingActions(prev => [...prev.filter(a => a.orderId !== order.id), { orderId: order.id, status: nextStatus }])
+        setPendingActions(prev => [...prev.filter(a => a.orderId !== order.id), action])
       }
-    } catch (error) {
-      setPendingActions(prev => [...prev.filter(a => a.orderId !== order.id), { orderId: order.id, status: nextStatus }])
+    } catch {
+      setPendingActions(prev => [...prev.filter(a => a.orderId !== order.id), action])
     }
   }
 

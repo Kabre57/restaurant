@@ -20,6 +20,7 @@ export type KDSOrder = {
   storeId: string
   type: string
   createdAt: Date
+  updatedAt?: Date | string | null
   estimatedPrepMinutes?: number | null
   estimatedReadyAt?: Date | string | null
   actualPrepMinutes?: number | null

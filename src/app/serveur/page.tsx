@@ -1,4 +1,4 @@
-import { getActiveOrders } from '@/app/actions/orders/orders'
+import { getActiveOrders } from '@/app/actions/orders/orderQueries'
 import { getStoreDetails } from '@/app/actions/store/stores'
 import { getStoreSettings } from '@/app/actions/store/storeSettings'
 import { authOptions } from '@/lib/auth'

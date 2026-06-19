@@ -6,6 +6,12 @@ import { syncOrdersBatch, createOrder } from "@/app/actions/orders/orders";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth/next";
 
+type SessionResult = Awaited<ReturnType<typeof getServerSession>>;
+type OrderFindUniqueResult = Awaited<ReturnType<typeof prisma.order.findUnique>>;
+type OrderCreateResult = Awaited<ReturnType<typeof prisma.order.create>>;
+type ProductsFindManyResult = Awaited<ReturnType<typeof prisma.product.findMany>>;
+type PaymentMethodFindFirstResult = Awaited<ReturnType<typeof prisma.paymentMethod.findFirst>>;
+
 // Mocks
 vi.mock("next-auth/next", () => ({
   getServerSession: vi.fn(),
@@ -21,11 +27,12 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       count: vi.fn(),
     },
-    product: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
+	    product: {
+	      findMany: vi.fn(),
+	      findUnique: vi.fn(),
+	      update: vi.fn(),
+	      updateMany: vi.fn(),
+	    },
     paymentMethod: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -61,7 +68,7 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("next/headers", () => ({
   headers: vi.fn().mockResolvedValue({
     get: vi.fn().mockReturnValue("127.0.0.1"),
-  } as any),
+  }),
 }));
 
 vi.mock("@/app/actions/orders/orderNotifications", () => ({
@@ -94,7 +101,7 @@ describe("Synchronisation des Commandes en Lot (Offline Sync / Idempotence)", ()
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getServerSession).mockResolvedValue(mockSession as any);
+    vi.mocked(getServerSession).mockResolvedValue(mockSession as unknown as SessionResult);
   });
 
   it("doit renvoyer la commande existante si la clé d'idempotence (clientRequestId) est déjà en DB (rejeu/replay)", async () => {
@@ -110,7 +117,7 @@ describe("Synchronisation des Commandes en Lot (Offline Sync / Idempotence)", ()
     };
 
     // La recherche de doublon trouve la commande existante
-    vi.mocked(prisma.order.findUnique).mockResolvedValue(existingOrder as any);
+    vi.mocked(prisma.order.findUnique).mockResolvedValue(existingOrder as unknown as OrderFindUniqueResult);
 
     const result = await createOrder({
       clientRequestId: validUuid,
@@ -121,8 +128,7 @@ describe("Synchronisation des Commandes en Lot (Offline Sync / Idempotence)", ()
     });
 
     expect(result.success).toBe(true);
-    expect((result as any).replayed).toBe(true);
-    expect((result as any).order).toEqual(existingOrder);
+    expect(result).toMatchObject({ replayed: true, order: existingOrder });
     expect(prisma.order.create).not.toHaveBeenCalled(); // Ne doit pas recréer l'ordre
   });
 
@@ -160,25 +166,27 @@ describe("Synchronisation des Commandes en Lot (Offline Sync / Idempotence)", ()
           isAvailable: true,
           trackStock: false,
         },
-      ] as any) // pour le 1er appel
-      .mockResolvedValueOnce([] as any); // pour le 2ème appel (produit non trouvé/indisponible)
+      ] as unknown as ProductsFindManyResult) // pour le 1er appel
+      .mockResolvedValueOnce([] as unknown as ProductsFindManyResult); // pour le 2ème appel (produit non trouvé/indisponible)
 
-    vi.mocked(prisma.paymentMethod.findFirst).mockResolvedValue({ id: "pm-1" } as any);
+    vi.mocked(prisma.paymentMethod.findFirst).mockResolvedValue(
+      { id: "pm-1" } as unknown as PaymentMethodFindFirstResult
+    );
     vi.mocked(prisma.order.create).mockResolvedValue({
       id: "order-synced-1",
       total: 1500,
       clientRequestId: validUuid1,
-    } as any);
+    } as unknown as OrderCreateResult);
 
     const results = await syncOrdersBatch(ordersBatch);
 
     expect(results).toHaveLength(2);
-    // Premier commande: Succès
-    expect(results[0].success).toBe(true);
-    expect((results[0] as any).order.id).toBe("order-synced-1");
+	    // Première commande: succès isolé
+	    expect(results[0].status).toBe("SYNCED");
+	    expect(results[0].orderId).toBe("order-synced-1");
 
-    // Deuxième commande: Échec (produit indisponible)
-    expect(results[1].success).toBe(false);
-    expect(results[1].error).toContain("produits ne sont plus disponibles");
+	    // Deuxième commande: échec isolé (produit indisponible)
+	    expect(results[1].status).toBe("FAILED");
+	    expect(results[1].error).toContain("produits ne sont plus disponibles");
   });
 });

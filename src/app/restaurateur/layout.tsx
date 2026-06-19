@@ -461,14 +461,6 @@ export default function RestaurateurLayout({ children }: { children: React.React
         </nav>
 
         <div className="mt-auto space-y-2 p-4 border-t border-[#E5E7EB] dark:border-[#2e3440]">
-          <Link
-            href="/"
-            onClick={() => setIsSidebarOpen(false)}
-            className="flex items-center gap-4 rounded-2xl px-4 py-3 text-white/55 hover:bg-white/5 hover:text-white transition-all"
-          >
-            <ChevronLeft className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Retour POS</span>
-          </Link>
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-[#ff8b8b] hover:bg-white/5 hover:text-[#ffd2d2] transition-all"

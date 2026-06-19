@@ -9,30 +9,29 @@ import { headers } from 'next/headers'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
 import { requireAuth, requireStoreAccess } from '@/shared/security'
 import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
-import { getCached, redis, REDIS_KEYS } from '@/lib/redis'
-import { AnalyticsService } from '@/services/analytics.service'
+import { syncOrdersWithCreateOrder } from '@/services/order/order-sync.service'
+import type { SyncOrderInput } from '@/lib/offline-sync'
 
 import {
   orderInclude,
   resolvePaymentMethodId,
   normalizePaymentStatus,
-  normalizeOrderStatus,
   buildEstimatedReadyAt,
-  updateProductPrepAveragesFromOrder,
   deductStockForItems,
   validateProductsAvailability,
+  StockConflictError,
   validateAndAuditDiscount,
   tryMergeDineInOrder,
   handleLoyaltyPoints,
   notifyOrderCreated,
   notifyOrderUpdated,
-  notifyOrderReady
 } from '@/services/order'
 
 export type OrderInput = {
   clientRequestId?: string
   storeId: string
   cashierId?: string
+  serverId?: string
   /** @deprecated Ne plus passer total depuis le client — recalculé côté serveur */
   total?: number
   type: OrderType
@@ -91,6 +90,9 @@ export async function createOrder(data: OrderInput) {
       requireStoreAccess(securityUser, table.storeId)
     }
 
+    const paymentStatus = normalizePaymentStatus(data.paymentStatus)
+    const operatorId = data.cashierId || data.serverId
+
     const settings = await prisma.storeSettings.findUnique({
       where: { storeId: data.storeId }
     })
@@ -100,8 +102,7 @@ export async function createOrder(data: OrderInput) {
     }
 
     if (settings?.workflowType === 'CASHIER_ONLY') {
-      const isPaid = data.paymentStatus === 'REUSSIE' || data.paymentStatus === 'REUSSI';
-      if (!isPaid) {
+      if (paymentStatus !== PaymentStatus.REUSSIE) {
         return { success: false, error: "Paiement échoué ou Payer" }
       }
     }
@@ -118,7 +119,7 @@ export async function createOrder(data: OrderInput) {
       })
 
       if (existingOrder) {
-        if (existingOrder.storeId !== data.storeId || existingOrder.cashierId !== data.cashierId) {
+        if (existingOrder.storeId !== data.storeId || (operatorId && existingOrder.cashierId !== operatorId)) {
           return { success: false, error: "Identifiant de synchronisation invalide" }
         }
         return { success: true, order: existingOrder, replayed: true }
@@ -140,7 +141,6 @@ export async function createOrder(data: OrderInput) {
     const computedTotal = computedTax.totalIncludingTax
 
     const paymentMethodId = await resolvePaymentMethodId(data.storeId, data.paymentMode as string)
-    const paymentStatus = normalizePaymentStatus(data.paymentStatus)
     const estimatedPrepMinutes = computeEstimatedPrepMinutes(data.items, availableProducts)
     const estimatedReadyAt = buildEstimatedReadyAt(estimatedPrepMinutes)
 
@@ -160,7 +160,6 @@ export async function createOrder(data: OrderInput) {
       }
 
       // Résoudre LoyaltyCustomer
-      let isLoyaltyCustomer = false
       let dbCustomerId: string | null = data.customerId || null
 
       if (data.customerId) {
@@ -168,7 +167,6 @@ export async function createOrder(data: OrderInput) {
           where: { id: data.customerId }
         })
         if (lc) {
-          isLoyaltyCustomer = true
           dbCustomerId = null
         }
       }
@@ -176,7 +174,7 @@ export async function createOrder(data: OrderInput) {
       const orderCreateData: Prisma.OrderUncheckedCreateInput = {
         clientRequestId: data.clientRequestId || null,
         storeId: data.storeId,
-        cashierId: data.cashierId || null,
+        cashierId: operatorId || null,
         tableId: data.tableId || null,
         customerId: dbCustomerId,
         total: computedTotal,
@@ -285,6 +283,15 @@ export async function createOrder(data: OrderInput) {
 
     return { success: true, order }
   } catch (error) {
+    if (error instanceof StockConflictError) {
+      return {
+        success: false,
+        status: 'CONFLICT' as const,
+        reason: error.reason,
+        error: error.message,
+        details: error.details,
+      }
+    }
     console.error("Failed to create order:", error)
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
     return { success: false, error: "Erreur lors de la création de la commande: " + errorMessage }
@@ -430,137 +437,6 @@ export async function markOrderServed(orderId: string, storeId?: string) {
 /**
  * Synchronise un lot de commandes (jusqu'à 10 à la fois).
  */
-export async function syncOrdersBatch(orders: OrderInput[]) {
-  const batch = orders.slice(0, 10)
-  const results = []
-
-  for (const order of batch) {
-    results.push(await createOrder(order))
-  }
-
-  return results
-}
-
-/**
- * Récupère les commandes actives pour un restaurant donné.
- */
-export async function getActiveOrders(storeId: string) {
-  try {
-    return await prisma.order.findMany({
-      where: {
-        storeId,
-        status: {
-          in: [OrderStatus.EN_ATTENTE, OrderStatus.PREPARATION, OrderStatus.PRET]
-        }
-      },
-      include: orderInclude,
-      orderBy: {
-        createdAt: 'asc'
-      }
-    })
-  } catch (error) {
-    console.error("Failed to fetch active orders:", error)
-    return []
-  }
-}
-
-/**
- * Récupère l'historique récent des commandes pour un restaurant donné (mis en cache).
- */
-export async function getStoreOrders(storeId: string) {
-  try {
-    return await getCached(REDIS_KEYS.stats(storeId), 300, async () => {
-      return await prisma.order.findMany({
-        where: { storeId },
-        include: orderInclude,
-        orderBy: { createdAt: 'desc' },
-        take: 100
-      })
-    })
-  } catch (error) {
-    console.error("Failed to fetch store orders:", error)
-    return []
-  }
-}
-
-/**
- * Met à jour le statut d'une commande (ex: EN_ATTENTE -> PREPARATION -> PRET -> COMPLETED).
- * Enregistre les métriques de préparation associées pour les statistiques produits.
- */
-export async function updateOrderStatus(orderId: string, status: OrderStatus | string, storeId?: string) {
-  try {
-    const nextStatus = normalizeOrderStatus(status)
-    const existingOrder = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: {
-        storeId: true,
-        status: true,
-        createdAt: true,
-        estimatedPrepMinutes: true,
-        preparationStartedAt: true,
-      }
-    })
-
-    if (!existingOrder) {
-      return { success: false, error: "Commande introuvable" }
-    }
-
-    if (storeId && existingOrder.storeId !== storeId) {
-      return { success: false, error: "Commande hors périmètre restaurant" }
-    }
-
-    const now = new Date()
-
-    const order = await prisma.$transaction(async (tx) => {
-      const updateData: Prisma.OrderUpdateInput = {
-        status: nextStatus,
-      }
-
-      if (nextStatus === OrderStatus.PREPARATION) {
-        const prepStart = existingOrder.preparationStartedAt || now
-        updateData.preparationStartedAt = prepStart
-        if (existingOrder.estimatedPrepMinutes) {
-          updateData.estimatedReadyAt = buildEstimatedReadyAt(existingOrder.estimatedPrepMinutes, prepStart)
-        }
-      }
-
-      if (nextStatus === OrderStatus.PRET) {
-        const prepStart = existingOrder.preparationStartedAt || existingOrder.createdAt
-        const actualPrepMinutes = Math.max(1, Math.round((now.getTime() - prepStart.getTime()) / 60_000))
-
-        updateData.readyAt = now
-        updateData.actualPrepMinutes = actualPrepMinutes
-
-        const updatedReadyOrder = await tx.order.update({
-          where: { id: orderId },
-          data: updateData,
-          include: orderInclude
-        })
-
-        await updateProductPrepAveragesFromOrder(tx, orderId, actualPrepMinutes)
-        return updatedReadyOrder
-      }
-
-      if (nextStatus === OrderStatus.COMPLETED) {
-        updateData.servedAt = now
-      }
-
-      return tx.order.update({
-        where: { id: orderId },
-        data: updateData,
-        include: orderInclude
-      })
-    })
-
-    if (order.status === OrderStatus.PRET) {
-      await notifyOrderReady(order)
-    } else {
-      await notifyOrderUpdated(order)
-    }
-
-    return { success: true, order }
-  } catch (error) {
-    console.error("Failed to update order status:", error)
-    return { success: false, error: "Erreur lors de la mise à jour du statut" }
-  }
+export async function syncOrdersBatch(orders: SyncOrderInput[]) {
+  return syncOrdersWithCreateOrder(orders, createOrder)
 }

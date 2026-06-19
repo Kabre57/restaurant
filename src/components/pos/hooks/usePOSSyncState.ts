@@ -7,14 +7,20 @@ import {
   getCategoriesFromIDB,
   getProductsFromIDB,
   getSyncQueue,
+  markSyncQueueItemFailed,
   purgeStaleSyncQueue,
   saveCategoriesToIDB,
   saveProductsToIDB,
 } from '@/lib/idb'
 import type { CachedCategory, CachedProduct, QueuedOrder } from '@/lib/idb'
+import {
+  SYNC_ORDER_SCHEMA_VERSION,
+  syncBatchResponseSchema,
+  syncResultIsSuccessful,
+  type SyncOrderInput,
+  type SyncOrderResult,
+} from '@/lib/offline-sync'
 import { createClientRequestId } from '../lib/pos-helpers'
-
-type PendingOrder = Omit<QueuedOrder, 'createdAt'>
 
 type UsePOSSyncStateOptions = {
   cashierId: string
@@ -65,6 +71,47 @@ export function usePOSSyncState({
     refreshSyncQueueCount,
   ])
 
+  const normalizeQueuedOrder = useCallback((pendingOrder: QueuedOrder): SyncOrderInput => {
+    return {
+      ...pendingOrder,
+      clientRequestId:
+        pendingOrder.clientRequestId ||
+        createClientRequestId(pendingOrder.storeId, pendingOrder.cashierId ?? cashierId),
+      cashierId: pendingOrder.cashierId ?? cashierId,
+      paymentMode: pendingOrder.paymentMode || 'ESPECES',
+      paymentStatus: pendingOrder.paymentStatus ?? 'PAID',
+      schemaVersion: pendingOrder.schemaVersion ?? SYNC_ORDER_SCHEMA_VERSION,
+      queuedAt:
+        pendingOrder.queuedAt ||
+        new Date(pendingOrder.createdAt ?? Date.now()).toISOString(),
+      localStatus: pendingOrder.localStatus ?? 'PENDING_SYNC',
+    }
+  }, [cashierId])
+
+  const syncOrdersViaEndpoint = useCallback(async (batch: SyncOrderInput[]) => {
+    const response = await fetch('/api/orders/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batch),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Endpoint sync indisponible (${response.status})`)
+    }
+
+    const payload: unknown = await response.json()
+    return syncBatchResponseSchema.parse(payload).results
+  }, [])
+
+  const syncOrdersWithFallback = useCallback(async (batch: SyncOrderInput[]): Promise<SyncOrderResult[]> => {
+    try {
+      return await syncOrdersViaEndpoint(batch)
+    } catch (endpointError) {
+      console.warn('Endpoint /api/orders/sync indisponible, fallback Server Action:', endpointError)
+      return syncOrdersBatch(batch)
+    }
+  }, [syncOrdersViaEndpoint])
+
   // Garde la caisse coherente entre le cache local, le reseau et la file offline.
   const syncPendingOrders = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
@@ -74,39 +121,25 @@ export function usePOSSyncState({
     setIsSyncing(true)
 
     try {
-      const queue = await refreshSyncQueueCount()
+      const queue = (await refreshSyncQueueCount())
+        .filter((pendingOrder) => pendingOrder.localStatus !== 'SYNCED')
+        .map(normalizeQueuedOrder)
 
       for (let index = 0; index < queue.length; index += 5) {
-        const batch = queue.slice(index, index + 5).map((pendingOrder) => ({
-          ...pendingOrder,
-          clientRequestId:
-            pendingOrder.clientRequestId ||
-            createClientRequestId(pendingOrder.storeId, pendingOrder.cashierId),
-          paymentMode: pendingOrder.paymentMode || 'ESPECES',
-        }))
-
-        const results = await syncOrdersBatch(
-          batch.map((pendingOrder: PendingOrder) => ({
-            clientRequestId: pendingOrder.clientRequestId,
-            storeId: pendingOrder.storeId,
-            cashierId: pendingOrder.cashierId,
-            total: pendingOrder.total,
-            type: pendingOrder.type,
-            paymentMode: pendingOrder.paymentMode,
-            items: pendingOrder.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              options: item.options,
-            })),
-          }))
-        )
+        const batch = queue.slice(index, index + 5)
+        const results = await syncOrdersWithFallback(batch)
 
         for (const [resultIndex, result] of results.entries()) {
           const pendingOrder = batch[resultIndex]
 
-          if (!result.success) {
+          if (!syncResultIsSuccessful(result.status)) {
             console.error('Queued order was not synced:', result.error)
+            if (typeof pendingOrder.id === 'number') {
+              await markSyncQueueItemFailed(
+                pendingOrder.id,
+                result.error || result.reason || 'Synchronisation impossible'
+              )
+            }
             continue
           }
 
@@ -123,7 +156,7 @@ export function usePOSSyncState({
       syncInFlightRef.current = false
       setIsSyncing(false)
     }
-  }, [refreshSyncQueueCount])
+  }, [normalizeQueuedOrder, refreshSyncQueueCount, syncOrdersWithFallback])
 
   const updateSessionStats = useCallback((amount: number) => {
     setSessionTotal((currentTotal) => {

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { PaymentType, PaymentStatus, OrderStatus, Prisma } from '@prisma/client'
 import { decrementIngredientInventory } from '@/app/actions/inventory/inventory'
 import { publishStockAlert } from '@/app/actions/orders/orderNotifications'
+import { StockConflictError } from './order-validation.service'
 
 export const orderInclude = {
   items: {
@@ -81,7 +82,8 @@ export async function resolvePaymentMethodId(storeId: string, methodCodeOrId?: s
  * Normalise le statut d'un paiement en valeur enum PaymentStatus.
  */
 export function normalizePaymentStatus(status?: PaymentStatus | string): PaymentStatus {
-  if (status === PaymentStatus.EN_ATTENTE || status === 'EN_ATTENTE') return PaymentStatus.EN_ATTENTE
+  if (status === 'PAID' || status === 'REUSSI' || status === PaymentStatus.REUSSIE) return PaymentStatus.REUSSIE
+  if (status === 'PENDING' || status === PaymentStatus.EN_ATTENTE || status === 'EN_ATTENTE') return PaymentStatus.EN_ATTENTE
   if (status === PaymentStatus.ECHOUEE || status === 'ECHOUEE') return PaymentStatus.ECHOUEE
   if (status === PaymentStatus.REMBOURSEE || status === 'REMBOURSEE') return PaymentStatus.REMBOURSEE
   return PaymentStatus.REUSSIE
@@ -162,11 +164,25 @@ export async function deductStockForItems(
     await decrementIngredientInventory(tx, storeId, item.productId, item.quantity)
 
     if (product && product.trackStock) {
-      const newQuantity = Math.max(0, product.stockQuantity - item.quantity)
-      await tx.product.update({
-        where: { id: item.productId },
-        data: { stockQuantity: newQuantity }
+      const stockUpdate = await tx.product.updateMany({
+        where: {
+          id: item.productId,
+          storeId,
+          stockQuantity: { gte: item.quantity },
+        },
+        data: { stockQuantity: { decrement: item.quantity } }
       })
+
+      if (stockUpdate.count !== 1) {
+        throw new StockConflictError([{
+          productId: item.productId,
+          name: product.name,
+          requested: item.quantity,
+          available: product.stockQuantity,
+        }])
+      }
+
+      const newQuantity = product.stockQuantity - item.quantity
 
       // Enregistrement du mouvement de stock
       await tx.stockMovement.create({
