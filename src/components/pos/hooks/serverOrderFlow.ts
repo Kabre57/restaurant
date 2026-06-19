@@ -87,6 +87,7 @@ async function queueServerOrder(ctx: ServerOrderFlowContext) {
   ctx.setShowReceipt(true)
   ctx.clearCart()
   ctx.advanceOrderId()
+  ctx.onAfterCheckout()
 }
 
 export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {

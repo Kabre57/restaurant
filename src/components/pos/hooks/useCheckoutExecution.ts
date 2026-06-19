@@ -314,6 +314,7 @@ export function useCheckoutExecution(
         callbacks.closePaymentModal()
         callbacks.clearCart()
         callbacks.advanceOrderId()
+        callbacks.onAfterCheckout()
       }
     } catch (error) {
       console.error('Checkout failed, order queued for sync:', error)
@@ -359,6 +360,9 @@ export function useCheckoutExecution(
       callbacks.closePaymentModal()
       callbacks.clearCart()
       callbacks.advanceOrderId()
+      callbacks.onAfterCheckout()
+    } finally {
+      callbacks.setIsProcessing(false)
     }
   }
 
