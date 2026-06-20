@@ -48,6 +48,7 @@ type UsePOSCheckoutOptions = {
   onRequireTableSelection?: () => void
   onAlert: (alert: AlertPayload) => void
   operatorRole?: POSOperatorRole
+  cashierName?: string | null
 }
 
 function mergeMissingDefaultPaymentMethods(activeMethods: POSPaymentMethod[], configuredMethods: POSPaymentMethod[]) {
@@ -76,6 +77,7 @@ export function usePOSCheckout({
   onRequireTableSelection,
   onAlert,
   operatorRole = 'CASHIER',
+  cashierName,
 }: UsePOSCheckoutOptions) {
   const [paymentMethods, setPaymentMethods] = useState<POSPaymentMethod[]>(DEFAULT_PAYMENT_METHODS)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -211,7 +213,8 @@ export function usePOSCheckout({
       deliveryDurationMins,
       deliveryFee,
       isSettlementFlow,
-      paymentContext
+      paymentContext,
+      cashierName
     },
     {
       clearCart,

@@ -299,6 +299,7 @@ describe("Order Policy & Concurrency Unit Tests", () => {
 
   it("should calculate and update loyalty points incrementally (delta) during fusions", async () => {
     // 1. Create a LoyaltyCustomer
+    await prisma.loyaltyCustomer.deleteMany({ where: { phone: "+22509090909" } });
     const customer = await prisma.loyaltyCustomer.create({
       data: {
         nom: "Client Fidele",
@@ -332,8 +333,8 @@ describe("Order Policy & Concurrency Unit Tests", () => {
     let updatedCustomer = await prisma.loyaltyCustomer.findUnique({
       where: { id: customer.id }
     });
-    // total: 1500 net + VAT = 1770. Points: Math.floor(1770 / 100) = 17. Total: 117.
-    expect(updatedCustomer?.points).toBe(117);
+    // total: 1500 net. Points: Math.floor(1500 / 100) = 15. Total: 115.
+    expect(updatedCustomer?.points).toBe(115);
 
     // 3. Second order request (merged, paid immediately as well)
     const secondOrderInput = {
@@ -360,7 +361,7 @@ describe("Order Policy & Concurrency Unit Tests", () => {
     updatedCustomer = await prisma.loyaltyCustomer.findUnique({
       where: { id: customer.id }
     });
-    expect(updatedCustomer?.points).toBe(152);
+    expect(updatedCustomer?.points).toBe(145);
 
     // Clean up
     await prisma.loyaltyTransaction.deleteMany({ where: { customerId: customer.id } });

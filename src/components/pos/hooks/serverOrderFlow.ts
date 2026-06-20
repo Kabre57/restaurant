@@ -48,6 +48,7 @@ function buildServerOrderData(ctx: ServerOrderFlowContext) {
       quantity: item.quantity,
       price: item.price,
       name: item.name,
+      options: item.options,
     })),
     type: 'DINE_IN' as const,
     paymentMode: 'ESPECES' as const,

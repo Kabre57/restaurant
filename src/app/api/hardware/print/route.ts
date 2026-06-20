@@ -9,14 +9,22 @@ interface PrintItemPayload {
   name?: string
   quantity?: number
   price?: number
+  priceHT?: number | null
+  taxRate?: number | null
+  priceTTC?: number | null
+  barcode?: string | null
 }
 
 interface PrintOrderPayload {
   items?: PrintItemPayload[]
   paymentMode?: string
   total?: number
+  discount?: number
+  amountReceived?: number
+  changeAmount?: number
   displayId?: string | number
   id?: string | number
+  clientRequestId?: string | null
   table?: string
   tableId?: string | null
 }
@@ -32,10 +40,15 @@ export async function POST(req: NextRequest) {
   const payload = (await req.json()) as PrintPayload
   const order = payload.order || {}
 
-  // 1. Récupération des paramètres personnalisés du magasin
-  const settings = await prisma.storeSettings.findUnique({
-    where: { storeId: session.user.storeId }
-  })
+  // 1. Récupération des paramètres personnalisés et coordonnées du magasin
+  const [settings, store] = await Promise.all([
+    prisma.storeSettings.findUnique({
+      where: { storeId: session.user.storeId }
+    }),
+    prisma.store.findUnique({
+      where: { id: session.user.storeId }
+    })
+  ])
 
   let logoEscPos: string | null = null
   if (settings?.receiptLogo) {
@@ -53,6 +66,10 @@ export async function POST(req: NextRequest) {
     name: item.name || 'Produit',
     qty: item.quantity || 1,
     price: item.price || 0,
+    priceHT: item.priceHT !== undefined && item.priceHT !== null ? Number(item.priceHT) : null,
+    taxRate: item.taxRate !== undefined && item.taxRate !== null ? Number(item.taxRate) : null,
+    priceTTC: item.priceTTC !== undefined && item.priceTTC !== null ? Number(item.priceTTC) : null,
+    barcode: item.barcode || null,
   }))
 
   const isPendingSettlement = order.paymentMode === 'A regler en caisse'
@@ -68,12 +85,23 @@ export async function POST(req: NextRequest) {
     title: isPendingSettlement ? 'Bon de Commande' : 'Ticket de Caisse',
     items,
     total: order.total || 0,
+    discount: order.discount || 0,
+    paymentMode: order.paymentMode || '',
+    amountReceived: order.amountReceived || 0,
+    changeAmount: order.changeAmount || 0,
     orderNumber: String(order.displayId || order.id || ''),
+    clientRequestId: order.clientRequestId || null,
     table: order.table || undefined,
     logoEscPos,
     headerText: settings?.receiptHeader || null,
     footerText: settings?.receiptFooter || null,
     qrData,
+    cashierName: session.user.name || null,
+    storeName: store?.name || null,
+    storeAddress: store?.address || null,
+    storePhone: store?.phone || null,
+    storeEmail: store?.email || null,
+    storeCode: store?.code || null,
   }
 
   const escposBuffer = generateEscPosBuffer(jobData)

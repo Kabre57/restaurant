@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react'
 
 type ConnectionStatusProps = {
@@ -9,7 +10,37 @@ type ConnectionStatusProps = {
   onSyncNow?: () => void
 }
 
-export function ConnectionStatus({ isOnline, isSyncing, queueCount, onSyncNow }: ConnectionStatusProps) {
+/**
+ * Composant affichant le statut de connexion au serveur (En ligne / Hors ligne)
+ * et le nombre de commandes en attente de synchronisation.
+ */
+export function ConnectionStatus({ isOnline: propIsOnline, isSyncing, queueCount, onSyncNow }: ConnectionStatusProps) {
+  const [isOnline, setIsOnline] = useState(propIsOnline)
+
+  // Synchronise le statut avec les changements du parent
+  useEffect(() => {
+    setIsOnline(propIsOnline)
+  }, [propIsOnline])
+
+  // Ajoute des écouteurs d'événements physiques pour forcer la mise à jour immédiate
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Vérification initiale forcée
+    setIsOnline(navigator.onLine)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   const hasPendingOrders = queueCount > 0
   const label = isOnline ? 'En ligne' : 'Hors ligne'
   const detail = hasPendingOrders

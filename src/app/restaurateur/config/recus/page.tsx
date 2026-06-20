@@ -384,6 +384,10 @@ export default function ReceiptSettingsPage() {
                 </div>
               )}
 
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Facture Simplifiée
+              </h2>
+
               {/* En-tête */}
               {header ? (
                 <div className="whitespace-pre-line text-[10px] text-gray-500 leading-tight uppercase">
@@ -397,34 +401,93 @@ export default function ReceiptSettingsPage() {
 
               {/* Infos standard du reçu */}
               <div className="text-left text-[10px] text-gray-500 space-y-0.5">
-                <p>COMMANDE : #12345</p>
-                <p>TABLE    : Salon Table 4</p>
-                <p>DATE     : {new Date().toLocaleString('fr-FR')}</p>
+                <div className="flex justify-between">
+                  <span>Date</span>
+                  <span>: {new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Facture N°</span>
+                  <span>: FAC-0626-00001</span>
+                </div>
               </div>
 
               <div className="border-t-2 border-dashed border-gray-200 my-2" />
 
               {/* Articles de test */}
-              <div className="space-y-1 text-left">
-                <div className="flex justify-between text-[11px] font-bold">
-                  <span>1x Garba Prestige</span>
-                  <span>4,500 FCFA</span>
+              <div className="space-y-2 text-left">
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-[11px] font-bold text-gray-900">
+                    <span>Garba Prestige</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600 text-[10px]">
+                    <span>1 &nbsp;&nbsp;&nbsp; 4500.00 (18.0)%</span>
+                    <span>4500.00</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-[11px] font-bold">
-                  <span>2x Jus de Bissap</span>
-                  <span>2,000 FCFA</span>
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-[11px] font-bold text-gray-900">
+                    <span>Jus de Bissap</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600 text-[10px]">
+                    <span>2 &nbsp;&nbsp;&nbsp; 1000.00 (18.0)%</span>
+                    <span>2000.00</span>
+                  </div>
                 </div>
               </div>
 
               <div className="border-t-2 border-dashed border-gray-200 my-2" />
 
-              {/* Total */}
-              <div className="flex justify-between items-center text-sm font-black text-black">
-                <span>TOTAL</span>
-                <span>6,500 FCFA</span>
+              {/* Totaux */}
+              <div className="text-left text-[10px] text-gray-700 space-y-1">
+                <div className="flex justify-between">
+                  <span>Nombre d&apos;articles</span>
+                  <span>3</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Montant total</span>
+                  <span>6500.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Remise promotionnelle totale</span>
+                  <span>0.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Remise du vendeur</span>
+                  <span>0.00</span>
+                </div>
+                <div className="flex justify-between font-bold text-gray-900 text-[11px] pt-1 border-t border-dashed border-gray-200">
+                  <span>Total des ventes</span>
+                  <span>6500.00</span>
+                </div>
+                <div className="flex justify-between font-bold text-gray-900 mt-1 text-[11px]">
+                  <span>Espèces payées</span>
+                  <span>6500.00</span>
+                </div>
               </div>
 
               <div className="border-t-2 border-dashed border-gray-200 my-2" />
+
+              {/* Ventilation fiscale */}
+              <div className="text-left text-[10px]">
+                <div className="grid grid-cols-4 font-bold text-gray-900 border-b border-dashed border-gray-200 pb-1 mb-1 text-[9px]">
+                  <span>TVA</span>
+                  <span>Taux</span>
+                  <span className="text-right">Base HT</span>
+                  <span className="text-right">Montant</span>
+                </div>
+                <div className="grid grid-cols-4 text-gray-600 text-[9px]">
+                  <span>TVA</span>
+                  <span>18.0%</span>
+                  <span className="text-right">5508.47</span>
+                  <span className="text-right">991.53</span>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-dashed border-gray-200 my-2" />
+
+              <p className="text-gray-700 font-bold text-[10px] text-left">
+                Vous avez été servi par Awa Diomandé
+              </p>
 
               {/* Pied de page */}
               {footer ? (

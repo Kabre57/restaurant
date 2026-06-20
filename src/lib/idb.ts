@@ -13,6 +13,10 @@ export type CachedProduct = {
   stockQuantity?: number | null;
   trackStock?: boolean | null;
   barcode?: string | null;
+  modifiers?: { id: string; name: string; price: number; isRequired: boolean }[];
+  priceHT?: number | null;
+  taxRate?: number | null;
+  priceTTC?: number | null;
 };
 export type QueuedOrder = SyncOrderInput & {
   id?: number;

@@ -100,6 +100,9 @@ model Product {
   name                String
   description         String?
   price               Float
+  priceHT             Decimal?                 @db.Decimal(12, 2)
+  taxRate             Decimal?                 @db.Decimal(5, 2)
+  priceTTC            Decimal?                 @db.Decimal(12, 2)
   costPrice           Float                    @default(0.0)
   image               String?
   barcode             String?                  // Code-barres (EAN-13, UPC, etc.)
@@ -122,6 +125,7 @@ model Product {
   transferOrderItems  TransferOrderItem[]
   physicalInventoryItems PhysicalInventoryItem[]
   stockTransfers      StockTransfer[]          @relation("ProductStockTransfers")
+  modifiers           ProductModifier[]
 
   @@unique([storeId, barcode])
   @@index([storeId, categoryId, isAvailable])
@@ -340,4 +344,15 @@ model StockMovement {
   @@index([productId, createdAt])
   @@index([storeId, createdAt])
   @@index([storeId, reason])
+}
+
+model ProductModifier {
+  id         String   @id @default(cuid())
+  productId  String
+  name       String
+  price      Float    @default(0)
+  isRequired Boolean  @default(false)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }

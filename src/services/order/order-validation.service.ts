@@ -9,6 +9,9 @@ export type AvailableOrderProduct = {
   trackStock: boolean
   stockQuantity: number
   minStockLevel: number
+  priceHT: number | null
+  taxRate: number | null
+  priceTTC: number | null
 }
 
 export class StockConflictError extends Error {
@@ -44,7 +47,10 @@ export async function validateProductsAvailability(
       averagePrepTimeMins: true,
       trackStock: true,
       stockQuantity: true,
-      minStockLevel: true
+      minStockLevel: true,
+      priceHT: true,
+      taxRate: true,
+      priceTTC: true
     }
   })
 
@@ -52,9 +58,16 @@ export async function validateProductsAvailability(
     throw new Error("Un ou plusieurs produits ne sont plus disponibles")
   }
 
-  assertSufficientStock(items, availableProducts)
+  const formattedProducts = availableProducts.map(p => ({
+    ...p,
+    priceHT: p.priceHT ? Number(p.priceHT) : null,
+    taxRate: p.taxRate ? Number(p.taxRate) : null,
+    priceTTC: p.priceTTC ? Number(p.priceTTC) : null,
+  }))
 
-  return availableProducts
+  assertSufficientStock(items, formattedProducts)
+
+  return formattedProducts
 }
 
 /**

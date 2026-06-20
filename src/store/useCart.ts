@@ -1,14 +1,18 @@
 import { create } from 'zustand'
-import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
+import { DEFAULT_VAT_RATE, computeTaxFromGrossAmount } from '@/lib/tax'
 
 export type CartItem = {
   id: string
   productId: string
   name: string
   price: number
+  priceHT?: number | null
+  taxRate?: number | null
+  priceTTC?: number | null
   quantity: number
   options?: string
   image?: string | null
+  barcode?: string | null
 }
 
 interface CartStore {
@@ -54,15 +58,41 @@ export const useCart = create<CartStore>((set, get) => ({
   })),
   clearCart: () => set({ items: [] }),
   setTaxRate: (rate) => set({ taxRate: Math.max(0, Math.min(1, rate)) }),
+  getTotal: () => {
+    const items = get().items
+    return items.reduce((total, item) => {
+      const unitTtc = item.priceTTC ?? item.price
+      return total + (unitTtc * item.quantity)
+    }, 0)
+  },
   getSubtotal: () => {
     const items = get().items
-    return items.reduce((total, item) => total + (item.price * item.quantity), 0)
+    const globalRate = get().taxRate
+    const subtotal = items.reduce((total, item) => {
+      if (item.priceHT !== undefined && item.priceHT !== null) {
+        return total + (item.priceHT * item.quantity)
+      }
+      const unitTtc = item.priceTTC ?? item.price
+      const unitHt = unitTtc / (1 + globalRate)
+      return total + (unitHt * item.quantity)
+    }, 0)
+    return Math.round(subtotal * 100) / 100
   },
   getTax: () => {
-    return computeTaxFromNetAmount(get().getSubtotal(), get().taxRate).taxAmount
-  },
-  getTotal: () => {
-    return computeTaxFromNetAmount(get().getSubtotal(), get().taxRate).totalIncludingTax
+    const items = get().items
+    const globalRate = get().taxRate
+    const tax = items.reduce((total, item) => {
+      const unitTtc = item.priceTTC ?? item.price
+      if (item.priceHT !== undefined && item.priceHT !== null) {
+        const itemTtc = unitTtc * item.quantity
+        const itemHt = item.priceHT * item.quantity
+        return total + (itemTtc - itemHt)
+      }
+      const unitHt = unitTtc / (1 + globalRate)
+      const itemTax = (unitTtc - unitHt) * item.quantity
+      return total + itemTax
+    }, 0)
+    return Math.round(tax * 100) / 100
   }
 }))
 

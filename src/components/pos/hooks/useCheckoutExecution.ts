@@ -48,6 +48,7 @@ interface CheckoutExecutionState {
   deliveryFee: number
   isSettlementFlow: boolean
   paymentContext: PaymentContext
+  cashierName?: string | null
 }
 
 interface CheckoutExecutionCallbacks {
@@ -167,6 +168,7 @@ export function useCheckoutExecution(
           total: Number(result.order.total || state.paymentTotal),
           date: new Date(),
           estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+          cashierName: state.cashierName || null,
           ...getReceiptPaymentMeta(mode, Number(result.order.total || state.paymentTotal))
         }
         callbacks.setLastOrder(receiptData)
@@ -223,6 +225,7 @@ export function useCheckoutExecution(
             total: currentTotal,
             date: new Date(),
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+            cashierName: state.cashierName || null,
             ...getReceiptPaymentMeta(paymentMode, currentTotal)
           }
           callbacks.setLastOrder(receiptData)
@@ -258,7 +261,8 @@ export function useCheckoutExecution(
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
-          name: item.name
+          name: item.name,
+          options: item.options
         })),
         type: state.orderType,
         paymentMode,
@@ -280,6 +284,7 @@ export function useCheckoutExecution(
             ...orderData,
             id: result.order.id,
             estimatedPrepMinutes: Number(result.order.estimatedPrepMinutes || 0) || null,
+            cashierName: state.cashierName || null,
             ...getReceiptPaymentMeta(paymentMode, currentTotal),
             items: buildReceiptItemsFromCart(state.items)
           }
@@ -304,6 +309,7 @@ export function useCheckoutExecution(
           ...orderData,
           id: orderData.clientRequestId,
           isOffline: true,
+          cashierName: state.cashierName || null,
           ...getReceiptPaymentMeta(paymentMode, currentTotal),
           items: buildReceiptItemsFromCart(state.items)
         }
@@ -331,7 +337,8 @@ export function useCheckoutExecution(
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
-          name: item.name
+          name: item.name,
+          options: item.options
         })),
         type: state.orderType,
         paymentMode,
@@ -350,6 +357,7 @@ export function useCheckoutExecution(
         ...orderData,
         id: orderData.clientRequestId,
         isOffline: true,
+        cashierName: state.cashierName || null,
         ...getReceiptPaymentMeta(paymentMode, currentTotal),
         items: buildReceiptItemsFromCart(state.items)
       }

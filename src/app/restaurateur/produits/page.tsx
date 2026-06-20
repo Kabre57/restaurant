@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Plus, Trash2, Edit3, Package, X, Loader2, AlertCircle, Search } from 'lucide-react'
 import { getProductsByStore, createProduct, updateProduct, deleteProduct, getCategories } from '@/app/actions/catalog/products'
+import { getStoreSettings } from '@/app/actions/store/storeSettings'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
 
@@ -23,9 +24,13 @@ export default function RestaurateurProducts() {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
 
+  const [defaultTaxRate, setDefaultTaxRate] = useState(18.00)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
+    priceHT: '',
+    taxRate: '18',
+    priceTTC: '',
     categoryId: '',
     image: '',
     averagePrepTimeMins: '15',
@@ -50,13 +55,19 @@ export default function RestaurateurProducts() {
     async function fetchData() {
       try {
         setLoading(true)
-        const [pData, cData] = await Promise.all([
+        const [pData, cData, sRes] = await Promise.all([
           getProductsByStore(activeStoreId),
-          getCategories(activeStoreId)
+          getCategories(activeStoreId),
+          getStoreSettings(activeStoreId)
         ])
         if (isCancelled) return
         setProducts(pData)
         setCategories(cData)
+        if (sRes.success && sRes.settings) {
+          const rate = sRes.settings.defaultTaxRate ?? 18.00
+          setDefaultTaxRate(rate)
+          setFormData(curr => ({ ...curr, taxRate: rate.toString() }))
+        }
       } catch (err) {
         console.error("Failed to load products/categories:", err)
       } finally {
@@ -72,6 +83,28 @@ export default function RestaurateurProducts() {
       isCancelled = true
     }
   }, [session?.user?.storeId, status])
+
+  useEffect(() => {
+    const ht = parseFloat(formData.priceHT)
+    const rate = parseFloat(formData.taxRate)
+    if (!isNaN(ht) && !isNaN(rate)) {
+      const ttc = ht * (1 + rate / 100)
+      setFormData(curr => {
+        const roundedTtc = (Math.round(ttc * 100) / 100).toString()
+        if (curr.priceTTC !== roundedTtc) {
+          return { ...curr, priceTTC: roundedTtc }
+        }
+        return curr
+      })
+    } else {
+      setFormData(curr => {
+        if (curr.priceTTC !== '') {
+          return { ...curr, priceTTC: '' }
+        }
+        return curr
+      })
+    }
+  }, [formData.priceHT, formData.taxRate])
 
   async function loadData() {
     const storeId = session?.user?.storeId
@@ -105,7 +138,10 @@ export default function RestaurateurProducts() {
       
       const payload = {
         ...formData,
-        price: parseFloat(formData.price),
+        price: parseFloat(formData.priceTTC || formData.price || '0'),
+        priceHT: formData.priceHT ? parseFloat(formData.priceHT) : undefined,
+        taxRate: formData.taxRate ? parseFloat(formData.taxRate) : undefined,
+        priceTTC: formData.priceTTC ? parseFloat(formData.priceTTC) : undefined,
         averagePrepTimeMins: parseInt(formData.averagePrepTimeMins),
         storeId,
         trackStock: formData.trackStock,
@@ -126,6 +162,9 @@ export default function RestaurateurProducts() {
         setFormData({ 
           name: '', 
           price: '', 
+          priceHT: '',
+          taxRate: defaultTaxRate.toString(),
+          priceTTC: '',
           categoryId: '', 
           image: '', 
           averagePrepTimeMins: '15',
@@ -169,6 +208,9 @@ export default function RestaurateurProducts() {
     setFormData({
       name: product.name,
       price: product.price.toString(),
+      priceHT: product.priceHT ? product.priceHT.toString() : '',
+      taxRate: product.taxRate ? product.taxRate.toString() : '18',
+      priceTTC: product.priceTTC ? product.priceTTC.toString() : '',
       categoryId: product.categoryId,
       image: product.image || '',
       averagePrepTimeMins: (product.averagePrepTimeMins || 15).toString(),
@@ -215,6 +257,9 @@ export default function RestaurateurProducts() {
             setFormData({ 
               name: '', 
               price: '', 
+              priceHT: '',
+              taxRate: defaultTaxRate.toString(),
+              priceTTC: '',
               categoryId: '', 
               image: '', 
               averagePrepTimeMins: '15',
@@ -369,8 +414,16 @@ export default function RestaurateurProducts() {
                   <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="EX: BURGER DOUBLE FROMAGE" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Prix (FCFA)</label>
-                  <input required type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="5000" />
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Prix HT (FCFA)</label>
+                  <input required type="number" step="any" value={formData.priceHT} onChange={(e) => setFormData({...formData, priceHT: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="EX: 4237.29" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Taux de TVA (%)</label>
+                  <input required type="number" step="any" value={formData.taxRate} onChange={(e) => setFormData({...formData, taxRate: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529]" placeholder="EX: 18.00" />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Prix TTC (FCFA) - Calculé</label>
+                  <input disabled type="number" value={formData.priceTTC} className="w-full bg-[#e9ecef] border border-[#dee2e6] rounded-xl px-4 py-3 text-xs font-bold text-gray-500 cursor-not-allowed" placeholder="5000" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Catégorie</label>

@@ -16,6 +16,8 @@ export type StoreSettingsData = {
   receiptHeader?: string | null
   receiptFooter?: string | null
   workflowType?: WorkflowType
+  displayVatBreakdown?: boolean
+  defaultTaxRate?: number
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -30,11 +32,28 @@ export async function getStoreSettings(storeId: string) {
         storeId,
         rounding: 'NO_ROUNDING',
         roundingValue: 5,
+        displayVatBreakdown: true,
+        defaultTaxRate: 18.00,
       },
       update: {},
+      include: {
+        store: true,
+      },
     })
 
-    return { success: true, settings }
+    const serializedSettings = {
+      ...settings,
+      defaultTaxRate: settings.defaultTaxRate ? Number(settings.defaultTaxRate) : 18.00,
+      store: settings.store ? {
+        name: settings.store.name,
+        address: settings.store.address,
+        phone: settings.store.phone,
+        email: settings.store.email,
+        code: settings.store.code,
+      } : null
+    }
+
+    return { success: true, settings: serializedSettings }
   } catch (error) {
     console.error('Failed to fetch store settings:', error)
     return { success: false, error: 'Impossible de récupérer les paramètres.' }
@@ -66,6 +85,8 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
         receiptHeader: data.receiptHeader,
         receiptFooter: data.receiptFooter,
         workflowType: data.workflowType ?? 'SERVER_FIRST',
+        displayVatBreakdown: data.displayVatBreakdown ?? true,
+        defaultTaxRate: data.defaultTaxRate ?? 18.00,
       },
       update: {
         ...(data.rounding !== undefined && { rounding: data.rounding }),
@@ -74,8 +95,15 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
         ...(data.receiptHeader !== undefined && { receiptHeader: data.receiptHeader }),
         ...(data.receiptFooter !== undefined && { receiptFooter: data.receiptFooter }),
         ...(data.workflowType !== undefined && { workflowType: data.workflowType }),
+        ...(data.displayVatBreakdown !== undefined && { displayVatBreakdown: data.displayVatBreakdown }),
+        ...(data.defaultTaxRate !== undefined && { defaultTaxRate: data.defaultTaxRate }),
       },
     })
+
+    const serializedSettings = {
+      ...settings,
+      defaultTaxRate: settings.defaultTaxRate ? Number(settings.defaultTaxRate) : 18.00
+    }
 
     try {
       revalidatePath('/restaurateur/config/arrondis')
@@ -85,7 +113,7 @@ export async function updateStoreSettings(storeId: string, data: StoreSettingsDa
       // Ignorer l'invariant lors de l'exécution hors de Next.js (ex: scripts de test ou tâches CLI)
     }
 
-    return { success: true, settings }
+    return { success: true, settings: serializedSettings }
   } catch (error) {
     console.error('Failed to update store settings:', error)
     return { success: false, error: 'Erreur lors de la mise à jour des paramètres.' }

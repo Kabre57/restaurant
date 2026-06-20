@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import type { CachedProduct } from '@/lib/idb'
+import type { CartItem } from '@/store/useCart'
 
 type POSAlertState = {
   title: string
@@ -9,14 +10,7 @@ type POSAlertState = {
 
 interface UsePOSBarcodeScannerOptions {
   products: CachedProduct[]
-  addItem: (item: {
-    productId: string
-    name: string
-    price: number
-    quantity: number
-    options: string
-    image: string | null
-  }) => void
+  addItem: (item: Omit<CartItem, 'id'>) => void
   setAlertState: React.Dispatch<React.SetStateAction<POSAlertState>>
 }
 
@@ -32,9 +26,13 @@ export function usePOSBarcodeScanner({
         productId: product.id,
         name: product.name,
         price: product.price,
+        priceHT: product.priceHT ?? null,
+        taxRate: product.taxRate ?? null,
+        priceTTC: product.priceTTC ?? null,
         quantity: 1,
         options: '',
-        image: product.image
+        image: product.image,
+        barcode: product.barcode ?? null
       })
       setAlertState({
         title: 'Produit Scanné',

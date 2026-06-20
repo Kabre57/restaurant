@@ -167,7 +167,7 @@ describe("Loyalty Module Integration with POS flow", () => {
     const customerAfterOrder1 = await prisma.loyaltyCustomer.findUnique({
       where: { id: loyaltyCustomerId }
     })
-    expect(customerAfterOrder1?.points).toBe(185)
+    expect(customerAfterOrder1?.points).toBe(180)
 
     // Vérifier qu'un transaction EARN a bien été créée
     const earnTx = await prisma.loyaltyTransaction.findFirst({
@@ -178,7 +178,7 @@ describe("Loyalty Module Integration with POS flow", () => {
       }
     })
     expect(earnTx).toBeDefined()
-    expect(earnTx?.points).toBe(35)
+    expect(earnTx?.points).toBe(30)
 
     // Commande 2 : Total = 2000 FCFA (2x Coca Cola).
     // Points rachetés : 50 points.
@@ -209,7 +209,7 @@ describe("Loyalty Module Integration with POS flow", () => {
     const customerAfterOrder2 = await prisma.loyaltyCustomer.findUnique({
       where: { id: loyaltyCustomerId }
     })
-    expect(customerAfterOrder2?.points).toBe(152)
+    expect(customerAfterOrder2?.points).toBe(145)
 
     // Vérifier les transactions pour la commande 2
     const earnTx2 = await prisma.loyaltyTransaction.findFirst({
@@ -219,7 +219,7 @@ describe("Loyalty Module Integration with POS flow", () => {
         type: "EARN",
       }
     })
-    expect(earnTx2?.points).toBe(17)
+    expect(earnTx2?.points).toBe(15)
 
     const redeemTx = await prisma.loyaltyTransaction.findFirst({
       where: {

@@ -43,4 +43,5 @@ export interface POSClientProps {
   initialFlowMode?: OrderFlowMode
   initialViewMode?: POSViewMode
   initialActiveShift?: ActiveShift | null
+  displayVatBreakdown?: boolean
 }

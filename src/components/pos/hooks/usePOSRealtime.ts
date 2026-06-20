@@ -24,9 +24,13 @@ export type RealtimeOrder = {
     id: string
     quantity: number
     price?: number
+    priceExcludingTax?: number | null
+    taxRate?: number | null
+    taxAmount?: number | null
     options?: string | null
     product?: {
       name: string
+      barcode?: string | null
     }
   }>
   payments?: Array<{

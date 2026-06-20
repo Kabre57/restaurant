@@ -27,6 +27,7 @@ import { POSWorkspace } from './subcomponents/POSWorkspace'
 import { Sidebar } from './subcomponents/Sidebar'
 import { POSModals } from './subcomponents/POSModals'
 import { BarcodeScannerModal } from './subcomponents/BarcodeScannerModal'
+import { ProductOptionModal } from './subcomponents/ProductOptionModal'
 
 import type { POSClientProps, POSAlertState } from './types'
 
@@ -43,6 +44,7 @@ export default function POSClient({
   initialFlowMode = 'DIRECT',
   initialViewMode = 'POS',
   initialActiveShift = null,
+  displayVatBreakdown = true,
 }: POSClientProps) {
   const { data: session } = useSession()
   const isRestaurateur = session?.user?.role === 'RESTAURATEUR'
@@ -82,6 +84,7 @@ export default function POSClient({
   const [showCart, setShowCart] = useState(false)
   const [showCameraScanner, setShowCameraScanner] = useState(false)
   const [isSelectingTableForCheckout, setIsSelectingTableForCheckout] = useState(false)
+  const [activeProductForModifiers, setActiveProductForModifiers] = useState<any | null>(null)
 
   const handleTableSelectedForCheckout = (table: Table) => {
     setIsSelectingTableForCheckout(false)
@@ -127,18 +130,10 @@ export default function POSClient({
     initialOrders: activeOrders,
     storeId,
     onReadyOrder: (message) => {
-      setAlertState({
-        title: 'Commande prete',
-        message,
-        type: 'success',
-      })
+      setAlertState({ title: 'Commande prete', message, type: 'success' })
     },
     onServerCall: (message) => {
-      setAlertState({
-        title: 'Appel serveur',
-        message,
-        type: 'info',
-      })
+      setAlertState({ title: 'Appel serveur', message, type: 'info' })
     },
   })
 
@@ -178,14 +173,11 @@ export default function POSClient({
     advanceOrderId: () => setOrderId((currentOrderId) => nextDisplayOrderId(currentOrderId)),
     mergeLiveOrder,
     operatorRole,
-    onAfterCheckout: () => {
-      setSelectedTable(null)
-      setViewMode(orderFlowMode === 'TABLE_SERVICE' ? 'FLOOR_PLAN' : 'POS')
-      setShowCart(false)
-    },
+    onAfterCheckout: () => { setSelectedTable(null); setViewMode(orderFlowMode === 'TABLE_SERVICE' ? 'FLOOR_PLAN' : 'POS'); setShowCart(false) },
     onRequireTable: () => setViewMode('FLOOR_PLAN'),
     onRequireTableSelection: () => setIsSelectingTableForCheckout(true),
-    onAlert: (alert) => setAlertState(alert),
+    onAlert: setAlertState,
+    cashierName: session?.user?.name || null,
   })
 
   // ── Écran de blocage si le caissier n'a pas ouvert sa caisse ──
@@ -230,20 +222,10 @@ export default function POSClient({
   const cartEstimatedPrepMinutes = computeEstimatedPrepMinutes(items, products)
   const cartEstimatedReadyLabel = formatEstimatedReadyTime(cartEstimatedPrepMinutes)
   const activeTableOrder = showTableStatusModal
-    ? liveActiveOrders.find(
-        (order) =>
-          order.tableId === showTableStatusModal.id &&
-          order.status !== 'COMPLETED' &&
-          order.status !== 'CANCELLED'
-      ) || null
+    ? liveActiveOrders.find(o => o.tableId === showTableStatusModal.id && o.status !== 'COMPLETED' && o.status !== 'CANCELLED') || null
     : null
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = !activeCategory || product.categoryId === activeCategory
-    const isAvailable = product.isAvailable !== false
-    return matchesSearch && matchesCategory && isAvailable
-  })
+  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) && (!activeCategory || p.categoryId === activeCategory) && p.isAvailable !== false)
 
   const handleMarkOrderServed = async () => {
     if (!activeTableOrder) return
@@ -251,22 +233,11 @@ export default function POSClient({
     const result = await markOrderServed(activeTableOrder.id, storeId)
     if (result.success && result.order) {
       mergeLiveOrder(result.order)
-      setAlertState({
-        title: 'Commande servie',
-        message: result.hasPendingPayment
-          ? 'Commande servie. La table reste occupée jusqu’à l’encaissement.'
-          : 'Commande servie et clôturée.',
-        type: 'success',
-      })
+      setAlertState({ title: 'Commande servie', message: result.hasPendingPayment ? 'Commande servie. La table reste occupée jusqu’à l’encaissement.' : 'Commande servie et clôturée.', type: 'success' })
       if (!result.hasPendingPayment) setShowTableStatusModal(null)
       return
     }
-
-    setAlertState({
-      title: 'Mise a jour impossible',
-      message: result.error || "Impossible de marquer cette commande comme servie.",
-      type: 'error',
-    })
+    setAlertState({ title: 'Mise a jour impossible', message: result.error || "Impossible de marquer cette commande comme servie.", type: 'error' })
   }
 
   return (
@@ -352,12 +323,20 @@ export default function POSClient({
             onCategoryChange={setActiveCategory}
             storeId={storeId}
             onProductAdd={(product) => {
+              if (product.modifiers && product.modifiers.length > 0) {
+                setActiveProductForModifiers(product)
+                return
+              }
               addItem({
                 productId: product.id,
                 name: product.name,
-                price: product.price,
+                price: product.priceTTC ?? product.price,
+                priceHT: product.priceHT ?? null,
+                taxRate: product.taxRate ?? null,
+                priceTTC: product.priceTTC ?? null,
                 quantity: 1,
                 image: product.image,
+                barcode: product.barcode ?? null,
               })
             }}
             onChooseTable={() => setViewMode('FLOOR_PLAN')}
@@ -417,6 +396,7 @@ export default function POSClient({
         tax={getTax()}
         total={getTotal()}
         onClearCart={clearCart}
+        displayVatBreakdown={displayVatBreakdown}
         onCheckout={checkout.handleCheckoutClick}
         onEditOptions={setEditingOptionsId}
         onAddItem={(item) =>
@@ -424,9 +404,13 @@ export default function POSClient({
             productId: item.productId,
             name: item.name,
             price: item.price,
+            priceHT: item.priceHT ?? null,
+            taxRate: item.taxRate ?? null,
+            priceTTC: item.priceTTC ?? null,
             quantity: 1,
             options: item.options,
             image: item.image,
+            barcode: item.barcode ?? null,
           })
         }
         onSubItem={(item) => {
@@ -485,6 +469,34 @@ export default function POSClient({
         <BarcodeScannerModal
           onScan={handleBarcodeScanned}
           onClose={() => setShowCameraScanner(false)}
+        />
+      )}
+
+      {activeProductForModifiers && (
+        <ProductOptionModal
+          product={activeProductForModifiers}
+          onClose={() => setActiveProductForModifiers(null)}
+          onConfirm={(selectedMods) => {
+            const optionsJson = selectedMods.length > 0 ? JSON.stringify(selectedMods) : undefined
+            const baseTtc = activeProductForModifiers.priceTTC ?? activeProductForModifiers.price
+            const taxRateVal = activeProductForModifiers.taxRate ?? 18.00
+            const modsTtc = selectedMods.reduce((s, m) => s + m.price, 0)
+            const totalPriceTtc = baseTtc + modsTtc
+            const totalPriceHt = totalPriceTtc / (1 + taxRateVal / 100)
+            addItem({
+              productId: activeProductForModifiers.id,
+              name: activeProductForModifiers.name,
+              price: totalPriceTtc,
+              priceHT: Math.round(totalPriceHt * 100) / 100,
+              taxRate: taxRateVal,
+              priceTTC: totalPriceTtc,
+              quantity: 1,
+              options: optionsJson,
+              image: activeProductForModifiers.image,
+              barcode: activeProductForModifiers.barcode ?? null,
+            })
+            setActiveProductForModifiers(null)
+          }}
         />
       )}
     </div>

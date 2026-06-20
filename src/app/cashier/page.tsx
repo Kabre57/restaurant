@@ -48,6 +48,7 @@ export default async function CashierPage() {
       flowModeLocked={flowModeLocked}
       initialFlowMode={flowModeLocked ? 'DIRECT' : undefined}
       operatorRole={role === 'SERVER' ? 'SERVER' : 'CASHIER'}
+      displayVatBreakdown={settingsRes.success && settingsRes.settings ? settingsRes.settings.displayVatBreakdown : true}
     />
   );
 }

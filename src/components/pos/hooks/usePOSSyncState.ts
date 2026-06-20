@@ -38,7 +38,7 @@ export function usePOSSyncState({
   onHydrateProducts,
 }: UsePOSSyncStateOptions) {
   const syncInFlightRef = useRef(false)
-  const [isOnline, setIsOnline] = useState(true)
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncQueueCount, setSyncQueueCount] = useState(0)
   const [sessionTotal, setSessionTotal] = useState(0)

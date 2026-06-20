@@ -148,6 +148,9 @@ describe("Delivery Flow Integration Tests", () => {
       await prisma.user.deleteMany({
         where: { storeId: testStoreId },
       })
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId },
+      })
       await prisma.storeSettings.deleteMany({
         where: { storeId: testStoreId },
       })

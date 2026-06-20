@@ -117,13 +117,11 @@ describe("DeliveryService Unit Tests", () => {
     const delivery = await DeliveryService.createDeliveryOrder({
       orderId,
       address: "Zone 4, Abidjan",
-      deliveryFee: 1200,
       estimatedTimeMinutes: 25,
     })
 
     expect(delivery.orderId).toBe(orderId)
     expect(delivery.address).toBe("Zone 4, Abidjan")
-    expect(Number(delivery.deliveryFee)).toBe(1200)
     expect(delivery.status).toBe("PENDING")
   })
 
@@ -131,7 +129,6 @@ describe("DeliveryService Unit Tests", () => {
     const delivery = await DeliveryService.createDeliveryOrder({
       orderId,
       address: "Plateau, Abidjan",
-      deliveryFee: 1000,
     })
 
     const updated = await DeliveryService.updateDeliveryStatus(

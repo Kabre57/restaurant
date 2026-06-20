@@ -232,7 +232,9 @@ model StoreSettings {
   receiptLogo   String?      @db.Text // Base64 du logo pour impression ESC/POS
   receiptHeader String? // Texte personnalisé en-tête de reçu
   receiptFooter String? // Texte personnalisé pied de reçu
-  workflowType  WorkflowType @default(SERVER_FIRST)
+  workflowType        WorkflowType @default(SERVER_FIRST)
+  displayVatBreakdown Boolean      @default(true)
+  defaultTaxRate      Decimal?     @default(18.00) @db.Decimal(5, 2)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   store         Store        @relation(fields: [storeId], references: [id])

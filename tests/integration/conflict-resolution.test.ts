@@ -89,6 +89,9 @@ describe("Résolution des Conflits de Sync Offline & Idempotence", () => {
       await prisma.stockMovement.deleteMany({
         where: { storeId: testStoreId },
       });
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId },
+      });
       await prisma.product.deleteMany({
         where: { storeId: testStoreId },
       });

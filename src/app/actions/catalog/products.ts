@@ -20,6 +20,9 @@ function getErrorMessage(error: unknown, fallback: string) {
 export async function createProduct(data: { 
   name: string, 
   price: number, 
+  priceHT?: number,
+  taxRate?: number,
+  priceTTC?: number,
   categoryId: string, 
   storeId: string, 
   image?: string,
@@ -38,10 +41,17 @@ export async function createProduct(data: {
     }
     const validatedData = parsed.data
 
+    const finalTtc = validatedData.priceTTC ?? validatedData.price
+    const finalTaxRate = validatedData.taxRate ?? 18.00
+    const finalHt = validatedData.priceHT ?? (finalTtc / (1 + finalTaxRate / 100))
+
     const product = await prisma.product.create({
       data: {
         name: validatedData.name,
-        price: validatedData.price,
+        price: finalTtc,
+        priceHT: finalHt,
+        taxRate: finalTaxRate,
+        priceTTC: finalTtc,
         category: { connect: { id: validatedData.categoryId } },
         store: { connect: { id: finalStoreId } },
         image: validatedData.image,
@@ -65,6 +75,9 @@ export async function createProduct(data: {
 export async function updateProduct(id: string, data: { 
   name?: string, 
   price?: number, 
+  priceHT?: number,
+  taxRate?: number,
+  priceTTC?: number,
   categoryId?: string, 
   image?: string, 
   averagePrepTimeMins?: number,
@@ -92,8 +105,28 @@ export async function updateProduct(id: string, data: {
     const { categoryId, storeId, ...rest } = validatedData
     const finalStoreId = role === "ADMIN" ? (storeId || existing.storeId) : authStoreId
 
+    let finalTtc = validatedData.priceTTC ?? validatedData.price
+    let finalTaxRate = validatedData.taxRate
+    let finalHt = validatedData.priceHT
+
+    const currentTtc = Number(existing.priceTTC ?? existing.price)
+    const currentTaxRate = existing.taxRate ? Number(existing.taxRate) : 18.00
+
+    if (finalTtc !== undefined || finalTaxRate !== undefined || finalHt !== undefined) {
+      const targetTtc = finalTtc ?? currentTtc
+      const targetTaxRate = finalTaxRate ?? currentTaxRate
+      const targetHt = finalHt ?? (targetTtc / (1 + targetTaxRate / 100))
+      
+      finalTtc = targetTtc
+      finalTaxRate = targetTaxRate
+      finalHt = targetHt
+    }
+
     const updateData: Prisma.ProductUpdateInput = {
       ...rest,
+      ...(finalTtc !== undefined ? { price: finalTtc, priceTTC: finalTtc } : {}),
+      ...(finalTaxRate !== undefined ? { taxRate: finalTaxRate } : {}),
+      ...(finalHt !== undefined ? { priceHT: finalHt } : {}),
       ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
       store: { connect: { id: finalStoreId } }
     }
@@ -140,11 +173,17 @@ export async function getProductsByStore(storeId: string) {
 
   try {
     return await getCached(REDIS_KEYS.products(targetStoreId), 300, async () => {
-      return await prisma.product.findMany({
+      const dbProducts = await prisma.product.findMany({
         where: { storeId: targetStoreId },
-        include: { category: true },
+        include: { category: true, modifiers: true },
         orderBy: { name: 'asc' }
       })
+      return dbProducts.map(p => ({
+        ...p,
+        priceHT: p.priceHT ? Number(p.priceHT) : null,
+        taxRate: p.taxRate ? Number(p.taxRate) : null,
+        priceTTC: p.priceTTC ? Number(p.priceTTC) : null,
+      }))
     })
   } catch (error) {
     console.error("Failed to fetch products:", error)

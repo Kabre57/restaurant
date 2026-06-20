@@ -55,7 +55,9 @@ export default function KDSClient({
     completedHistory,
     handleUpdateStatus,
     handleMoveStatusBackward,
-    handleRecallOrder
+    handleRecallOrder,
+    validatedReadyOrders,
+    handleReadyAction
   } = useKDSRealtime({
     initialOrders,
     storeId,
@@ -144,6 +146,14 @@ export default function KDSClient({
   const pendingOrders = processedOrders.filter(o => o.status === 'EN_ATTENTE')
   const preparingOrders = processedOrders.filter(o => o.status === 'PREPARATION')
   const readyOrders = processedOrders.filter(o => o.status === 'PRET')
+  const readyOrdersWithValidation = readyOrders.map(o => {
+    const validatedAt = validatedReadyOrders[o.id]
+    return {
+      ...o,
+      isValidated: !!validatedAt,
+      validatedAt: validatedAt
+    }
+  })
 
   const bgThemeClass = isDarkMode ? 'bg-[#0f1115] text-[#eceff4]' : 'bg-[#f8f9fa] text-[#212529]'
 
@@ -268,8 +278,11 @@ export default function KDSClient({
           <KDSColumn
             title="Prêt / À Servir"
             color="#2f9e44"
-            orders={readyOrders}
+            orders={readyOrdersWithValidation}
+            onAction={handleReadyAction}
             onBackAction={handleMoveStatusBackward}
+            icon={<Check className="w-5 h-5" />}
+            actionLabel="PRÊT / À SERVIR"
             isDarkMode={isDarkMode}
             completedItems={completedItems}
             toggleItemCompletion={toggleItemCompletion}

@@ -8,7 +8,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { headers } from 'next/headers'
 import { markOrderServed as markOrderServedAction, settleOrderPayment as settleOrderPaymentAction } from './orderLifecycle'
 import { requireAuth, requireStoreAccess } from '@/shared/security'
-import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
+import { DEFAULT_VAT_RATE } from '@/lib/tax'
 import { syncOrdersWithCreateOrder } from '@/services/order/order-sync.service'
 import type { SyncOrderInput } from '@/lib/offline-sync'
 
@@ -26,6 +26,20 @@ import {
   notifyOrderCreated,
   notifyOrderUpdated,
 } from '@/services/order'
+
+function getItemUnitPrice(basePrice: number, optionsStr?: string | null): number {
+  if (!optionsStr) return basePrice
+  try {
+    const parsed = JSON.parse(optionsStr)
+    if (Array.isArray(parsed)) {
+      const optionsPrice = parsed.reduce((sum, opt) => sum + (Number(opt.price) || 0), 0)
+      return basePrice + optionsPrice
+    }
+  } catch {
+    // Si ce n'est pas du JSON valide, on retourne le prix de base
+  }
+  return basePrice
+}
 
 export type OrderInput = {
   clientRequestId?: string
@@ -131,14 +145,13 @@ export async function createOrder(data: OrderInput) {
 
     // Recalcul sécurisé du total côté serveur
     const productPriceMap = new Map(availableProducts.map(p => [p.id, p.price]))
-    const computedSubtotalExcludingTax = data.items.reduce((acc, item) => {
-      const serverPrice = productPriceMap.get(item.productId) ?? 0
-      return acc + serverPrice * item.quantity
+    const computedSubtotalIncludingTax = data.items.reduce((acc, item) => {
+      const basePrice = productPriceMap.get(item.productId) ?? 0
+      const unitPrice = getItemUnitPrice(basePrice, item.options)
+      return acc + unitPrice * item.quantity
     }, 0)
     const computedDiscount = data.discount ?? 0
-    const taxableAmount = Math.max(0, computedSubtotalExcludingTax - computedDiscount)
-    const computedTax = computeTaxFromNetAmount(taxableAmount)
-    const computedTotal = computedTax.totalIncludingTax
+    const computedTotal = Math.max(0, computedSubtotalIncludingTax - computedDiscount)
 
     const paymentMethodId = await resolvePaymentMethodId(data.storeId, data.paymentMode as string)
     const estimatedPrepMinutes = computeEstimatedPrepMinutes(data.items, availableProducts)
@@ -171,6 +184,9 @@ export async function createOrder(data: OrderInput) {
         }
       }
 
+      const productDetailMap = new Map(availableProducts.map(p => [p.id, p]))
+      const defaultTaxRatePercent = settings?.defaultTaxRate ? Number(settings.defaultTaxRate) : 18.00
+
       const orderCreateData: Prisma.OrderUncheckedCreateInput = {
         clientRequestId: data.clientRequestId || null,
         storeId: data.storeId,
@@ -184,15 +200,24 @@ export async function createOrder(data: OrderInput) {
         estimatedReadyAt,
         externalPayload: data.externalPayload ?? Prisma.JsonNull,
         items: {
-          create: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: productPriceMap.get(item.productId) ?? 0,
-            priceExcludingTax: productPriceMap.get(item.productId) ?? 0,
-            taxRate: DEFAULT_VAT_RATE,
-            taxAmount: computeTaxFromNetAmount((productPriceMap.get(item.productId) ?? 0) * item.quantity).taxAmount,
-            options: item.options
-          }))
+          create: data.items.map(item => {
+            const product = productDetailMap.get(item.productId)
+            const basePrice = product?.price ?? 0
+            const unitPrice = getItemUnitPrice(basePrice, item.options)
+            const itemTaxRatePercent = (product && product.taxRate !== null) ? Number(product.taxRate) : defaultTaxRatePercent
+            const itemTaxRateDecimal = itemTaxRatePercent / 100
+            const unitHt = unitPrice / (1 + itemTaxRateDecimal)
+            const lineTax = (unitPrice - unitHt) * item.quantity
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              price: unitPrice,
+              priceExcludingTax: Math.round(unitHt * 100) / 100,
+              taxRate: itemTaxRateDecimal,
+              taxAmount: Math.round(lineTax * 100) / 100,
+              options: item.options
+            }
+          })
         },
         payments: {
           create: {
@@ -306,6 +331,7 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
   void _ignoredTotal
 
   try {
+    let newStatus: OrderStatus = OrderStatus.EN_ATTENTE
     if (!items.length) {
       return { success: false, error: "Aucun article à ajouter" }
     }
@@ -318,20 +344,22 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
       return { success: false, error: "Commande introuvable" }
     }
 
-    const newStatus = order.status === OrderStatus.PRET || order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED
-      ? OrderStatus.EN_ATTENTE
-      : order.status
-
     const itemProductIds = items.map(i => i.productId)
     const itemProducts = await prisma.product.findMany({
       where: { id: { in: itemProductIds } },
-      select: { id: true, price: true, name: true, trackStock: true, stockQuantity: true, minStockLevel: true }
+      select: { id: true, price: true, name: true, trackStock: true, stockQuantity: true, minStockLevel: true, priceHT: true, taxRate: true, priceTTC: true }
     })
     const itemPriceMap = new Map(itemProducts.map(p => [p.id, p.price]))
     const addedTotal = items.reduce((acc, i) => {
-      const lineTotal = (itemPriceMap.get(i.productId) ?? 0) * i.quantity
-      return acc + computeTaxFromNetAmount(lineTotal).totalIncludingTax
+      const basePrice = itemPriceMap.get(i.productId) ?? 0
+      const unitPrice = getItemUnitPrice(basePrice, i.options)
+      return acc + unitPrice * i.quantity
     }, 0)
+
+    const settings = await prisma.storeSettings.findUnique({
+      where: { storeId: order.storeId }
+    })
+    const defaultTaxRatePercent = settings?.defaultTaxRate ? Number(settings.defaultTaxRate) : 18.00
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
       const orderUpdate = await tx.order.update({
@@ -344,15 +372,24 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
           readyAt: null,
           servedAt: null,
           items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: itemPriceMap.get(item.productId) ?? 0,
-              priceExcludingTax: itemPriceMap.get(item.productId) ?? 0,
-              taxRate: DEFAULT_VAT_RATE,
-              taxAmount: computeTaxFromNetAmount((itemPriceMap.get(item.productId) ?? 0) * item.quantity).taxAmount,
-              options: item.options
-            }))
+            create: items.map(item => {
+              const product = itemProducts.find(p => p.id === item.productId)
+              const basePrice = product?.price ?? 0
+              const unitPrice = getItemUnitPrice(basePrice, item.options)
+              const itemTaxRatePercent = (product && product.taxRate !== null) ? Number(product.taxRate) : defaultTaxRatePercent
+              const itemTaxRateDecimal = itemTaxRatePercent / 100
+              const unitHt = unitPrice / (1 + itemTaxRateDecimal)
+              const lineTax = (unitPrice - unitHt) * item.quantity
+              return {
+                productId: item.productId,
+                quantity: item.quantity,
+                price: unitPrice,
+                priceExcludingTax: Math.round(unitHt * 100) / 100,
+                taxRate: itemTaxRateDecimal,
+                taxAmount: Math.round(lineTax * 100) / 100,
+                options: item.options
+              }
+            })
           }
         },
         include: orderInclude
@@ -369,7 +406,7 @@ export async function addItemsToOrder(orderId: string, items: OrderInput['items'
         }))
       )
 
-      const estimateBase = newStatus === OrderStatus.PREPARATION && order.preparationStartedAt
+      const estimateBase = (newStatus as string) === OrderStatus.PREPARATION && order.preparationStartedAt
         ? new Date(order.preparationStartedAt)
         : new Date()
 

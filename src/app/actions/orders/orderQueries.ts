@@ -139,3 +139,28 @@ export async function updateOrderStatus(
     return { success: false, error: 'Erreur lors de la mise à jour du statut' }
   }
 }
+
+import { publishPOSOrderAlert } from './orderNotifications'
+
+export async function triggerReadyOrderBip(orderId: string, storeId: string) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { table: true }
+    })
+    if (!order) return { success: false, error: 'Commande introuvable' }
+    
+    await publishPOSOrderAlert('ORDER_READY', {
+      id: order.id,
+      storeId: order.storeId,
+      table: order.table ? { number: order.table.number } : null,
+      total: order.total,
+    })
+    
+    return { success: true }
+  } catch (error) {
+    console.error("Error triggering ready order bip:", error)
+    return { success: false, error: String(error) }
+  }
+}
+

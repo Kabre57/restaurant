@@ -4,6 +4,21 @@ import { DEFAULT_VAT_RATE, computeTaxFromNetAmount } from '@/lib/tax'
 import { telemetry } from '@/shared/telemetry'
 import { handleLoyaltyPoints } from './order-fidelity.service'
 import { deductStockForItems, orderInclude, buildEstimatedReadyAt } from './order-persistence.service'
+import type { AvailableOrderProduct } from './order-validation.service'
+
+function getItemUnitPrice(basePrice: number, optionsStr?: string | null): number {
+  if (!optionsStr) return basePrice
+  try {
+    const parsed = JSON.parse(optionsStr)
+    if (Array.isArray(parsed)) {
+      const optionsPrice = parsed.reduce((sum, opt) => sum + (Number(opt.price) || 0), 0)
+      return basePrice + optionsPrice
+    }
+  } catch {
+    // Si ce n'est pas du JSON valide, on retourne le prix de base
+  }
+  return basePrice
+}
 
 /**
  * Tente de fusionner une commande dine-in si une commande active existe déjà sur la table spécifiée.
@@ -21,7 +36,7 @@ export async function tryMergeDineInOrder(
     promotionId?: string
   },
   productPriceMap: Map<string, number>,
-  availableProducts: { id: string; name: string; trackStock: boolean; stockQuantity: number; minStockLevel: number; averagePrepTimeMins: number }[],
+  availableProducts: AvailableOrderProduct[],
   paymentMethodId: string,
   paymentStatus: PaymentStatus,
   userId: string
@@ -48,12 +63,18 @@ export async function tryMergeDineInOrder(
 
   if (!existingActiveOrder) return null
 
-  // Calculer le total à ajouter
+  // Calculer le total à ajouter (les produits sont affichés et stockés TTC)
   const addedTotal = data.items.reduce((acc, i) => {
-    const serverPrice = productPriceMap.get(i.productId) ?? 0
-    const lineTotal = serverPrice * i.quantity
-    return acc + computeTaxFromNetAmount(lineTotal).totalIncludingTax
+    const basePrice = productPriceMap.get(i.productId) ?? 0
+    const unitPrice = getItemUnitPrice(basePrice, i.options)
+    return acc + unitPrice * i.quantity
   }, 0)
+
+  // Récupérer le taux de TVA par défaut du store
+  const settings = await tx.storeSettings.findUnique({
+    where: { storeId: data.storeId }
+  })
+  const defaultTaxRatePercent = settings?.defaultTaxRate ? Number(settings.defaultTaxRate) : 18.00
 
   // Mettre à jour la commande principale et insérer les nouveaux articles
   const orderUpdate = await tx.order.update({
@@ -66,15 +87,24 @@ export async function tryMergeDineInOrder(
       readyAt: null,
       servedAt: null,
       items: {
-        create: data.items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: productPriceMap.get(item.productId) ?? 0,
-          priceExcludingTax: productPriceMap.get(item.productId) ?? 0,
-          taxRate: DEFAULT_VAT_RATE,
-          taxAmount: computeTaxFromNetAmount((productPriceMap.get(item.productId) ?? 0) * item.quantity).taxAmount,
-          options: item.options
-        }))
+        create: data.items.map(item => {
+          const product = availableProducts.find(p => p.id === item.productId)
+          const basePrice = productPriceMap.get(item.productId) ?? 0
+          const unitPrice = getItemUnitPrice(basePrice, item.options)
+          const itemTaxRatePercent = (product && product.taxRate !== null) ? product.taxRate : defaultTaxRatePercent
+          const itemTaxRateDecimal = itemTaxRatePercent / 100
+          const unitHt = unitPrice / (1 + itemTaxRateDecimal)
+          const lineTax = (unitPrice - unitHt) * item.quantity
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            price: unitPrice,
+            priceExcludingTax: Math.round(unitHt * 100) / 100,
+            taxRate: itemTaxRateDecimal,
+            taxAmount: Math.round(lineTax * 100) / 100,
+            options: item.options
+          }
+        })
       }
     },
     include: orderInclude

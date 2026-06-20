@@ -11,6 +11,23 @@ interface CartItemProps {
   onOptionsClick?: () => void
 }
 
+function formatOptions(optionsStr?: string | null): string {
+  if (!optionsStr) return ''
+  try {
+    const parsed = JSON.parse(optionsStr)
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((opt: { name: string; price: number }) => {
+          return opt.price > 0 ? `+ ${opt.name} (+${opt.price} FCFA)` : `+ ${opt.name}`
+        })
+        .join('\n')
+    }
+  } catch {
+    // Rétrocompatibilité avec les notes brutes
+  }
+  return optionsStr
+}
+
 export function CartItem({ item, onAdd, onSub, onOptionsClick }: CartItemProps) {
   const [failedImageSrc, setFailedImageSrc] = React.useState<string | null>(null)
   const canDisplayImage = Boolean(item.image) && failedImageSrc !== item.image
@@ -42,8 +59,8 @@ export function CartItem({ item, onAdd, onSub, onOptionsClick }: CartItemProps) 
           )}
         </div>
         {item.options && (
-          <p className="text-[9px] font-black text-[#e03131] uppercase tracking-widest leading-tight mt-1">
-            {item.options}
+          <p className="text-[9px] font-black text-[#e03131] uppercase tracking-widest leading-tight mt-1 whitespace-pre-line">
+            {formatOptions(item.options)}
           </p>
         )}
       </div>

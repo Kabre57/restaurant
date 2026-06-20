@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Save, Store, MapPin, Phone, Loader2, CheckCircle2, QrCode, UtensilsCrossed, Coins, FileText, Printer, Sliders, CreditCard, Globe2 } from 'lucide-react'
 import { getStoreDetails } from '@/app/actions/store/stores'
 import { updateStoreConfig } from '@/app/actions/store/storeConfig'
+import { getStoreSettings, updateStoreSettings } from '@/app/actions/store/storeSettings'
 import { useSession } from 'next-auth/react'
 import { optimizeImageFile } from '@/lib/client-image'
 
@@ -26,7 +27,9 @@ export default function RestaurateurConfig() {
     name: '',
     address: '',
     phone: '',
-    logo: ''
+    logo: '',
+    displayVatBreakdown: true,
+    defaultTaxRate: 18.00
   })
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function RestaurateurConfig() {
     async function fetchConfig() {
       setLoading(true)
       const data = await getStoreDetails(activeStoreId) as StoreConfigData | null
+      const settingsRes = await getStoreSettings(activeStoreId)
       if (isCancelled) return
 
       if (data) {
@@ -46,7 +50,9 @@ export default function RestaurateurConfig() {
           name: data.name,
           address: data.address || '',
           phone: data.phone || '',
-          logo: data.logo || ''
+          logo: data.logo || '',
+          displayVatBreakdown: settingsRes.success && settingsRes.settings ? settingsRes.settings.displayVatBreakdown : true,
+          defaultTaxRate: settingsRes.success && settingsRes.settings ? Number(settingsRes.settings.defaultTaxRate) : 18.00
         })
       }
 
@@ -65,13 +71,22 @@ export default function RestaurateurConfig() {
     setIsSaving(true)
     setMessage('')
     
-    const res = await updateStoreConfig(session?.user?.storeId as string, formData)
+    const res = await updateStoreConfig(session?.user?.storeId as string, {
+      name: formData.name,
+      address: formData.address,
+      phone: formData.phone,
+      logo: formData.logo
+    })
+    const settingsRes = await updateStoreSettings(session?.user?.storeId as string, {
+      displayVatBreakdown: formData.displayVatBreakdown,
+      defaultTaxRate: Number(formData.defaultTaxRate)
+    })
 
-    if (res.success) {
+    if (res.success && settingsRes.success) {
       setMessage('Configuration enregistrée avec succès !')
       setTimeout(() => setMessage(''), 3001)
     } else {
-      alert(res.error)
+      alert(res.error || settingsRes.error)
     }
     setIsSaving(false)
   }
@@ -155,6 +170,36 @@ export default function RestaurateurConfig() {
                     e.target.value = ''
                   }}
                 />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-[#dee2e6]">
+              <h3 className="text-[10px] font-black text-[#adb5bd] uppercase tracking-widest ml-1">Paramètres de Caisse</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between bg-[#f8f9fa] rounded-xl p-4 border border-[#dee2e6]">
+                  <div className="space-y-0.5">
+                    <label className="text-xs font-black text-[#212529] uppercase tracking-tight">Afficher la ligne TVA</label>
+                    <p className="text-[10px] font-bold text-[#adb5bd] uppercase tracking-widest">Afficher la ligne de détail de la TVA sur l&apos;interface de caisse</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.displayVatBreakdown}
+                    onChange={(e) => setFormData({...formData, displayVatBreakdown: e.target.checked})}
+                    className="w-5 h-5 accent-[#212529] rounded cursor-pointer"
+                  />
+                </div>
+                <div className="flex flex-col justify-center bg-[#f8f9fa] rounded-xl p-4 border border-[#dee2e6] space-y-1.5">
+                  <label className="text-xs font-black text-[#212529] uppercase tracking-tight">Taux de TVA par défaut (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.defaultTaxRate}
+                    onChange={(e) => setFormData({...formData, defaultTaxRate: Number(e.target.value)})}
+                    className="w-full bg-white border border-[#dee2e6] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#212529] transition-all"
+                  />
+                </div>
               </div>
             </div>
           </div>

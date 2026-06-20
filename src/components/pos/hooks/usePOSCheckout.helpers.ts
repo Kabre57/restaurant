@@ -18,15 +18,33 @@ export function buildReceiptItemsFromCart(items: CartItem[]): ReceiptOrder['item
     name: item.name,
     quantity: item.quantity,
     price: item.price,
+    priceHT: item.priceHT !== undefined && item.priceHT !== null ? item.priceHT : null,
+    taxRate: item.taxRate !== undefined && item.taxRate !== null ? item.taxRate : null,
+    priceTTC: item.priceTTC !== undefined && item.priceTTC !== null ? item.priceTTC : null,
+    barcode: item.barcode ?? null,
+    options: item.options,
   }))
 }
 
 export function buildReceiptItemsFromOrder(order: RealtimeOrder): ReceiptOrder['items'] {
-  return (order.items || []).map((item) => ({
-    name: item.product?.name || 'Produit',
-    quantity: item.quantity,
-    price: Number(item.price || 0),
-  }))
+  return (order.items || []).map((item) => {
+    const rateDecimal = item.taxRate !== undefined && item.taxRate !== null ? Number(item.taxRate) : 0.18
+    const ratePercent = rateDecimal * 100
+    const priceTtc = Number(item.price || 0)
+    const priceHt = item.priceExcludingTax !== undefined && item.priceExcludingTax !== null
+      ? Number(item.priceExcludingTax)
+      : priceTtc / (1 + rateDecimal)
+    return {
+      name: item.product?.name || 'Produit',
+      quantity: item.quantity,
+      price: priceTtc,
+      priceHT: priceHt,
+      taxRate: ratePercent,
+      priceTTC: priceTtc,
+      barcode: (item.product as any)?.barcode || null,
+      options: item.options || undefined,
+    }
+  })
 }
 
 function normalizePaymentLabel(value?: string | null) {

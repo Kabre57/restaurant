@@ -101,6 +101,9 @@ export function formatZodError(error: z.ZodError) {
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Le nom doit comporter au moins 2 caractères').max(100),
   price: z.number().positive('Le prix doit être positif'),
+  priceHT: z.number().positive('Le prix HT doit être positif').optional(),
+  taxRate: z.number().nonnegative('Le taux de TVA doit être supérieur ou égal à 0').optional(),
+  priceTTC: z.number().positive('Le prix TTC doit être positif').optional(),
   categoryId: z.string().min(1, 'La catégorie est requise'),
   storeId: z.string().min(1, 'Le store est requis'),
   image: z.string().optional(),
@@ -113,6 +116,9 @@ export const createProductSchema = z.object({
 export const updateProductSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   price: z.number().positive().optional(),
+  priceHT: z.number().positive().optional(),
+  taxRate: z.number().nonnegative().optional(),
+  priceTTC: z.number().positive().optional(),
   categoryId: z.string().min(1).optional(),
   image: z.string().optional(),
   averagePrepTimeMins: z.number().int().min(1).max(180).optional(),

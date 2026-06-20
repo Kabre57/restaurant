@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { updateOrderStatus } from '@/app/actions/orders/orderQueries'
+import { updateOrderStatus, triggerReadyOrderBip } from '@/app/actions/orders/orderQueries'
 import { playNotificationSound } from '@/lib/sound'
 import type {
   OrderStatus,
@@ -101,6 +101,55 @@ export function useKDSRealtime({
   const [retryDelay, setRetryDelay] = useState(1000)
   const [serverCalls, setServerCalls] = useState<ServerCallAlert[]>([])
   const [kitchenAlerts, setKitchenAlerts] = useState<KitchenAlert[]>([])
+
+  const [validatedReadyOrders, setValidatedReadyOrders] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kds_validated_ready_orders')
+        return saved ? JSON.parse(saved) : {}
+      } catch {
+        return {}
+      }
+    }
+    return {}
+  })
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const now = Date.now()
+      const entries = Object.entries(validatedReadyOrders)
+      if (entries.length === 0) return
+
+      let hasChanges = false
+      const updatedValidated = { ...validatedReadyOrders }
+
+      for (const [orderId, validatedAt] of entries) {
+        if (now - validatedAt >= 5 * 60 * 1000) {
+          delete updatedValidated[orderId]
+          hasChanges = true
+
+          try {
+            await updateOrderStatus(orderId, 'COMPLETED', storeId)
+          } catch (err) {
+            console.error(`Auto-archiving failed for order ${orderId}:`, err)
+          }
+
+          setOrders(prev => {
+            const next = prev.filter(o => o.id !== orderId)
+            localStorage.setItem('kds_active_orders', JSON.stringify(next))
+            return next
+          })
+        }
+      }
+
+      if (hasChanges) {
+        setValidatedReadyOrders(updatedValidated)
+        localStorage.setItem('kds_validated_ready_orders', JSON.stringify(updatedValidated))
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [validatedReadyOrders, storeId])
   
   // Historique local pour rappel de tickets
   const [completedHistory, setCompletedHistory] = useState<Order[]>(() => {
@@ -433,6 +482,21 @@ export function useKDSRealtime({
     }
   }
 
+  const handleReadyAction = async (orderId: string) => {
+    try {
+      await triggerReadyOrderBip(orderId, storeId)
+    } catch (err) {
+      console.error("Failed to trigger ready order bip:", err)
+    }
+
+    const now = Date.now()
+    setValidatedReadyOrders(prev => {
+      const next = { ...prev, [orderId]: now }
+      localStorage.setItem('kds_validated_ready_orders', JSON.stringify(next))
+      return next
+    })
+  }
+
   return {
     orders,
     setOrders,
@@ -446,6 +510,8 @@ export function useKDSRealtime({
     completedHistory,
     handleUpdateStatus,
     handleMoveStatusBackward,
-    handleRecallOrder
+    handleRecallOrder,
+    validatedReadyOrders,
+    handleReadyAction
   }
 }

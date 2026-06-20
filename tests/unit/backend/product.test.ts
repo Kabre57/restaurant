@@ -144,7 +144,7 @@ describe("Gestion des Produits (Catalog/Products) - Actions", () => {
         userId: "user-1",
         email: "user@test.com",
       });
-      const mockList = [{ id: "prod-1", name: "Pizza" }];
+      const mockList = [{ id: "prod-1", name: "Pizza", priceHT: null, taxRate: null, priceTTC: null }];
       vi.mocked(prisma.product.findMany).mockResolvedValue(mockList as any);
 
       const result = await getProductsByStore("store-1");

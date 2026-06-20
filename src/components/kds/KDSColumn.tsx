@@ -19,6 +19,48 @@ export type KDSColumnOrder = {
   }>
   table?: { number: number } | null
   customerNotes?: string | null
+  isValidated?: boolean
+  validatedAt?: number
+}
+
+function useRemainingSeconds(validatedAt?: number): number {
+  const [remaining, setRemaining] = useState(0)
+
+  useEffect(() => {
+    if (!validatedAt) return
+    const refreshRemaining = () => {
+      const diff = Math.floor((validatedAt + 5 * 60 * 1000 - Date.now()) / 1000)
+      setRemaining(Math.max(0, diff))
+    }
+
+    refreshRemaining()
+    const id = setInterval(refreshRemaining, 1000)
+    return () => clearInterval(id)
+  }, [validatedAt])
+
+  return remaining
+}
+
+function ValidatedBadge({ validatedAt, isDarkMode }: { validatedAt?: number; isDarkMode: boolean }) {
+  const remaining = useRemainingSeconds(validatedAt)
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  
+  return (
+    <div className={`mt-2 flex w-full flex-col items-center justify-center gap-1 rounded-xl border py-2 text-[10px] font-black uppercase tracking-widest ${
+      isDarkMode 
+        ? 'border-amber-800 bg-amber-950/20 text-amber-400' 
+        : 'border-amber-200 bg-amber-50 text-amber-600'
+    }`}>
+      <div className="flex items-center gap-2">
+        <span className="animate-pulse">🔔</span>
+        <span>Notifié à la caisse</span>
+      </div>
+      <div className="text-[9px] opacity-75 font-mono">
+        Archivage auto dans {minutes}:{seconds.toString().padStart(2, '0')}
+      </div>
+    </div>
+  )
 }
 
 function useElapsedSeconds(createdAt: Date): number {
@@ -332,8 +374,10 @@ function OrderCard({
           </div>
         )}
 
-        {/* Bouton d'action */}
-        {onAction && actionLabel ? (
+        {/* Bouton d'action ou badge de validation */}
+        {order.isValidated ? (
+          <ValidatedBadge validatedAt={order.validatedAt} isDarkMode={isDarkMode} />
+        ) : onAction && actionLabel ? (
           <button
             onClick={() => onAction(order.id, order.status)}
             className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:opacity-90 shadow-sm ${

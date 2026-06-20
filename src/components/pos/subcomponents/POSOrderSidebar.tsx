@@ -1,6 +1,7 @@
 'use client'
 
 import { ChevronRight, LayoutGrid, Trash2, X } from 'lucide-react'
+import { useCart } from '@/store/useCart'
 import { CartItem } from './CartItem'
 import type { OrderFlowMode } from '../lib/pos-helpers'
 
@@ -16,9 +17,13 @@ type POSOrderSidebarProps = {
     productId: string
     name: string
     price: number
+    priceHT?: number | null
+    taxRate?: number | null
+    priceTTC?: number | null
     quantity: number
     options?: string
     image?: string | null
+    barcode?: string | null
   }[]
   isProcessing: boolean
   subtotal: number
@@ -31,6 +36,7 @@ type POSOrderSidebarProps = {
   onCheckout: () => void
   isOpen?: boolean
   onClose?: () => void
+  displayVatBreakdown?: boolean
 }
 
 export function POSOrderSidebar({
@@ -52,6 +58,7 @@ export function POSOrderSidebar({
   onCheckout,
   isOpen = false,
   onClose,
+  displayVatBreakdown = true,
 }: POSOrderSidebarProps) {
   return (
     <>
@@ -134,10 +141,15 @@ export function POSOrderSidebar({
                 <span>Sous-total</span>
                 <span>{subtotal.toLocaleString()} FCFA</span>
               </div>
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-[#868e96]">
-                <span>TVA (18%)</span>
-                <span>{tax.toLocaleString()} FCFA</span>
-              </div>
+              {displayVatBreakdown && (() => {
+                const cartTaxRate = useCart.getState().taxRate
+                return (
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-[#868e96]">
+                    <span>TVA ({(cartTaxRate * 100).toFixed(0)}%)</span>
+                    <span>{tax.toLocaleString()} FCFA</span>
+                  </div>
+                )
+              })()}
               <div className="flex items-center justify-between pt-2 text-[#212529]">
                 <span className="text-xs font-black uppercase tracking-widest">Total</span>
                 <span className="text-2xl font-black tracking-tight sm:text-3xl">
