@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import type { Table } from '@prisma/client'
 
 import { getPaymentMethods } from '@/app/actions/orders/paymentMethods'
+import { savePaymentMethodsToIDB, getPaymentMethodsFromIDB } from '@/lib/idb'
 import type { CartItem } from '@/store/useCart'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
 import type { OrderFlowMode, PaymentMode } from '../lib/pos-helpers'
@@ -236,17 +237,50 @@ export function usePOSCheckout({
 
     let isCancelled = false
 
-    getPaymentMethods(storeId).then((res) => {
-      if (isCancelled) return
-      if (res.success && res.methods) {
-        const configuredMethods = res.methods as POSPaymentMethod[]
-        const activeMethods = configuredMethods.filter((method) => method.isActive !== false)
-        const completedMethods = mergeMissingDefaultPaymentMethods(activeMethods, configuredMethods)
-        setPaymentMethods(completedMethods.length > 0 ? completedMethods : DEFAULT_PAYMENT_METHODS)
-      } else {
+    async function fetchAndCachePaymentMethods() {
+      try {
+        const res = await getPaymentMethods(storeId)
+        if (isCancelled) return
+
+        if (res.success && res.methods) {
+          const configuredMethods = res.methods as POSPaymentMethod[]
+          const activeMethods = configuredMethods.filter((method) => method.isActive !== false)
+          const completedMethods = mergeMissingDefaultPaymentMethods(activeMethods, configuredMethods)
+          const finalMethods = completedMethods.length > 0 ? completedMethods : DEFAULT_PAYMENT_METHODS
+          
+          setPaymentMethods(finalMethods)
+          void savePaymentMethodsToIDB(finalMethods.map(m => ({
+            id: m.id,
+            name: m.name,
+            type: m.type,
+            icon: m.icon,
+            isDefault: m.isDefault,
+            isActive: m.isActive !== false,
+            displayOrder: 1,
+          })))
+          return
+        }
+      } catch (err) {
+        console.error("Erreur de récupération en ligne des modes de paiement:", err)
+      }
+
+      try {
+        const cached = await getPaymentMethodsFromIDB()
+        if (isCancelled) return
+        if (cached && cached.length > 0) {
+          setPaymentMethods(cached as POSPaymentMethod[])
+          return
+        }
+      } catch (err) {
+        console.error("Erreur de lecture du cache IndexedDB:", err)
+      }
+
+      if (!isCancelled) {
         setPaymentMethods(DEFAULT_PAYMENT_METHODS)
       }
-    })
+    }
+
+    void fetchAndCachePaymentMethods()
 
     return () => {
       isCancelled = true

@@ -5,6 +5,7 @@ import { authOptions, checkUserStoreAccess } from "@/lib/auth";
 import { TrackingService } from "@/services/tracking.service";
 import { BaseError } from "@/shared/errors";
 import { requirePermission } from "@/shared/security";
+import { Permission } from "@/domain/security/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export async function GET(
 
   try {
     const securityUser = toSecurityUser(session.user);
-    await requirePermission(securityUser, "delivery.gps_tracking");
+    await requirePermission(securityUser, Permission.DELIVERY_GPS_TRACKING);
 
     const { prisma } = await import("@/lib/db");
     const deliveryOrder = await prisma.deliveryOrder.findUnique({

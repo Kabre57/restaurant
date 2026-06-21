@@ -4,7 +4,7 @@ services:
     container_name: pos-app-dev
     working_dir: /app
     restart: unless-stopped
-    command: sh -c "apk add --no-cache libc6-compat openssl ca-certificates && npm ci && npx prisma generate --schema ./prisma && npm run dev"
+    command: sh -c "apk add --no-cache libc6-compat openssl ca-certificates && npm ci && npx prisma generate --schema ./prisma/schema && npm run dev"
     ports:
       - "3004:3000"
     extra_hosts:

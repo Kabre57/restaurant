@@ -103,6 +103,9 @@ describe("API Export Analytique - Tests d'Intégration", () => {
       await prisma.category.deleteMany({
         where: { storeId: testStoreId },
       });
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId },
+      });
       await prisma.store.delete({
         where: { id: testStoreId },
       });

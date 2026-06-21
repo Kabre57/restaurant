@@ -6,7 +6,7 @@ MAX_ATTEMPTS="${DB_WAIT_MAX_ATTEMPTS:-30}"
 SLEEP_SECONDS="${DB_WAIT_SLEEP_SECONDS:-2}"
 ATTEMPT=1
 FALLBACK_ENABLED="${PRISMA_ENABLE_DB_PUSH_FALLBACK:-true}"
-PRISMA_SCHEMA_DIR="./prisma"
+PRISMA_SCHEMA_DIR="./prisma/schema"
 
 baseline_existing_schema() {
   echo "🧭 Baseline des migrations Prisma sur une base deja synchronisee..."

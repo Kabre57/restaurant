@@ -135,6 +135,9 @@ describe("Loyalty Module Integration with POS flow", () => {
       await prisma.storeSettings.deleteMany({
         where: { storeId: testStoreId }
       })
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId }
+      })
       await prisma.store.delete({
         where: { id: testStoreId }
       })

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { sendHardwareCommand } from '@/lib/hardware/agent'
 import { prisma } from '@/lib/db'
 import { generateEscPosBuffer } from '@/lib/printService'
 
@@ -115,39 +114,25 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  let successCount = 0
-  let totalPrinters = printers.length
-
-  if (totalPrinters > 0) {
-    for (const printer of printers) {
-      if (printer.ipAddress) {
-        try {
-          const res = await sendHardwareCommand('print-receipt', {
-            printerIp: printer.ipAddress,
-            payload: base64Payload,
-          })
-          if (res.success) successCount++
-        } catch (err) {
-          console.error(`Erreur d'impression sur ${printer.name}:`, err)
+  const printerConfigs = printers.length > 0
+    ? printers.map(p => ({
+        id: p.id,
+        name: p.name,
+        ipAddress: p.ipAddress || '127.0.0.1',
+        type: p.type,
+      }))
+    : [
+        {
+          id: 'default',
+          name: 'Imprimante par défaut',
+          ipAddress: '127.0.0.1',
+          type: 'ETHERNET',
         }
-      }
-    }
-  } else {
-    // Fallback : Impression locale sur agent par défaut
-    try {
-      const res = await sendHardwareCommand('print-receipt', {
-        printerIp: '127.0.0.1',
-        payload: base64Payload,
-      })
-      if (res.success) successCount++
-      totalPrinters = 1
-    } catch (err) {
-      console.error("Erreur d'impression locale par défaut:", err)
-    }
-  }
+      ]
 
   return NextResponse.json({
-    success: successCount > 0,
-    message: `${successCount}/${totalPrinters} imprimante(s) ont traité le ticket.`
+    success: true,
+    payload: base64Payload,
+    printers: printerConfigs,
   })
 }

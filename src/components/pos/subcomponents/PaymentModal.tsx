@@ -239,6 +239,8 @@ export function PaymentModal({
               onAddBill={onAddBill}
               onRemoveBill={onRemoveBill}
               onResetBills={onResetBills}
+              total={total}
+              onFinalize={() => onFinalize(mode)}
             />
           )}
           {activeMethodType === 'MOBILE_MONEY' && (
@@ -251,6 +253,8 @@ export function PaymentModal({
               onAddBill={onAddBill}
               onRemoveBill={onRemoveBill}
               onResetBills={onResetBills}
+              total={total}
+              onFinalize={() => onFinalize(mode)}
             />
           )}
         </div>

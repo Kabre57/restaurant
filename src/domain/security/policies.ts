@@ -67,7 +67,7 @@ export async function canDeleteProduct(
   product: { storeId: string }
 ): Promise<boolean> {
   if (!canAccessStore(user, product.storeId)) return false;
-  return hasPermission(user, 'admin.store_edit');
+  return hasPermission(user, Permission.ADMIN_STORE_EDIT);
 }
 
 /**
@@ -91,7 +91,7 @@ export async function canCloseShift(user: SecurityUser, storeId: string): Promis
  */
 export async function canAccessKitchen(user: SecurityUser, storeId: string): Promise<boolean> {
   if (!canAccessStore(user, storeId)) return false;
-  return hasPermission(user, 'KDS_ACCESS');
+  return hasPermission(user, Permission.KDS_ACCESS);
 }
 
 /**

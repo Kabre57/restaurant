@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY prisma ./prisma
-RUN npx prisma generate --schema ./prisma
+RUN npx prisma generate --schema ./prisma/schema
 
 # Phase 2: Build de l'application
 FROM node:20-alpine AS builder

@@ -6,6 +6,7 @@ import { DeliveryService } from "@/services/delivery.service";
 import { createDeliveryOrderSchema } from "@/lib/validation/delivery";
 import { BaseError } from "@/shared/errors";
 import { requirePermission } from "@/shared/security";
+import { Permission } from "@/domain/security/permissions";
 import { DeliveryOrderStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const securityUser = toSecurityUser(session.user);
-    await requirePermission(securityUser, "delivery.driver_assign");
+    await requirePermission(securityUser, Permission.DELIVERY_DRIVER_ASSIGN);
 
     const body = await req.json();
     const result = createDeliveryOrderSchema.safeParse(body);
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const securityUser = toSecurityUser(session.user);
-    await requirePermission(securityUser, "delivery.orders_view");
+    await requirePermission(securityUser, Permission.DELIVERY_ORDERS_VIEW);
 
     const role = session.user.role;
     const targetStoreId = req.nextUrl.searchParams.get("storeId") || session.user.storeId;

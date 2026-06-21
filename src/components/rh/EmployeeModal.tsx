@@ -15,6 +15,7 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
   const [activeTab, setActiveTab] = useState<'perso' | 'emploi' | 'banque'>('perso')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [selectedRole, setSelectedRole] = useState(employee?.role || 'CASHIER')
 
   const isEditing = !!employee
 
@@ -210,11 +211,30 @@ export function EmployeeModal({ storeId, employee, onClose, onSuccess }: Employe
 
               <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--parabellum-muted)]">Rôle Système</label>
-                <select name="role" defaultValue={employee?.role || 'CASHIER'} className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white">
+                <select
+                  name="role"
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--parabellum-border)] bg-[#f8f9ff] p-3 text-sm font-medium text-[var(--parabellum-text)] outline-none focus:border-[var(--parabellum-primary)] focus:bg-white"
+                >
                   <option value="CASHIER">Caissier / Serveur</option>
                   <option value="KITCHEN">Cuisine</option>
-                  <option value="RESTAURATEUR">Manager Restaurant</option>
+                  <option value="DELIVERY">Gestionnaire Livraison (Gest. Livraison)</option>
+                  <option value="LIVREUR">Livreur (PWA)</option>
+                  <option value="MANAGER">Gérant</option>
+                  <option value="RESTAURATEUR">Propriétaire / Manager Restaurant</option>
                 </select>
+                {/* Message d'explication / info-bulle pour DELIVERY et LIVREUR */}
+                {selectedRole === 'DELIVERY' && (
+                  <div className="mt-2 rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
+                    <span className="font-bold">Info :</span> Le rôle <span className="font-bold">DELIVERY (Gest. Livraison)</span> est destiné au back-office pour la gestion, la planification et l'assignation des courses de livraison.
+                  </div>
+                )}
+                {selectedRole === 'LIVREUR' && (
+                  <div className="mt-2 rounded-xl bg-orange-50 border border-orange-200 p-3 text-xs text-orange-700">
+                    <span className="font-bold">Info :</span> Le rôle <span className="font-bold">LIVREUR</span> est destiné à l'application mobile (PWA) de livraison pour le suivi GPS en temps réel et la mise à jour des statuts sur le terrain.
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,8 +1,9 @@
 // src/components/pos/subcomponents/payment-modal/PaymentCardPanel.tsx
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { X } from 'lucide-react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { X, Loader2, RefreshCw } from 'lucide-react'
+import { triggerPaymentTerminalClient, getLocalAgentUrl } from '@/lib/hardware/clientAgent'
 
 type PaymentCardPanelProps = {
   amountReceived: string
@@ -13,6 +14,8 @@ type PaymentCardPanelProps = {
   onAddBill?: (value: number) => void
   onRemoveBill?: (id: string) => void
   onResetBills?: () => void
+  total: number
+  onFinalize: () => void
 }
 
 // Couleurs et styles des billets réels de l'Afrique de l'Ouest (FCFA - BCEAO)
@@ -31,29 +34,134 @@ export function PaymentCardPanel({
   onAddBill,
   onRemoveBill,
   onResetBills,
+  total,
+  onFinalize,
 }: PaymentCardPanelProps) {
   const [useFallback, setUseFallback] = useState(false)
+  const [agentStatus, setAgentStatus] = useState<'LOADING' | 'ONLINE' | 'OFFLINE'>('LOADING')
+  const [isProcessingTpe, setIsProcessingTpe] = useState(false)
+  const [tpeError, setTpeError] = useState<string | null>(null)
 
   const numericAmount = useMemo(() => {
     return amountReceived ? parseInt(amountReceived) : 0
   }, [amountReceived])
+
+  const checkAgentStatus = async () => {
+    setAgentStatus('LOADING')
+    const url = getLocalAgentUrl()
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 1200)
+      
+      const res = await fetch(`${url.replace(/\/$/, '')}/discover-printers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+
+      if (res.ok) {
+        setAgentStatus('ONLINE')
+      } else {
+        setAgentStatus('OFFLINE')
+      }
+    } catch {
+      setAgentStatus('OFFLINE')
+    }
+  }
+
+  useEffect(() => {
+    void checkAgentStatus()
+  }, [])
+
+  const handleStartTpeTransaction = async () => {
+    setIsProcessingTpe(true)
+    setTpeError(null)
+    try {
+      const res = await triggerPaymentTerminalClient(total, 'TX-' + Date.now())
+      if (res.success) {
+        onFinalize()
+      } else {
+        setTpeError(res.error || "La transaction TPE a été refusée.")
+      }
+    } catch {
+      setTpeError("Erreur de connexion avec le terminal.")
+    } finally {
+      setIsProcessingTpe(false)
+    }
+  }
 
   return (
     <div className="space-y-4 pt-3 border-t border-[#f1f3f5] select-none">
       {!useFallback ? (
         // Mode TPE par défaut
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col items-center justify-center gap-3.5 py-6 bg-white dark:bg-[#151b2c] rounded-2xl border border-[#e9ecef] dark:border-[#242f4c] shadow-sm">
-            <div className="text-center space-y-1">
-              <p className="text-xs font-black text-[#212529] dark:text-white uppercase tracking-tight">Terminal de paiement connecté</p>
-              <p className="text-[9.5px] font-bold text-[#868e96] uppercase tracking-wider">Veuillez insérer ou présenter la carte</p>
+          <div className="flex flex-col items-center justify-center gap-4 py-6 bg-white rounded-2xl border border-[#e9ecef] shadow-sm px-4">
+            
+            {/* Statut TPE */}
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${
+                agentStatus === 'ONLINE' ? 'bg-emerald-500 animate-pulse' :
+                agentStatus === 'LOADING' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
+              }`} />
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#495057]">
+                {agentStatus === 'ONLINE' ? 'TPE Connecté (Port 4555)' :
+                 agentStatus === 'LOADING' ? 'Recherche du TPE...' : 'TPE Hors-ligne'}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => void checkAgentStatus()} 
+                className="text-[#868e96] hover:text-[#212529] transition-colors p-1"
+                disabled={agentStatus === 'LOADING'}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${agentStatus === 'LOADING' ? 'animate-spin' : ''}`} />
+              </button>
             </div>
+
+            <div className="text-center space-y-1">
+              <p className="text-xs font-black text-[#212529] uppercase tracking-tight">Paiement Carte Bancaire</p>
+              <p className="text-[9.5px] font-bold text-[#868e96] uppercase tracking-wider">Montant de la transaction : {total.toLocaleString()} FCFA</p>
+            </div>
+
+            {isProcessingTpe ? (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <span className="text-[9px] font-black uppercase text-blue-600 tracking-widest animate-pulse">Saisie PIN en cours client...</span>
+              </div>
+            ) : (
+              <div className="flex flex-col w-full gap-2 pt-2">
+                {agentStatus === 'ONLINE' ? (
+                  <button
+                    type="button"
+                    onClick={handleStartTpeTransaction}
+                    className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] text-center shadow-md shadow-blue-500/20"
+                  >
+                    Envoyer au TPE
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onFinalize}
+                    className="w-full py-3 rounded-xl bg-[#2f9e44] hover:bg-[#2b8a3e] text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] text-center shadow-md shadow-green-500/20"
+                  >
+                    Simuler Succès (TPE Déconnecté)
+                  </button>
+                )}
+              </div>
+            )}
+
+            {tpeError && (
+              <p className="text-[9px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-lg p-2 text-center uppercase tracking-wide w-full">
+                {tpeError}
+              </p>
+            )}
           </div>
 
           <button
             type="button"
             onClick={() => setUseFallback(true)}
-            className="w-full py-3.5 rounded-xl border-2 border-dashed border-[#dee2e6] dark:border-[#242f4c] text-[8.5px] font-black text-[#868e96] hover:text-[#212529] dark:hover:text-white hover:border-[#adb5bd] uppercase tracking-widest transition-all active:scale-95 text-center"
+            className="w-full py-3.5 rounded-xl border-2 border-dashed border-[#dee2e6] text-[8.5px] font-black text-[#868e96] hover:text-[#212529] hover:border-[#adb5bd] uppercase tracking-widest transition-all active:scale-95 text-center"
           >
             Le TPE ne répond pas ? Encaisser par Billets
           </button>
@@ -160,9 +268,9 @@ export function PaymentCardPanel({
                       </button>
                       <span className="text-[5.5px] font-black tracking-widest opacity-60 uppercase leading-none">BCEAO</span>
                       <span className="text-[9.5px] font-black tracking-tight leading-none">{def.label}</span>
-                      <span className="text-[5px] opacity-40 uppercase tracking-tighter leading-none">FCFA</span>
+                      <span className="text-[5.5px] opacity-40 uppercase tracking-tighter leading-none">FCFA</span>
                     </div>
-                  )
+                  );
                 })}
               </div>
             </div>

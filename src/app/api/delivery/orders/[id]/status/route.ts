@@ -7,6 +7,7 @@ import { updateDeliveryStatusSchema } from "@/lib/validation/delivery";
 import { BaseError } from "@/shared/errors";
 import { requirePermission } from "@/shared/security";
 import { hasPermission } from "@/domain/security/guards";
+import { Permission } from "@/domain/security/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -61,19 +62,19 @@ export async function PATCH(
     }
 
     const securityUser = toSecurityUser(session.user);
-    const canOverride = await hasPermission(securityUser, "delivery.status_override");
+    const canOverride = await hasPermission(securityUser, Permission.DELIVERY_STATUS_OVERRIDE);
     const isDriverProgressUpdate =
       result.data.livreurId == null &&
       DRIVER_PROGRESS_STATUSES.has(result.data.status) &&
       !canOverride;
 
     if (isDriverProgressUpdate) {
-      await requirePermission(securityUser, "delivery.pwa_access");
+      await requirePermission(securityUser, Permission.DELIVERY_PWA_ACCESS);
     } else {
-      await requirePermission(securityUser, "delivery.status_override");
+      await requirePermission(securityUser, Permission.DELIVERY_STATUS_OVERRIDE);
 
       if (result.data.status === "ASSIGNED" || result.data.livreurId) {
-        await requirePermission(securityUser, "delivery.driver_assign");
+        await requirePermission(securityUser, Permission.DELIVERY_DRIVER_ASSIGN);
       }
     }
 

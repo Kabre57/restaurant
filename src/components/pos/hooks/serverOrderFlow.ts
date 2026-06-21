@@ -6,6 +6,7 @@ import { createClientRequestId } from '../lib/pos-helpers'
 import type { ReceiptOrder } from '../subcomponents/ReceiptModal'
 import type { RealtimeOrder } from './usePOSRealtime'
 import { buildReceiptItemsFromCart, type AlertPayload } from './usePOSCheckout.helpers'
+import { printReceiptClient } from '@/lib/hardware/clientAgent'
 
 type ServerOrderFlowContext = {
   cashierId: string
@@ -76,11 +77,7 @@ async function queueServerOrder(ctx: ServerOrderFlowContext) {
       message: "Bon de commande en cours d'impression...",
       type: 'info',
     })
-    await fetch('/api/hardware/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order: receiptData }),
-    })
+    await printReceiptClient(receiptData)
   } catch (err) {
     console.error("Erreur lors de l'impression automatique du bon de commande:", err)
   }
@@ -128,11 +125,7 @@ export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {
             message: "Bon de commande en cours d'impression...",
             type: 'info',
           })
-          await fetch('/api/hardware/print', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order: receiptData }),
-          })
+          await printReceiptClient(receiptData)
         } catch (err) {
           console.error("Erreur lors de l'impression automatique du bon de commande:", err)
         }
@@ -172,11 +165,7 @@ export async function submitServerOrderFlow(ctx: ServerOrderFlowContext) {
           message: "Bon de commande en cours d'impression...",
           type: 'info',
         })
-        await fetch('/api/hardware/print', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: receiptData }),
-        })
+        await printReceiptClient(receiptData)
       } catch (err) {
         console.error("Erreur lors de l'impression automatique du bon de commande:", err)
       }

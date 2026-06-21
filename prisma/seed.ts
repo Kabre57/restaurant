@@ -36,22 +36,32 @@ async function main() {
   console.log(`✅ Stores créés : ${store.name} & ${storeSecondary.name}`);
 
   // ── Utilisateurs / Rôles ────────────────────────────────────
-  const hash = await bcrypt.hash("password123", 10);
+  const hash = await bcrypt.hash("Password123", 10);
 
   const users = [
-    { email: "resto@gourmet.ci",   name: "Gourmet Manager", role: "RESTAURATEUR", storeId: store.id },
-    { email: "admin@pos.com",      name: "Admin Système",   role: "ADMIN",        storeId: store.id },
-    { email: "manager@pos.com",    name: "Sophie Martin",   role: "RESTAURATEUR", storeId: store.id },
-    { email: "cashier@pos.com",    name: "Jean Dupont",     role: "CASHIER",      storeId: store.id },
-    { email: "kitchen@pos.com",    name: "Chef Gordon",     role: "KITCHEN",      storeId: store.id },
-    { email: "waiter@pos.com",     name: "Amina Benali",    role: "SERVER",       storeId: store.id },
-    { email: "cashier2@pos.com",   name: "Koffi Yao",       role: "CASHIER",      storeId: storeSecondary.id },
+    // Comptes historiques
+    { email: "admin@plateforme.ci",     name: "Super Admin",        role: "ADMIN",        storeId: store.id },
+    { email: "resto@gourmet.ci",        name: "Marc Restaurateur",  role: "RESTAURATEUR", storeId: store.id },
+    { email: "theogeoffroy5@gmail.com", name: "Théo Caissier",      role: "CASHIER",      storeId: store.id },
+    { email: "serveur@gourmet.ci",      name: "Awa Serveuse",       role: "SERVER",       storeId: store.id },
+    
+    // Nouveaux comptes
+    { email: "admin@pos.com",           name: "Admin Système",      role: "ADMIN",        storeId: store.id },
+    { email: "manager@pos.com",         name: "Sophie Martin",      role: "RESTAURATEUR", storeId: store.id },
+    { email: "cashier@pos.com",         name: "Jean Dupont",        role: "CASHIER",      storeId: store.id },
+    { email: "kitchen@pos.com",         name: "Chef Gordon",        role: "KITCHEN",      storeId: store.id },
+    { email: "waiter@pos.com",          name: "Amina Benali",       role: "SERVER",       storeId: store.id },
+    { email: "cashier2@pos.com",        name: "Koffi Yao",          role: "CASHIER",      storeId: storeSecondary.id },
   ];
 
   for (const u of users) {
     await prisma.user.upsert({
       where:  { email: u.email },
-      update: {},
+      update: {
+        password: hash,
+        role:     u.role as any,
+        storeId:  u.storeId,
+      },
       create: {
         email:    u.email,
         name:     u.name,

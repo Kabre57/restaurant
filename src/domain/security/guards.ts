@@ -23,8 +23,8 @@ export async function hasPermission(
 ): Promise<boolean> {
   const permKey = typeof permission === "string" ? permission : (permission as string);
 
-  // 1. SUPER_ADMIN and ADMIN have absolute permissions
-  if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+  // 1. SUPER_ADMIN has absolute permissions
+  if (user.role === "SUPER_ADMIN") {
     return true;
   }
 

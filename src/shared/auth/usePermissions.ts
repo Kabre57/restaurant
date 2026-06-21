@@ -13,7 +13,7 @@ export function usePermissions() {
 
   const hasPermission = (permission: Permission | string): boolean => {
     if (!user) return false;
-    if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return true;
+    if (user.role === "SUPER_ADMIN") return true;
 
     const roleDefaults = DEFAULT_PERMISSIONS[user.role as keyof typeof DEFAULT_PERMISSIONS];
     const permKey = typeof permission === "string" ? permission : (permission as string);

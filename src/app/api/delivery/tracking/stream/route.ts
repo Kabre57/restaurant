@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { authOptions, checkUserStoreAccess } from "@/lib/auth";
 import { BaseError } from "@/shared/errors";
 import { requirePermission } from "@/shared/security";
+import { Permission } from "@/domain/security/permissions";
 import { redisSub } from "@/lib/redis-sub-manager";
 
 export const runtime = "nodejs";
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const securityUser = toSecurityUser(session.user);
-    await requirePermission(securityUser, "delivery.gps_tracking");
+    await requirePermission(securityUser, Permission.DELIVERY_GPS_TRACKING);
 
     const { prisma } = await import("@/lib/db");
     const deliveryOrder = await prisma.deliveryOrder.findUnique({

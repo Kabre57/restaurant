@@ -24,6 +24,15 @@ export type QueuedOrder = SyncOrderInput & {
   queuedAt?: string;
   localStatus?: SyncLocalStatus;
 };
+export type CachedPaymentMethod = {
+  id: string;
+  name: string;
+  type: string;
+  icon: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+  displayOrder: number;
+};
 
 const DEFAULT_SYNC_QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -41,12 +50,16 @@ interface POSDB extends DBSchema {
     value: QueuedOrder;
     autoIncrement: true;
   };
+  payment_methods: {
+    key: string;
+    value: CachedPaymentMethod;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<POSDB>> | null = null;
 
 if (typeof window !== 'undefined') {
-  dbPromise = openDB<POSDB>('pos-db', 2, {
+  dbPromise = openDB<POSDB>('pos-db', 3, {
     upgrade(db) {
       if (!db.objectStoreNames.contains('categories')) {
         db.createObjectStore('categories', { keyPath: 'id' });
@@ -56,6 +69,9 @@ if (typeof window !== 'undefined') {
       }
       if (!db.objectStoreNames.contains('sync_orders')) {
         db.createObjectStore('sync_orders', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('payment_methods')) {
+        db.createObjectStore('payment_methods', { keyPath: 'id' });
       }
     },
   });
@@ -87,6 +103,20 @@ export async function getProductsFromIDB() {
   if (!dbPromise) return [];
   const db = await dbPromise;
   return db.getAll('products');
+}
+
+export async function savePaymentMethodsToIDB(methods: CachedPaymentMethod[]) {
+  if (!dbPromise) return;
+  const db = await dbPromise;
+  const tx = db.transaction('payment_methods', 'readwrite');
+  await Promise.all(methods.map(m => tx.store.put(m)));
+  await tx.done;
+}
+
+export async function getPaymentMethodsFromIDB() {
+  if (!dbPromise) return [];
+  const db = await dbPromise;
+  return db.getAll('payment_methods');
 }
 
 type QueueableOrder = Omit<SyncOrderInput, 'schemaVersion' | 'queuedAt' | 'localStatus'> &

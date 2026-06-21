@@ -6,6 +6,7 @@ import { DeliveryService } from "@/services/delivery.service";
 import { sendTrackingSchema } from "@/lib/validation/delivery";
 import { BaseError } from "@/shared/errors";
 import { requirePermission } from "@/shared/security";
+import { Permission } from "@/domain/security/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const securityUser = toSecurityUser(session.user);
-    await requirePermission(securityUser, "delivery.pwa_access");
+    await requirePermission(securityUser, Permission.DELIVERY_PWA_ACCESS);
 
     const { prisma } = await import("@/lib/db");
     const checkAccess = await prisma.deliveryOrder.findUnique({

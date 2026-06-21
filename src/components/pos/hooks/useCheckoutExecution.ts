@@ -16,6 +16,7 @@ import {
   type PaymentCustomer
 } from './usePOSCheckout.helpers'
 import { submitServerOrderFlow } from './serverOrderFlow'
+import { printReceiptClient, openCashDrawerClient } from '@/lib/hardware/clientAgent'
 
 type POSPaymentMethod = { id: string; name: string; type: string; icon: string | null; isDefault: boolean; isActive?: boolean }
 
@@ -84,18 +85,10 @@ export function useCheckoutExecution(
     })
 
     try {
-      await fetch('/api/hardware/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: orderData })
-      })
+      await printReceiptClient(orderData)
 
       if (isCashPaymentMode(orderData.paymentMode, orderData.paymentType)) {
-        await fetch('/api/hardware/cash-drawer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: orderData.id, total: orderData.total })
-        })
+        await openCashDrawerClient(orderData.id, orderData.total)
       }
     } catch (err) {
       console.error("Erreur lors de l'impression automatique:", err)

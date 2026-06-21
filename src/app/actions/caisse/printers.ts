@@ -154,25 +154,14 @@ export async function testPrinterConnection(id: string) {
 
     const base64Payload = Buffer.from(new Uint8Array(commands)).toString('base64')
 
-    // 2. Tenter l'envoi physique via l'agent matériel local
-    const agentResult = await sendHardwareCommand('print-receipt', {
+    return {
+      success: true,
       printerIp: printer.ipAddress || '127.0.0.1',
       payload: base64Payload,
-    })
-
-    if (agentResult.success) {
-      return {
-        success: true,
-        message: `Autotest envoyé avec succès à ${printer.name} (${printer.ipAddress || printer.type}).`,
-        simulated: false,
-      }
-    } else {
-      // 3. Fallback de simulation si l'agent local n'est pas actif / configuré
-      return {
-        success: true,
-        message: `Autotest SIMULÉ avec succès ! (L'agent matériel local n'est pas actif, mais le ticket de test ESC/POS de ${printer.paperWidth}mm a été généré correctement).`,
-        simulated: true,
-        receiptPreview: `
+      printerName: printer.name,
+      paperWidth: printer.paperWidth,
+      simulated: true,
+      receiptPreview: `
 --------------------------------
         AUTOTEST GOURMET        
 --------------------------------
@@ -188,8 +177,7 @@ Date test  : ${new Date().toLocaleString('fr-FR')}
  TEST DE COMMUNICATION REUSSI ! 
 --------------------------------
         [DECOUPE PAPIER]        
-        `.trim(),
-      }
+      `.trim(),
     }
   } catch (error) {
     console.error('Failed to test printer connection:', error)

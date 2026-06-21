@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { getStoreSettings } from '@/app/actions/store/storeSettings'
+import { printReceiptClient, openCashDrawerClient } from '@/lib/hardware/clientAgent'
 
 type ReceiptItem = {
   name?: string
@@ -98,18 +99,10 @@ export function ReceiptModal({ order, storeId, onClose }: ReceiptModalProps) {
   function handlePrint() {
     window.print()
 
-    void fetch('/api/hardware/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order }),
-    }).catch(() => null)
+    void printReceiptClient(order).catch(() => null)
 
     if (isCashPayment && !isPendingSettlement) {
-      void fetch('/api/hardware/cash-drawer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, total: order.total }),
-      }).catch(() => null)
+      void openCashDrawerClient(order.id, order.total).catch(() => null)
     }
   }
 

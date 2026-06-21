@@ -27,6 +27,7 @@ import {
   testPrinterConnection,
   discoverPrinters
 } from '@/app/actions/caisse/printers'
+import { sendHardwareCommandClient, getLocalAgentUrl, setLocalAgentUrl } from '@/lib/hardware/clientAgent'
 import { getCategoriesByStore } from '@/app/actions/catalog/products'
 
 type PrinterData = {
@@ -51,6 +52,7 @@ type TestResultType = {
   message?: string
   error?: string
   receiptPreview?: string
+  simulated?: boolean
 }
 
 export default function HardwareAdminPage() {
@@ -81,6 +83,45 @@ export default function HardwareAdminPage() {
   const [testingId, setTestingId] = useState<string | null>(null)
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [discoveredPrinters, setDiscoveredPrinters] = useState<any[]>([])
+
+  // Local Hardware Agent State
+  const [agentUrl, setAgentUrlState] = useState('http://127.0.0.1:4555')
+  const [agentStatus, setAgentStatus] = useState<'LOADING' | 'ONLINE' | 'OFFLINE'>('LOADING')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = getLocalAgentUrl()
+      setAgentUrlState(url)
+    }
+  }, [])
+
+  const checkAgentStatus = async (urlToCheck: string) => {
+    setAgentStatus('LOADING')
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 1500)
+      
+      const res = await fetch(`${urlToCheck.replace(/\/$/, '')}/discover-printers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+
+      if (res.ok) {
+        setAgentStatus('ONLINE')
+      } else {
+        setAgentStatus('OFFLINE')
+      }
+    } catch {
+      setAgentStatus('OFFLINE')
+    }
+  }
+
+  useEffect(() => {
+    void checkAgentStatus(agentUrl)
+  }, [agentUrl])
 
   useEffect(() => {
     const activeStoreId = storeId as string
@@ -206,19 +247,52 @@ export default function HardwareAdminPage() {
     setTestResult(null)
 
     const res = await testPrinterConnection(id)
+    
+    if (res.success && res.payload) {
+      const agentRes = await sendHardwareCommandClient('print-receipt', {
+        printerIp: res.printerIp || '127.0.0.1',
+        payload: res.payload,
+      })
+
+      if (agentRes.success) {
+        setTestResult({
+          success: true,
+          message: `Autotest envoyé avec succès à ${res.printerName} (${res.printerIp}).`,
+          simulated: false,
+        })
+      } else {
+        setTestResult({
+          success: true,
+          message: `Autotest SIMULÉ avec succès ! (L'agent matériel local n'est pas actif, mais le ticket de test ESC/POS de ${res.paperWidth}mm a été généré correctement).`,
+          simulated: true,
+          receiptPreview: res.receiptPreview,
+        })
+      }
+    } else {
+      setTestResult({
+        success: false,
+        error: res.error || "Échec de la génération du ticket de test.",
+      })
+    }
+    
     setTestingId(null)
-    setTestResult(res)
   }
 
   const handleDiscover = async () => {
     setIsDiscovering(true)
     setDiscoveredPrinters([])
     
-    const res = await discoverPrinters()
-    if (res.success && res.printers) {
-      setDiscoveredPrinters(res.printers as any[])
+    const agentRes = await sendHardwareCommandClient('discover-printers', {})
+    
+    if (agentRes.success && agentRes.data && Array.isArray(agentRes.data)) {
+      setDiscoveredPrinters(agentRes.data)
     } else {
-      alert(res.error || "Aucune imprimante trouvée.")
+      const res = await discoverPrinters()
+      if (res.success && res.printers) {
+        setDiscoveredPrinters(res.printers as any[])
+      } else {
+        alert(res.error || "Aucune imprimante trouvée.")
+      }
     }
     
     setIsDiscovering(false)
@@ -266,8 +340,13 @@ export default function HardwareAdminPage() {
                 <h2 className="text-xs font-black uppercase tracking-widest text-[#212529] flex items-center gap-2">
                   <Printer className="w-4 h-4 text-amber-500" /> Vos Équipements ({printers.length})
                 </h2>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                  <Activity className="w-3 h-3" /> Agent Actif (Port 3003)
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
+                  agentStatus === 'ONLINE' ? 'text-emerald-600 bg-emerald-50' :
+                  agentStatus === 'LOADING' ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50'
+                }`}>
+                  <Activity className={`w-3 h-3 ${agentStatus === 'LOADING' ? 'animate-pulse' : ''}`} /> 
+                  {agentStatus === 'ONLINE' ? 'Agent Actif' :
+                   agentStatus === 'LOADING' ? 'Vérification...' : 'Agent Hors-ligne'}
                 </span>
               </div>
 
@@ -561,26 +640,71 @@ export default function HardwareAdminPage() {
                 </button>
               </form>
             ) : (
-              <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm space-y-4">
-                <div className="flex items-center gap-3 text-amber-500 mb-2">
-                  <Printer className="w-6 h-6 animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-[#212529]">Configuration Matériel</h3>
+              <div className="space-y-6">
+                {/* Configuration de l'agent local */}
+                <div className="rounded-[2rem] border border-amber-200 bg-amber-50/10 p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 text-amber-500 mb-2">
+                    <Settings className="w-6 h-6" />
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#212529]">Configuration Agent Local</h3>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#868e96] leading-relaxed">
+                    L&apos;agent matériel local doit s&apos;exécuter sur cette machine pour piloter vos imprimantes locales et tiroir-caisse.
+                  </p>
+                  
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-amber-800 ml-1 block">Adresse URL de l&apos;Agent</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="http://127.0.0.1:4555" 
+                        value={agentUrl} 
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setAgentUrlState(val)
+                          setLocalAgentUrl(val)
+                        }}
+                        className="flex-1 bg-white border border-[#dee2e6] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all text-[#495057]" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => void checkAgentStatus(agentUrl)}
+                        disabled={agentStatus === 'LOADING'}
+                        className="px-3 py-2 rounded-xl bg-white border border-[#dee2e6] hover:bg-[#f8f9fa] transition-all text-xs font-bold text-[#495057] flex items-center justify-center disabled:opacity-50"
+                      >
+                        {agentStatus === 'LOADING' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    
+                    {agentStatus === 'OFFLINE' && (
+                      <div className="flex items-start gap-1.5 text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 border border-rose-100 rounded-xl p-2.5 mt-2">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>L&apos;agent local ne répond pas. Vérifiez qu&apos;il est bien démarré sur le port configuré.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#868e96] leading-relaxed">
-                  G Gourmet POS supporte le protocole brut standard de l&apos;industrie **ESC/POS** sur les interfaces réseau **TCP/IP direct** (Port 9100).
-                </p>
-                <div className="border-t border-[#f1f3f5] pt-4 space-y-3">
-                  <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
-                    <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">1</span>
-                    <span>Branchez l&apos;imprimante au réseau RJ45/LAN local.</span>
+
+                <div className="rounded-[2rem] border border-[#dee2e6] bg-white p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 text-amber-500 mb-2">
+                    <Printer className="w-6 h-6 animate-pulse" />
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[#212529]">Configuration Matériel</h3>
                   </div>
-                  <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
-                    <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">2</span>
-                    <span>Effectuez un ticket d&apos;autotest pour récupérer son adresse IP.</span>
-                  </div>
-                  <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
-                    <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">3</span>
-                    <span>Configurez-la ci-dessus et cliquez sur **Test** pour valider !</span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#868e96] leading-relaxed">
+                    G Gourmet POS supporte le protocole brut standard de l&apos;industrie **ESC/POS** sur les interfaces réseau **TCP/IP direct** (Port 9100).
+                  </p>
+                  <div className="border-t border-[#f1f3f5] pt-4 space-y-3">
+                    <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
+                      <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">1</span>
+                      <span>Branchez l&apos;imprimante au réseau RJ45/LAN local.</span>
+                    </div>
+                    <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
+                      <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">2</span>
+                      <span>Effectuez un ticket d&apos;autotest pour récupérer son adresse IP.</span>
+                    </div>
+                    <div className="flex items-start gap-2.5 text-[9px] font-bold uppercase tracking-widest text-[#495057]">
+                      <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0">3</span>
+                      <span>Configurez-la ci-dessus et cliquez sur **Test** pour valider !</span>
+                    </div>
                   </div>
                 </div>
               </div>

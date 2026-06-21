@@ -117,6 +117,9 @@ describe("Intégration du Tableau de Bord Analytique & Calculs Marges / Conversi
       await prisma.category.deleteMany({
         where: { storeId: testStoreId },
       });
+      await prisma.consolidatedReport.deleteMany({
+        where: { storeId: testStoreId },
+      });
       await prisma.store.delete({
         where: { id: testStoreId },
       });

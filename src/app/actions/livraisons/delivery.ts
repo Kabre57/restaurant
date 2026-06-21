@@ -3,6 +3,7 @@
 import { DeliveryStatus, OrderStatus, OrderType } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireAuth, requirePermission, requireStoreAccess } from '@/shared/security'
+import { Permission } from '@/domain/security/permissions'
 
 type DeliveryActionUser = Awaited<ReturnType<typeof requireAuth>>
 
@@ -34,7 +35,7 @@ async function resolveDeliveryContext(storeId?: string): Promise<DeliveryContext
 
 export async function getDeliveryPeople(storeId?: string) {
   const { user, targetStoreId } = await resolveDeliveryContext(storeId)
-  await requirePermission(toSecurityUser(user), 'delivery.driver_assign')
+  await requirePermission(toSecurityUser(user), Permission.DELIVERY_DRIVER_ASSIGN)
 
   try {
     return await prisma.deliveryPerson.findMany({
@@ -54,7 +55,7 @@ export async function createDeliveryPerson(data: {
   storeId?: string
 }) {
   const { user, targetStoreId } = await resolveDeliveryContext(data.storeId)
-  await requirePermission(toSecurityUser(user), 'delivery.settings')
+  await requirePermission(toSecurityUser(user), Permission.DELIVERY_SETTINGS)
 
   try {
     const person = await prisma.deliveryPerson.create({
@@ -75,7 +76,7 @@ export async function createDeliveryPerson(data: {
 
 export async function assignDelivery(orderId: string, deliveryPersonId: string) {
   const user = await requireAuth()
-  await requirePermission(toSecurityUser(user), 'delivery.driver_assign')
+  await requirePermission(toSecurityUser(user), Permission.DELIVERY_DRIVER_ASSIGN)
 
   try {
     const assignableStatuses: OrderStatus[] = [
@@ -132,7 +133,7 @@ export async function assignDelivery(orderId: string, deliveryPersonId: string) 
 
 export async function updateDeliveryStatus(deliveryPersonId: string, status: DeliveryStatus) {
   const user = await requireAuth()
-  await requirePermission(toSecurityUser(user), 'delivery.settings')
+  await requirePermission(toSecurityUser(user), Permission.DELIVERY_SETTINGS)
 
   try {
     const deliveryPerson = await prisma.deliveryPerson.findUnique({ where: { id: deliveryPersonId } })
@@ -152,7 +153,7 @@ export async function updateDeliveryStatus(deliveryPersonId: string, status: Del
 
 export async function getOrdersForDelivery(storeId: string) {
   const { user, targetStoreId } = await resolveDeliveryContext(storeId)
-  await requirePermission(toSecurityUser(user), 'delivery.orders_view')
+  await requirePermission(toSecurityUser(user), Permission.DELIVERY_ORDERS_VIEW)
 
   try {
     return await prisma.order.findMany({
